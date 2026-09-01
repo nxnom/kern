@@ -144,7 +144,8 @@ export function useKernTools(api: KernApi) {
                 `${sheet.cells.length} pairs, ${sheet.columns} columns, ` +
                 `reading left to right.\n\npair\tkern\toptical white\tnarrowest gap\n${table}\n\n` +
                 `Pairs of the same shape class should have similar optical white. ` +
-                `Look for the outliers.`,
+                `Look for the outliers, then apply your corrections in one set_kern ` +
+                `call — rendering alone changes nothing.`,
             },
           ],
         }
@@ -158,9 +159,11 @@ export function useKernTools(api: KernApi) {
     {
       name: 'render_pair',
       description:
-        'Render a single pair large, at a given kerning value, and return the image ' +
-        'with its measurements. Use after render_sheet when one pair needs a closer ' +
-        'look. Passing `kern` previews a value without applying it — use set_kern to apply.',
+        'PREVIEW ONLY — this changes nothing. Render a single pair large at a given ' +
+        'kerning value and return the image with its measurements. Use it after ' +
+        'render_sheet when one pair needs a closer look. Once you are happy with a ' +
+        'value you MUST call set_kern to actually apply it; previewing alone leaves ' +
+        'the font untouched.',
       annotations: READ_ONLY,
       inputSchema: {
         type: 'object',
@@ -195,12 +198,16 @@ export function useKernTools(api: KernApi) {
               type: 'text' as const,
               text: [
                 `pair: ${key}`,
-                `previewing: ${value} (applied value is ${state?.kern ?? 0})`,
+                `PREVIEW ONLY — nothing has been applied.`,
+                `previewing: ${value} (the applied value is still ${state?.kern ?? 0})`,
                 `original: ${state?.original ?? 0}`,
                 `optical white: ${metrics.opticalArea}`,
                 `narrowest gap: ${metrics.minGap}`,
                 metrics.collides ? 'WARNING: the outlines collide.' : '',
                 `class ${range.pairClass}, typical ${range.min} to ${range.max}`,
+                value !== (state?.kern ?? 0)
+                  ? `To keep this value, call set_kern with [{ pair: "${key}", kern: ${value} }].`
+                  : '',
               ]
                 .filter(Boolean)
                 .join('\n'),
@@ -345,7 +352,7 @@ export function useKernTools(api: KernApi) {
         },
         required: ['text'],
       } as const,
-      enabled: ready && api.hasChanges,
+      enabled: ready,
       execute: async ({ text, note }) => {
         const trimmed = text.slice(0, 60)
         const chars = [...trimmed]
@@ -369,7 +376,7 @@ export function useKernTools(api: KernApi) {
         )
       },
     },
-    [ready, api.hasChanges],
+    [ready],
   )
 
   // ---- compare_to_reference: only exists once there is work to score ---

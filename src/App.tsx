@@ -14,7 +14,7 @@ const SAMPLE_FONT = `${import.meta.env.BASE_URL}fonts/EBGaramond-Regular.ttf`
 /** How long tiles stay lit after the agent touches them. */
 const ACTIVE_MS = 2600
 
-interface LogLine { id: number; text: string; rejected: boolean }
+interface LogLine { id: number; at: number; text: string; rejected: boolean }
 
 export default function App() {
   const [loaded, setLoaded] = useState<LoadedFont | null>(null)
@@ -31,6 +31,7 @@ export default function App() {
   const fileInput = useRef<HTMLInputElement>(null)
   const activeTimer = useRef<number | undefined>(undefined)
   const logId = useRef(0)
+  const logBody = useRef<HTMLOListElement>(null)
   // Tools read state through this ref so they never close over a stale map,
   // and so registering them does not depend on every keystroke of state.
   const pairsRef = useRef(pairs)
@@ -39,6 +40,13 @@ export default function App() {
   useEffect(() => {
     setHasWebMCP(typeof document !== 'undefined' && 'modelContext' in document)
   }, [])
+
+  // Keep the newest line in view, both on open and as calls arrive.
+  useEffect(() => {
+    if (!logOpen) return
+    const el = logBody.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [logOpen, log])
 
   useEffect(() => {
     loadFontFromUrl(SAMPLE_FONT, 'bundled sample').then(adopt).catch((e: unknown) => setError(String(e)))
@@ -52,8 +60,11 @@ export default function App() {
     setError(null)
   }
 
+  // Appended, not prepended: the log reads top to bottom like a transcript.
   const log_ = useCallback((text: string, rejected = false) => {
-    setLog((prev) => [{ id: logId.current++, text, rejected }, ...prev].slice(0, 250))
+    setLog((prev) =>
+      [...prev, { id: logId.current++, at: Date.now(), text, rejected }].slice(-250),
+    )
   }, [])
 
   const highlight = useCallback((keys: string[]) => {
@@ -285,9 +296,12 @@ export default function App() {
           <b>{log.length}</b>
           <span className="chev">{logOpen ? '▾' : '▴'}</span>
         </button>
-        <ol className="drawer-body">
+        <ol className="drawer-body" ref={logBody}>
           {log.map((l) => (
-            <li key={l.id} className={l.rejected ? 'rejected' : ''}>{l.text}</li>
+            <li key={l.id} className={l.rejected ? 'rejected' : ''}>
+              <time>{new Date(l.at).toLocaleTimeString('en-GB')}</time>
+              {l.text}
+            </li>
           ))}
         </ol>
       </aside>
