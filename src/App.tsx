@@ -291,7 +291,7 @@ export default function App() {
       {loaded && specimen && (
         <section className="specimen">
           <div className="specimen-head">
-            <h2>Rhythm</h2>
+            <h2>Proof</h2>
             {specimen.text === specimen.fromAgent ? (
               <span className="muted">chosen by the agent</span>
             ) : (
@@ -336,7 +336,7 @@ export default function App() {
             />
           )}
 
-          <Specimen loaded={loaded} word={specimen.text} pairs={pairs} />
+          <Specimen loaded={loaded} word={specimen.text} pairs={pairs} shade={shade} />
           {specimen.note && specimen.text === specimen.fromAgent && (
             <p className="specimen-note">{specimen.note}</p>
           )}
