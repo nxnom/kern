@@ -225,7 +225,10 @@ export default function App() {
   return (
     <div className={`app ${log.length > 0 ? "has-drawer" : ""}`}>
       <header className="head">
-        <h1>Kern</h1>
+        <h1>
+          <img src={`${import.meta.env.BASE_URL}icon.svg`} alt="" width="30" height="30" />
+          Kern
+        </h1>
         <div className="head-right">
           <div className="font-id">
             <strong>

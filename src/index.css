@@ -466,3 +466,6 @@ button svg { flex: none; }
 }
 .chips button:hover:not(.on) { color: var(--fg); }
 
+
+h1 { display: flex; align-items: center; gap: 12px; }
+h1 img { border-radius: 7px; display: block; }
