@@ -269,17 +269,21 @@ button svg { flex: none; }
 .chips button:hover:not(.on) { color: var(--ink); }
 
 .proof { display: grid; gap: 20px; min-width: 0; }
-.proof-lines { display: grid; gap: 14px; min-width: 0; }
-.proof-line {
-  display: flex; align-items: baseline; gap: 12px; min-width: 0;
-  font-family: Georgia, "Times New Roman", serif; font-size: 40px; line-height: 1.3;
-}
+.proof-lines { display: grid; gap: 22px; min-width: 0; }
+/* The label sits above the line rather than beside it: alongside, a wrapped
+   line indents under the label and the two blocks no longer share a left edge,
+   which is the one thing a before/after has to do. */
+.proof-line { min-width: 0; }
 .proof-tag {
+  display: block; margin-bottom: 6px;
   font-family: var(--mono); font-size: 10px; text-transform: uppercase;
-  letter-spacing: .08em; color: var(--graphite); width: 46px; flex: none;
+  letter-spacing: .08em; color: var(--graphite);
+}
+.proof-text {
+  display: block; min-width: 0;
+  font-family: Georgia, "Times New Roman", serif; font-size: 40px; line-height: 1.32;
 }
 .proof-line.original .proof-text { color: var(--ghost); }
-.proof-text { min-width: 0; }
 .proof-line .changed { box-shadow: inset 0 -2px 0 var(--blue-line); }
 
 .proof h3 {
@@ -402,7 +406,7 @@ button svg { flex: none; }
   .btn-label { display: none; }
   .toggle { padding: 5px 8px; }
   .grid { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); }
-  .proof-line { font-size: 28px; }
+  .proof-text { font-size: 28px; }
   .detail { gap: 22px; }
   .status.error { padding: 16px; }
   .status.error .fixes { grid-template-columns: 1fr; gap: 16px; }

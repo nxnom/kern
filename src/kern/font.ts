@@ -398,3 +398,41 @@ export function drawWord(
 
   return { dataUrl: canvas.toDataURL('image/png'), width, height }
 }
+
+/**
+ * White trapped by a well-spaced pair, used as the yardstick.
+ *
+ * An absolute optical area says nothing on its own: `AV` and `nn` trap very
+ * different amounts of white even when both are perfectly spaced. Reporting a
+ * raw number left the agent unable to tell a loose pair from a normal one, so
+ * every measurement is now given relative to a control.
+ *
+ * `HH` and `nn` are the controls type designers use, because their sidebearings
+ * are even and vertical — the gap between them is what "normal" looks like.
+ */
+const controlCache = new WeakMap<opentype.Font, { caps: number; lower: number }>()
+
+export function controlWhite(lf: LoadedFont): { caps: number; lower: number } {
+  const cached = controlCache.get(lf.font)
+  if (cached) return cached
+  const measure = (a: string, b: string) => {
+    try {
+      return renderPair(lf, a, b, 0).metrics.opticalArea
+    } catch {
+      return 0
+    }
+  }
+  const control = { caps: measure('H', 'H'), lower: measure('n', 'n') }
+  controlCache.set(lf.font, control)
+  return control
+}
+
+/**
+ * How much more white this pair traps than a control pair, as a multiple.
+ * 1.0 is normal; 2.5 means two and a half times the gap a reader expects.
+ */
+export function relativeWhite(lf: LoadedFont, left: string, area: number): number {
+  const control = controlWhite(lf)
+  const reference = /[A-Z]/.test(left) ? control.caps : control.lower
+  return reference > 0 ? area / reference : 0
+}

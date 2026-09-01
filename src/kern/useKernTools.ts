@@ -1,6 +1,6 @@
 import { useWebMCPTool } from './useWebMCPTool'
 import type { LoadedFont } from './font'
-import { drawPair, renderPair } from './font'
+import { drawPair, relativeWhite, renderPair } from './font'
 import { drawSheet } from './sheet'
 import { typicalRange } from './pairs'
 import type { PairState, PairStatus } from './state'
@@ -33,6 +33,15 @@ const READ_ONLY = { readOnlyHint: true }
 let previewsSinceApply = 0
 export function resetPreviewCount() {
   previewsSinceApply = 0
+}
+
+/** Plain-language reading of the control ratio. */
+function verdict(rel: number): string {
+  if (rel >= 1.8) return 'much too loose'
+  if (rel >= 1.4) return 'loose'
+  if (rel >= 1.15) return 'slightly loose'
+  if (rel >= 0.8) return 'ok'
+  return 'tight'
 }
 
 /** Appended to read tools so progress and the next step are always in view. */
@@ -128,7 +137,7 @@ export function useKernTools(api: KernApi) {
             description: 'Which pairs to pull when `pairs` is omitted.',
           },
           offset: { type: 'number', description: 'Skip this many, for paging.' },
-          limit: { type: 'number', description: 'How many to show. Default 16, max 24.' },
+          limit: { type: 'number', description: 'How many to show. Default 17, max 24.' },
           columns: { type: 'number', description: 'Sheet columns. Default 4.' },
         },
       } as const,
@@ -148,7 +157,7 @@ export function useKernTools(api: KernApi) {
           )
         }
         const start = Math.max(0, offset ?? 0)
-        const take = Math.min(24, Math.max(1, limit ?? 16))
+        const take = Math.min(24, Math.max(1, limit ?? 17))
         chosen = chosen.slice(start, start + take)
 
         if (!chosen.length) return text_('No pairs match that filter.')
@@ -161,13 +170,21 @@ export function useKernTools(api: KernApi) {
         api.highlight(chosen.map((p) => p.key))
         api.log(`sheet · ${chosen.length} pairs (${chosen[0].key}…${chosen.at(-1)!.key})`)
 
-        const table = sheet.cells
+        const rows = sheet.cells.map((c) => ({
+          c,
+          rel: relativeWhite(font!, c.left, c.metrics.opticalArea),
+        }))
+        const table = rows
           .map(
-            (c) =>
-              `${c.left}${c.right}\t${c.kern}\twhite ${c.metrics.opticalArea}` +
-              `\tgap ${c.metrics.minGap}${c.metrics.collides ? '\tCOLLIDES' : ''}`,
+            ({ c, rel }) =>
+              `${c.left}${c.right}\t${c.kern}\t${rel.toFixed(2)}x` +
+              `\t${verdict(rel)}${c.metrics.collides ? '\tCOLLIDES' : ''}`,
           )
           .join('\n')
+        const worst = [...rows]
+          .sort((a, b) => b.rel - a.rel)
+          .slice(0, 5)
+          .filter(({ rel }) => rel > 1.35)
 
         return {
           content: [
@@ -176,10 +193,18 @@ export function useKernTools(api: KernApi) {
               type: 'text' as const,
               text:
                 `${sheet.cells.length} pairs, ${sheet.columns} columns, ` +
-                `reading left to right.\n\npair\tkern\toptical white\tnarrowest gap\n${table}\n\n` +
-                `Pairs of the same shape class should have similar optical white. ` +
-                `Look for the outliers, then apply your corrections in one set_kern ` +
-                `call.\n\n${progressLine(api.getPairs())}`,
+                `reading left to right.\n\n` +
+                `The ratio is this pair's trapped white divided by a control ` +
+                `pair's (HH for caps, nn for lowercase). 1.00x is what a reader ` +
+                `expects. Anything above about 1.4x is loose and wants kerning; ` +
+                `below 0.8x is too tight.\n\n` +
+                `pair\tkern\tratio\tverdict\n${table}\n\n` +
+                (worst.length
+                  ? `Worst first: ${worst
+                      .map(({ c, rel }) => `${c.left}${c.right} (${rel.toFixed(2)}x)`)
+                      .join(', ')}. Start there.\n\n`
+                  : `Nothing here is far from the control.\n\n`) +
+                progressLine(api.getPairs()),
             },
           ],
         }
@@ -241,7 +266,8 @@ export function useKernTools(api: KernApi) {
                   : `PREVIEW ONLY — nothing has been applied.`,
                 `previewing: ${value} (the applied value is still ${state?.kern ?? 0})`,
                 `original: ${state?.original ?? 0}`,
-                `optical white: ${metrics.opticalArea}`,
+                `trapped white: ${relativeWhite(font!, left, metrics.opticalArea).toFixed(2)}x ` +
+                  `a control pair (1.00x is normal, above 1.4x is loose)`,
                 `narrowest gap: ${metrics.minGap}`,
                 metrics.collides ? 'WARNING: the outlines collide.' : '',
                 `class ${range.pairClass}, typical ${range.min} to ${range.max}`,
