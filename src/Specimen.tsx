@@ -38,11 +38,25 @@ export function Specimen({
     return out
   }, [chars, pairs])
 
+  // Underlining every gap says nothing. The mark only earns its place when it
+  // separates the pairs that moved from the pairs that did not — which is true
+  // of running text, and false of a line built purely from changed pairs.
+  const distinct = new Set(
+    chars.slice(0, -1).map((ch, i) => pairKey(ch, chars[i + 1])),
+  ).size
+  const markChanged = changed.length < distinct
+
   return (
     <div className="proof">
       <div className="proof-lines">
         <Line loaded={loaded} chars={chars} pairs={pairs} which="original" />
-        <Line loaded={loaded} chars={chars} pairs={pairs} which="kern" />
+        <Line
+          loaded={loaded}
+          chars={chars}
+          pairs={pairs}
+          which="kern"
+          markChanged={markChanged}
+        />
       </div>
 
       {changed.length === 0 ? (
@@ -95,11 +109,13 @@ function Line({
   chars,
   pairs,
   which,
+  markChanged = false,
 }: {
   loaded: LoadedFont
   chars: string[]
   pairs: Map<string, PairState>
   which: 'original' | 'kern'
+  markChanged?: boolean
 }) {
   return (
     <div className={`proof-line ${which}`}>
@@ -108,7 +124,8 @@ function Line({
         {chars.map((ch, i) => {
           const next = chars[i + 1]
           const state = next ? pairs.get(pairKey(ch, next)) : undefined
-          const moved = which === 'kern' && state && state.kern !== state.original
+          const moved =
+            markChanged && which === 'kern' && state && state.kern !== state.original
           return (
             <span
               key={`${ch}-${i}`}

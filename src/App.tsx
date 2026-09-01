@@ -9,7 +9,7 @@ import { PairGrid } from './PairGrid'
 import { Section } from './Section'
 import { Specimen } from './Specimen'
 import type { LoadedFont } from './kern/font'
-import { loadFontFromBuffer, loadFontFromUrl } from './kern/font'
+import { installFontFace, loadFontFromBuffer, loadFontFromUrl } from './kern/font'
 import type { PairState } from './kern/state'
 import { initialPairs, pairKey } from './kern/state'
 import { useWebMCPSupport } from './kern/useWebMCPSupport'
@@ -82,6 +82,13 @@ export default function App() {
       .catch((e: unknown) => setError(String(e)))
   }, [])
 
+  // Hand the loaded face to CSS, so the proof lines are set in the font being
+  // kerned rather than in a stand-in serif.
+  useEffect(() => {
+    if (!loaded) return
+    return installFontFace(loaded.buffer)
+  }, [loaded])
+
   function adopt(lf: LoadedFont) {
     setLoaded(lf)
     setPairs(initialPairs(lf))
@@ -104,44 +111,54 @@ export default function App() {
   }, [])
 
   /** The single write path. Rejects per pair so one bad value cannot block a batch. */
+  /**
+   * The single write path.
+   *
+   * Everything is computed from the ref before the state call, not inside the
+   * updater. React may run an updater more than once — twice in development —
+   * so collecting results in there double-counted them, and the return value
+   * raced the state update, leaving the tool reporting on work it could not
+   * yet see.
+   */
   const applyKerns = useCallback(
     (updates: { left: string; right: string; value: number }[], force: boolean) => {
+      const current = pairsRef.current
+      const em = loadedRef.current?.unitsPerEm ?? 1000
       const applied: Applied[] = []
       const rejected: Rejected[] = []
-      const em = pairsRef.current.size ? loadedRef.current!.unitsPerEm : 1000
+      const next = new Map(current)
 
-      setPairs((prev) => {
-        const next = new Map(prev)
-        for (const u of updates) {
-          const key = pairKey(u.left, u.right)
-          const cur = next.get(key)
-          if (!cur) {
-            rejected.push({ key, value: u.value, reason: 'not a pair on this page' })
-            continue
-          }
-          const problem = force ? null : checkRange(u.left, u.right, u.value, em)
-          if (problem) {
-            rejected.push({ key, value: u.value, reason: problem })
-            next.set(key, {
-              ...cur,
-              status: 'rejected',
-              note: problem,
-              attempts: [...cur.attempts, { value: u.value, rejected: true, at: Date.now() }],
-            })
-            continue
-          }
-          applied.push({ key, from: cur.kern, to: u.value })
+      for (const u of updates) {
+        const key = pairKey(u.left, u.right)
+        const cur = next.get(key)
+        if (!cur) {
+          rejected.push({ key, value: u.value, reason: 'not a pair on this page' })
+          continue
+        }
+        const problem = force ? null : checkRange(u.left, u.right, u.value, em)
+        if (problem) {
+          rejected.push({ key, value: u.value, reason: problem })
           next.set(key, {
             ...cur,
-            kern: u.value,
-            status: 'adjusted',
-            note: undefined,
-            attempts: [...cur.attempts, { value: u.value, rejected: false, at: Date.now() }],
-            touchedAt: Date.now(),
+            status: 'rejected',
+            note: problem,
+            attempts: [...cur.attempts, { value: u.value, rejected: true, at: Date.now() }],
           })
+          continue
         }
-        return next
-      })
+        applied.push({ key, from: cur.kern, to: u.value })
+        next.set(key, {
+          ...cur,
+          kern: u.value,
+          status: 'adjusted',
+          note: undefined,
+          attempts: [...cur.attempts, { value: u.value, rejected: false, at: Date.now() }],
+          touchedAt: Date.now(),
+        })
+      }
+
+      pairsRef.current = next
+      setPairs(next)
 
       for (const a of applied) log_(`${a.key} · ${a.from} → ${a.to}`)
       for (const r of rejected) log_(`${r.key} · rejected: ${r.reason}`, true)

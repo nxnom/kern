@@ -436,3 +436,30 @@ export function relativeWhite(lf: LoadedFont, left: string, area: number): numbe
   const reference = /[A-Z]/.test(left) ? control.caps : control.lower
   return reference > 0 ? area / reference : 0
 }
+
+/** CSS family the proof lines are set in. */
+export const LOADED_FAMILY = 'KernLoadedFace'
+
+/**
+ * Make the loaded font available to CSS so the proof lines are set in the face
+ * being kerned rather than in a stand-in.
+ *
+ * The browser's own kerning has to be off: Kern applies its values as per-glyph
+ * margins, so leaving the font's GPOS active would apply them twice. Ligatures
+ * go too, or `f)` and `fi` fuse into a single glyph and the pair disappears.
+ */
+export function installFontFace(buffer: ArrayBuffer): () => void {
+  if (typeof FontFace === 'undefined') return () => {}
+  const face = new FontFace(LOADED_FAMILY, buffer)
+  let live = true
+  void face
+    .load()
+    .then(() => {
+      if (live) document.fonts.add(face)
+    })
+    .catch(() => {})
+  return () => {
+    live = false
+    document.fonts.delete(face)
+  }
+}
