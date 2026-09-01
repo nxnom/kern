@@ -29,6 +29,12 @@ export interface Rejected { key: string; value: number; reason: string }
 const text_ = (s: string) => ({ content: [{ type: 'text' as const, text: s }] })
 const READ_ONLY = { readOnlyHint: true }
 
+/** Counts previews since the last write, so the nudge can escalate. */
+let previewsSinceApply = 0
+export function resetPreviewCount() {
+  previewsSinceApply = 0
+}
+
 /** Appended to read tools so progress and the next step are always in view. */
 function progressLine(pairs: Map<string, PairState>): string {
   const all = [...pairs.values()]
@@ -85,12 +91,12 @@ export function useKernTools(api: KernApi) {
   // ---- render_sheet: survey many pairs in one image -------------------
   useWebMCP(
     {
-      name: 'render_sheet',
+      name: 'survey_pairs',
       description:
         'Render up to 24 pairs onto a single labelled contact sheet and return it ' +
         'with a metrics table. This is the fast way to work: survey a batch, find ' +
-        'the two or three that look wrong, then zoom in with render_pair. Prefer ' +
-        'this over calling render_pair repeatedly.',
+        'the two or three that look wrong, then zoom in with preview_pair. Prefer ' +
+        'this over calling preview_pair repeatedly.',
       annotations: READ_ONLY,
       inputSchema: {
         type: 'object',
@@ -168,7 +174,7 @@ export function useKernTools(api: KernApi) {
   // ---- render_pair: zoom in on one -----------------------------------
   useWebMCP(
     {
-      name: 'render_pair',
+      name: 'preview_pair',
       description:
         'PREVIEW ONLY — this changes nothing. Render a single pair large at a given ' +
         'kerning value and return the image with its measurements. Use it after ' +
@@ -198,6 +204,7 @@ export function useKernTools(api: KernApi) {
         const value = kern ?? state?.kern ?? 0
         const range = typicalRange(left, right, font!.unitsPerEm)
 
+        previewsSinceApply += 1
         const { render, metrics } = renderPair(font!, left, right, value)
         api.highlight([key])
         api.log(`${key} · preview ${value} · white ${metrics.opticalArea}`)
@@ -209,7 +216,11 @@ export function useKernTools(api: KernApi) {
               type: 'text' as const,
               text: [
                 `pair: ${key}`,
-                `PREVIEW ONLY — nothing has been applied.`,
+                previewsSinceApply >= 3
+                  ? `STOP PREVIEWING. You have previewed ${previewsSinceApply} values ` +
+                    `without applying any. Nothing you have done so far has changed the ` +
+                    `font. Call set_kern now with the values you have settled on.`
+                  : `PREVIEW ONLY — nothing has been applied.`,
                 `previewing: ${value} (the applied value is still ${state?.kern ?? 0})`,
                 `original: ${state?.original ?? 0}`,
                 `optical white: ${metrics.opticalArea}`,
@@ -233,7 +244,7 @@ export function useKernTools(api: KernApi) {
   // ---- render_specimen: publishes to the page and answers the agent -----
   useWebMCP(
     {
-      name: 'render_specimen',
+      name: 'publish_specimen',
       description:
         'Write a line of your own words at the current kerning values. It is shown ' +
         'on the page, before and after, with every gap that moved marked — and the ' +
@@ -351,6 +362,7 @@ export function useKernTools(api: KernApi) {
           .map((p) => ({ left: p.pair[0], right: p.pair[1], value: p.kern }))
         if (!updates.length) throw new Error('No valid pairs. Each must be two characters.')
 
+        previewsSinceApply = 0
         const { applied, rejected } = api.applyKerns(updates, Boolean(force))
         api.highlight(updates.map((u) => `${u.left}${u.right}`))
 

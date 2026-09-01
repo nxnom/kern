@@ -60,8 +60,17 @@ function PairTile({
 
   // Keep the pair the agent is working on in view.
   // Only the first of a batch scrolls, or sixteen tiles fight over the viewport.
+  // `nearest` was leaving tiles under the fixed log drawer, or judging a tile
+  // "visible" when only a sliver of it was, so centre it and only when it is
+  // genuinely off screen.
   useEffect(() => {
-    if (lead) ref.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    if (!lead) return
+    const el = ref.current
+    if (!el) return
+    const box = el.getBoundingClientRect()
+    const DRAWER_H = 56
+    const fullyVisible = box.top >= 0 && box.bottom <= window.innerHeight - DRAWER_H
+    if (!fullyVisible) el.scrollIntoView({ block: 'center', behavior: 'smooth' })
   }, [lead])
 
   const delta = pair.kern - pair.original
