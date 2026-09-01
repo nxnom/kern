@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { PairDetail } from './PairDetail'
 import { PairGrid } from './PairGrid'
 import { Specimen } from './Specimen'
 import type { LoadedFont } from './kern/font'
-import { drawPair, loadFontFromBuffer, loadFontFromUrl } from './kern/font'
-import { typicalRange } from './kern/pairs'
+import { loadFontFromBuffer, loadFontFromUrl } from './kern/font'
 import type { PairState } from './kern/state'
 import { initialPairs, pairKey } from './kern/state'
 import { buildFeatureFile, buildKernedFont, download } from './kern/export'
@@ -96,7 +96,7 @@ export default function App() {
               ...cur,
               status: 'rejected',
               note: problem,
-              attempts: [...cur.attempts, u.value],
+              attempts: [...cur.attempts, { value: u.value, rejected: true, at: Date.now() }],
             })
             continue
           }
@@ -106,7 +106,7 @@ export default function App() {
             kern: u.value,
             status: 'adjusted',
             note: undefined,
-            attempts: [...cur.attempts, u.value],
+            attempts: [...cur.attempts, { value: u.value, rejected: false, at: Date.now() }],
             touchedAt: Date.now(),
           })
         }
@@ -259,25 +259,8 @@ export default function App() {
         />
       )}
 
-      {loaded && detail && (
-        <section className="detail">
-          {detailChanged && (
-            <figure>
-              <img src={drawPair(loaded, detail.left, detail.right, detail.original, 140, shade)} alt="before" />
-              <figcaption>before · {detail.original}</figcaption>
-            </figure>
-          )}
-          <figure className={detailChanged ? 'changed' : ''}>
-            <img src={drawPair(loaded, detail.left, detail.right, detail.kern, 140, shade)} alt={detail.key} />
-            <figcaption>{detailChanged ? `after · ${detail.kern}` : `${detail.key} · ${detail.kern}`}</figcaption>
-          </figure>
-          <dl>
-            <dt>class</dt>
-            <dd>{typicalRange(detail.left, detail.right, loaded.unitsPerEm).pairClass}</dd>
-            {detailChanged && (<><dt>change</dt><dd>{detail.kern - detail.original}</dd></>)}
-            <dt>attempts</dt><dd>{detail.attempts.length}</dd>
-          </dl>
-        </section>
+      {loaded && detail && (detail.attempts.length > 0 || detailChanged) && (
+        <PairDetail loaded={loaded} pair={detail} shade={shade} />
       )}
 
       {loaded && specimen && (

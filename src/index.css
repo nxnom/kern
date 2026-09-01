@@ -110,20 +110,6 @@ button:hover { border-color: var(--muted); }
   background: #fffbeb; z-index: 1;
 }
 
-/* --- detail ---------------------------------------------------------- */
-.detail {
-  display: flex; align-items: center; gap: 28px; flex-wrap: wrap;
-  padding: 20px 24px; background: #fff;
-  border: 1px solid var(--line); border-radius: 10px; margin-bottom: 24px;
-}
-.detail img { max-height: 150px; }
-.detail dl {
-  display: grid; grid-template-columns: auto auto; gap: 2px 16px;
-  margin: 0; font-size: 13px;
-}
-.detail dt { color: var(--muted); }
-.detail dd { margin: 0; font-variant-numeric: tabular-nums; font-weight: 600; }
-
 /* --- specimen -------------------------------------------------------- */
 
 /* --- header ---------------------------------------------------------- */
@@ -136,16 +122,6 @@ button:hover { border-color: var(--muted); }
 .bar .stats { margin-left: 0; margin-right: auto; }
 
 /* --- before / after -------------------------------------------------- */
-.detail figure { margin: 0; text-align: center; }
-.detail figure img {
-  max-height: 120px; display: block; padding: 6px 10px;
-  border: 1px dashed var(--line); border-radius: 6px;
-}
-.detail figure.changed img { border-color: #86efac; border-style: solid; background: #f0fdf4; }
-.detail figcaption {
-  font-size: 11px; color: var(--muted); margin-top: 6px;
-  text-transform: uppercase; letter-spacing: .06em; font-variant-numeric: tabular-nums;
-}
 
 /* --- specimen: before over after ------------------------------------- */
 .specimen {
@@ -226,3 +202,63 @@ button:hover { border-color: var(--muted); }
 
 .drawer-body li { display: flex; gap: 12px; align-items: baseline; }
 .drawer-body time { color: #b5b0a4; font-size: 12px; flex: none; }
+
+/* --- pair detail: what the agent tried -------------------------------- */
+.detail {
+  display: flex; gap: 32px; align-items: center; flex-wrap: wrap;
+  padding: 20px 24px; background: #fff;
+  border: 1px solid var(--line); border-radius: 10px; margin-bottom: 24px;
+}
+.detail-renders { display: flex; gap: 18px; align-items: flex-end; }
+.detail figure { margin: 0; text-align: center; }
+.detail figure img {
+  max-height: 120px; display: block; padding: 6px 10px;
+  border: 1px dashed var(--line); border-radius: 6px;
+}
+.detail figure.changed img { border-color: #86efac; border-style: solid; background: #f6fef9; }
+.detail figcaption {
+  font-size: 11px; color: var(--muted); margin-top: 6px;
+  text-transform: uppercase; letter-spacing: .06em; font-variant-numeric: tabular-nums;
+}
+.detail-body { flex: 1; min-width: 260px; }
+.detail-body h3 {
+  margin: 0 0 14px; font-size: 15px;
+  font-family: Georgia, serif; font-weight: 400;
+}
+.detail-body h3 .muted { font-family: inherit; font-size: 12px; margin-left: 8px; }
+
+.range-track {
+  position: relative; height: 8px; border-radius: 4px;
+  background: linear-gradient(90deg, #fef3c7, #d1fae5, #fef3c7);
+  border: 1px solid var(--line);
+}
+.range-mark {
+  position: absolute; top: 50%; width: 2px; height: 18px;
+  transform: translate(-1px, -50%); border-radius: 1px;
+}
+.range-mark.current { background: #16150f; width: 3px; height: 22px; }
+.range-mark.original { background: #b8b3a6; }
+.range-mark.rejected { background: var(--accent); opacity: .55; }
+.range-ends {
+  display: flex; justify-content: space-between; margin-top: 5px;
+  font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums;
+}
+
+.trail {
+  list-style: none; display: flex; flex-wrap: wrap; gap: 6px;
+  margin: 16px 0 0; padding: 0; font-size: 13px; font-variant-numeric: tabular-nums;
+}
+.trail li {
+  padding: 3px 9px; border: 1px solid var(--line);
+  border-radius: 20px; background: #faf9f6;
+}
+.trail li:last-child { border-color: var(--fg); font-weight: 600; background: #fff; }
+.trail li.rejected {
+  color: var(--accent); border-color: #fecaca; background: #fef2f2;
+  text-decoration: line-through; font-weight: 400;
+}
+.trail li.rejected:last-child { border-color: #fecaca; }
+.trail .x {
+  margin-left: 6px; font-size: 10px; text-transform: uppercase;
+  letter-spacing: .05em; text-decoration: none; display: inline-block;
+}

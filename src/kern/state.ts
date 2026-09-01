@@ -9,6 +9,12 @@ export type PairStatus =
   | 'rejected'    // the agent's last proposal was out of range
   | 'overridden'  // the human changed it after the agent
 
+export interface Attempt {
+  value: number
+  rejected: boolean
+  at: number
+}
+
 export interface PairState {
   key: string
   left: string
@@ -17,8 +23,8 @@ export interface PairState {
   original: number
   kern: number
   status: PairStatus
-  /** Every value tried, in order. Length - 1 is the iteration count. */
-  attempts: number[]
+  /** Every value tried, in order, so the panel can show how it converged. */
+  attempts: Attempt[]
   note?: string
   touchedAt?: number
 }
