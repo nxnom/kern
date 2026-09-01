@@ -278,8 +278,9 @@ export function useKernTools(api: KernApi) {
           text: {
             type: 'string',
             description:
-              'The line to set, up to about 40 characters. Pick it yourself — ' +
-              'something that exercises the pairs you worked on.',
+              'A readable sentence or phrase, up to about 60 characters, chosen so ' +
+              'that it contains the pairs you changed. Real language, not a list of ' +
+              'letter pairs.',
           },
           note: {
             type: 'string',

@@ -32,10 +32,14 @@ export function Specimen({
     const available = box.current?.clientWidth
     const line = widest.current
     if (!available || !line) return
-    // Measure at the base size so the result never depends on the last fit.
+    // Measure at the base size so the result never depends on the last fit,
+    // then put back exactly what was there. Clearing it instead would wipe the
+    // inline style React set, leaving this line unsized until the next render —
+    // which is why the before line was rendering smaller than the after line.
+    const previous = line.style.fontSize
     line.style.fontSize = `${BASE_SIZE}px`
     const natural = line.scrollWidth
-    line.style.fontSize = ''
+    line.style.fontSize = previous
     if (!natural) return
     const scaled = Math.floor(BASE_SIZE * Math.min(1, available / natural))
     setSize(Math.max(MIN_SIZE, scaled))

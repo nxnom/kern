@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CopyPrompt } from './CopyPrompt'
 import { DownloadMenu } from './DownloadMenu'
-import { IconChevron, IconContrast, IconUpload } from './Icons'
+import { IconChevron, IconContrast, IconEdit, IconUndo, IconUpload } from './Icons'
 import { Toggle } from './Toggle'
 import { PairDetail } from './PairDetail'
 import { PairGrid } from './PairGrid'
@@ -34,6 +34,7 @@ export default function App() {
   >(null)
   const [log, setLog] = useState<LogLine[]>([])
   const [logOpen, setLogOpen] = useState(false)
+  const [editingSpecimen, setEditingSpecimen] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const fileInput = useRef<HTMLInputElement>(null)
@@ -282,26 +283,37 @@ export default function App() {
         <section className="specimen">
           <div className="specimen-head">
             <h2>Proof</h2>
-            <input
-              value={specimen.text}
-              aria-label="Specimen text"
-              spellCheck={false}
-              onChange={(e) =>
-                setSpecimenState({ ...specimen, text: e.target.value })
-              }
-            />
             {specimen.text === specimen.fromAgent ? (
-              <span className="muted">chosen by the agent · edit it if you like</span>
+              <span className="muted">chosen by the agent</span>
             ) : (
               <button
-                onClick={() =>
-                  setSpecimenState({ ...specimen, text: specimen.fromAgent })
-                }
+                onClick={() => setSpecimenState({ ...specimen, text: specimen.fromAgent })}
               >
+                <IconUndo />
                 Reset to the agent’s
               </button>
             )}
+            <button
+              className={editingSpecimen ? 'on' : ''}
+              onClick={() => setEditingSpecimen((v) => !v)}
+            >
+              <IconEdit />
+              {editingSpecimen ? 'Done' : 'Edit'}
+            </button>
           </div>
+
+          {editingSpecimen && (
+            <textarea
+              className="specimen-edit"
+              value={specimen.text}
+              rows={2}
+              autoFocus
+              spellCheck={false}
+              aria-label="Specimen text"
+              onChange={(e) => setSpecimenState({ ...specimen, text: e.target.value })}
+            />
+          )}
+
           <Specimen loaded={loaded} word={specimen.text} pairs={pairs} showBefore />
           {specimen.note && specimen.text === specimen.fromAgent && (
             <p className="specimen-note">{specimen.note}</p>
