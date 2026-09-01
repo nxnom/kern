@@ -23,10 +23,9 @@ export function Specimen({
   pairs: Map<string, PairState>
   shade: boolean
 }) {
-  const chars = [...word]
-
   // Only the pairs in this line that actually moved, in reading order,
   // without repeats.
+  const chars = useMemo(() => [...word], [word])
   const changed = useMemo(() => {
     const seen = new Set<string>()
     const out: PairState[] = []

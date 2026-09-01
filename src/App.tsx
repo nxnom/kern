@@ -191,7 +191,7 @@ export default function App() {
       // Record it as an option; "Changed pairs" stays the default view.
       setSpecimen: (text: string) => setAgentLine(text),
     }),
-    [loaded, applyKerns, highlight, log_, hasChanges],
+    [loaded, applyKerns, highlight, log_],
   )
   useKernTools(api)
   const registered = registeredToolNames(loaded !== null)
