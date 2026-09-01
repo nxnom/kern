@@ -132,9 +132,6 @@ button svg { flex: none; }
   padding: 18px 22px; background: #fff; border: 1px solid var(--line);
   border-radius: 10px; margin-bottom: 28px; display: grid; gap: 18px;
 }
-.specimen-pair { display: grid; gap: 2px; }
-.word.original { color: #b8b3a6; }
-.word.kern .changed { color: var(--fg); }
 
 /* --- log drawer ------------------------------------------------------ */
 .drawer {
@@ -169,7 +166,6 @@ button svg { flex: none; }
 .drawer-body li.rejected { color: var(--accent); }
 
 /* Word tag is hidden before the agent runs, so keep the line flush. */
-.word:not(:has(.word-tag)) { padding-left: 0; }
 .tile.active:not(.lead) { box-shadow: 0 0 0 2px #fde68a; transform: none; }
 
 .font-id { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.25; }
@@ -191,9 +187,6 @@ button svg { flex: none; }
 }
 .specimen h2 .muted { text-transform: none; letter-spacing: 0; font-weight: 400; }
 .specimen-note { margin: 14px 0 0; font-size: 13px; color: var(--muted); max-width: 60ch; }
-.word.kern .changed {
-  color: var(--fg); box-shadow: inset 0 -2px 0 rgba(245, 158, 11, .55);
-}
 
 .drawer-body li { display: flex; gap: 12px; align-items: baseline; }
 .drawer-body time { color: #b5b0a4; font-size: 12px; flex: none; }
@@ -390,38 +383,6 @@ button svg { flex: none; }
   border: 1px solid var(--line); border-radius: 6px;
 }
 
-/* --- specimen lines, fitted to the box -------------------------------- */
-.specimen-pair { display: grid; gap: 10px; min-width: 0; }
-.word { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
-.word-tag {
-  font-family: ui-sans-serif, system-ui, sans-serif; font-size: 10px;
-  text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
-  width: 50px; flex: none;
-}
-.word-line {
-  font-family: Georgia, "Times New Roman", serif; font-size: 40px;
-  line-height: 1.28; min-width: 0; /* wraps rather than shrinking */
-}
-
-.specimen-head {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px;
-}
-.specimen-head h2 { margin: 0; }
-.specimen-head .muted { font-size: 12px; }
-
-/* Tool-entry lines read as headers above the detail they produced. */
-.drawer-body li.call { font-weight: 600; }
-.drawer-body li:not(.call) { padding-left: 12px; color: var(--muted); }
-
-.specimen-head h2 { margin-right: 2px; }
-.specimen-head button.on { border-color: var(--muted); background: #f5f3ee; }
-.specimen-edit {
-  font: inherit; font-size: 14px; width: 100%; padding: 9px 12px;
-  border: 1px solid var(--muted); border-radius: 8px; background: #fff;
-  color: var(--fg); resize: vertical; margin-bottom: 16px;
-}
-.specimen-edit:focus { outline: none; border-color: var(--fg); }
-
 /* --- narrow windows ---------------------------------------------------- */
 @media (max-width: 720px) {
   .app { padding: 24px 16px 60px; }
@@ -446,30 +407,34 @@ button svg { flex: none; }
   .detail { gap: 18px; padding: 16px; }
   .detail-renders { gap: 12px; }
   .specimen { padding: 16px; }
-  .word-line { font-size: 28px; }
-  .word-tag { width: 42px; }
-  .status.error { padding: 14px 16px; }
+      .status.error { padding: 14px 16px; }
   .status.error .fixes { grid-template-columns: 1fr; gap: 14px; }
   .menu-list { min-width: 210px; }
 }
 
-/* --- proof modes ------------------------------------------------------- */
+
+/* --- rhythm proof ------------------------------------------------------ */
+.rhythm { display: grid; gap: 14px; }
+.rhythm-row { display: flex; align-items: flex-start; gap: 14px; min-width: 0; }
+.rhythm-tag {
+  flex: none; width: 74px; display: grid; gap: 1px; padding-top: 4px;
+  font-size: 10px; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--muted);
+}
+.rhythm-tag b {
+  font-size: 17px; letter-spacing: 0; color: var(--fg);
+  font-variant-numeric: tabular-nums; text-transform: none;
+}
+.rhythm-row.muted-row .rhythm-tag b { color: var(--muted); }
+.rhythm-tag em { font-style: normal; font-size: 10px; }
+.rhythm-img { overflow-x: auto; min-width: 0; }
+.rhythm-img img { display: block; max-width: none; height: auto; }
+.rhythm-note {
+  margin: 4px 0 0 88px; font-size: 13px; color: var(--muted); max-width: 62ch;
+}
+.rhythm-note b { color: var(--fg); }
 .segmented { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; }
 .segmented button { border: 0; border-radius: 0; background: transparent; }
-.segmented button:first-child { border-radius: 6px 0 0 6px; }
-.segmented button:last-child { border-radius: 0 6px 6px 0; }
 .segmented button.on { background: var(--fg); color: #fff; }
-
-/* Overlay draws both lines from one origin, so the drift is visible. */
-.specimen-pair.is-overlay { position: relative; display: block; min-height: 3.2em; }
-.specimen-pair.is-overlay .word { position: absolute; inset: 0; }
-.specimen-pair.is-overlay .word.original { color: #d9d3c5; }
-.specimen-pair.is-overlay .word.kern { color: var(--fg); }
-.specimen-pair.is-overlay .word.kern .changed { box-shadow: none; }
-.specimen-pair.is-overlay .specimen-delta { position: absolute; top: 100%; }
-
-.specimen-delta { margin: 6px 0 0 58px; font-size: 12px; color: var(--muted); }
-.specimen-delta b { color: var(--fg); font-variant-numeric: tabular-nums; }
-
 .proof-presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
 .proof-presets button { font-size: 12px; padding: 4px 9px; }

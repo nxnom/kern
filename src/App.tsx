@@ -5,7 +5,6 @@ import { IconChevron, IconContrast, IconEdit, IconUndo, IconUpload } from './Ico
 import { Toggle } from './Toggle'
 import { PairDetail } from './PairDetail'
 import { PairGrid } from './PairGrid'
-import type { SpecimenMode } from './Specimen'
 import { Specimen } from './Specimen'
 import type { LoadedFont } from './kern/font'
 import { loadFontFromBuffer, loadFontFromUrl } from './kern/font'
@@ -45,7 +44,6 @@ export default function App() {
   const [log, setLog] = useState<LogLine[]>([])
   const [logOpen, setLogOpen] = useState(false)
   const [editingSpecimen, setEditingSpecimen] = useState(false)
-  const [specimenMode, setSpecimenMode] = useState<SpecimenMode>('stacked')
   const [error, setError] = useState<string | null>(null)
 
   const fileInput = useRef<HTMLInputElement>(null)
@@ -293,7 +291,7 @@ export default function App() {
       {loaded && specimen && (
         <section className="specimen">
           <div className="specimen-head">
-            <h2>Proof</h2>
+            <h2>Rhythm</h2>
             {specimen.text === specimen.fromAgent ? (
               <span className="muted">chosen by the agent</span>
             ) : (
@@ -304,21 +302,6 @@ export default function App() {
                 Reset to the agent’s
               </button>
             )}
-            <div className="segmented">
-              <button
-                className={specimenMode === 'stacked' ? 'on' : ''}
-                onClick={() => setSpecimenMode('stacked')}
-              >
-                Stacked
-              </button>
-              <button
-                className={specimenMode === 'overlay' ? 'on' : ''}
-                onClick={() => setSpecimenMode('overlay')}
-                title="Draw before and after from one origin, so small shifts show"
-              >
-                Overlay
-              </button>
-            </div>
             <button
               className={editingSpecimen ? 'on' : ''}
               onClick={() => setEditingSpecimen((v) => !v)}
@@ -353,13 +336,7 @@ export default function App() {
             />
           )}
 
-          <Specimen
-            loaded={loaded}
-            word={specimen.text}
-            pairs={pairs}
-            showBefore
-            mode={specimenMode}
-          />
+          <Specimen loaded={loaded} word={specimen.text} pairs={pairs} />
           {specimen.note && specimen.text === specimen.fromAgent && (
             <p className="specimen-note">{specimen.note}</p>
           )}

@@ -1,114 +1,88 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useMemo } from 'react'
 import type { LoadedFont } from './kern/font'
+import { drawRhythm } from './kern/rhythm'
 import type { PairState } from './kern/state'
 import { pairKey } from './kern/state'
 
-export type SpecimenMode = 'stacked' | 'overlay'
-
 /**
- * The agent's proof line, drawn twice at the same size.
+ * Before and after, shown as rhythm rather than as text.
  *
- * Stacked lines hide the work: a typical correction is a few percent of the
- * line, which the eye cannot catch across a vertical gap. Overlay draws both
- * from one origin so the drift is unmissable, and the width delta puts a
- * number on it.
+ * Two lines of kerned and unkerned text look almost identical, because the
+ * correction is a couple of percent of the width. What actually changes is the
+ * evenness of the white between letters — so draw that: a bar under each gap,
+ * and the coefficient of variation across them. Unkerned text is visibly
+ * jagged; kerned text levels out.
  */
 export function Specimen({
   loaded,
   word,
   pairs,
-  showBefore,
-  mode,
 }: {
   loaded: LoadedFont
   word: string
   pairs: Map<string, PairState>
-  showBefore: boolean
-  mode: SpecimenMode
 }) {
-  const beforeRef = useRef<HTMLDivElement>(null)
-  const afterRef = useRef<HTMLDivElement>(null)
-  const [delta, setDelta] = useState<{ px: number; pct: number } | null>(null)
+  const { before, after } = useMemo(() => {
+    const at = (which: 'original' | 'kern') => (l: string, r: string) =>
+      pairs.get(pairKey(l, r))?.[which] ?? 0
+    return {
+      before: drawRhythm(loaded, word, at('original'), '#c9c2b2'),
+      after: drawRhythm(loaded, word, at('kern'), '#16150f'),
+    }
+  }, [loaded, word, pairs])
 
-  useLayoutEffect(() => {
-    const b = beforeRef.current?.scrollWidth
-    const a = afterRef.current?.scrollWidth
-    if (!b || !a) return setDelta(null)
-    setDelta({ px: Math.round(a - b), pct: ((a - b) / b) * 100 })
-  }, [word, pairs, mode, loaded])
-
-  const overlay = showBefore && mode === 'overlay'
+  const drop = before.evenness
+    ? ((before.evenness - after.evenness) / before.evenness) * 100
+    : 0
 
   return (
-    <div className={`specimen-pair ${overlay ? 'is-overlay' : ''}`}>
-      {showBefore && (
-        <Line
-          ref={beforeRef}
-          loaded={loaded}
-          word={word}
-          pairs={pairs}
-          which="original"
-          showTag={!overlay}
-        />
-      )}
-      <Line
-        ref={afterRef}
-        loaded={loaded}
-        word={word}
-        pairs={pairs}
-        which="kern"
-        showTag={showBefore && !overlay}
+    <div className="rhythm">
+      <Row
+        tag="before"
+        img={before.dataUrl}
+        evenness={before.evenness}
+        muted
       />
-      {showBefore && delta && delta.px !== 0 && (
-        <p className="specimen-delta">
-          {delta.px < 0 ? 'Tightened' : 'Loosened'} by{' '}
-          <b>{Math.abs(delta.px)}px</b> over this line —{' '}
-          <b>{Math.abs(delta.pct).toFixed(1)}%</b> of its width.
+      <Row tag="after" img={after.dataUrl} evenness={after.evenness} />
+      {Math.abs(drop) > 0.5 && (
+        <p className="rhythm-note">
+          {drop > 0 ? (
+            <>
+              The gaps are <b>{drop.toFixed(0)}% more even</b> than the font shipped.
+              Each bar is the white trapped in one gap; kerning levels them.
+            </>
+          ) : (
+            <>
+              The gaps are <b>{Math.abs(drop).toFixed(0)}% less even</b> than the font
+              shipped — worth a second look.
+            </>
+          )}
         </p>
       )}
     </div>
   )
 }
 
-function Line({
-  ref,
-  loaded,
-  word,
-  pairs,
-  which,
-  showTag = true,
+function Row({
+  tag,
+  img,
+  evenness,
+  muted,
 }: {
-  ref?: React.Ref<HTMLDivElement>
-  loaded: LoadedFont
-  word: string
-  pairs: Map<string, PairState>
-  which: 'original' | 'kern'
-  showTag?: boolean
+  tag: string
+  img: string
+  evenness: number
+  muted?: boolean
 }) {
-  const chars = [...word]
   return (
-    <div className={`word ${which}`}>
-      {showTag && (
-        <span className="word-tag">{which === 'original' ? 'before' : 'after'}</span>
-      )}
-      <div className="word-line" ref={ref}>
-        {chars.map((ch, i) => {
-          const next = chars[i + 1]
-          const state = next ? pairs.get(pairKey(ch, next)) : undefined
-          const k = state ? state[which] : 0
-          const changed =
-            which === 'kern' && state !== undefined && state.kern !== state.original
-          return (
-            <span
-              key={`${ch}-${i}`}
-              className={changed ? 'changed' : undefined}
-              style={{ marginRight: `${k / loaded.unitsPerEm}em` }}
-              title={changed ? `${state.key} moved ${state.kern - state.original}` : undefined}
-            >
-              {ch}
-            </span>
-          )
-        })}
+    <div className={`rhythm-row ${muted ? 'muted-row' : ''}`}>
+      <span className="rhythm-tag">
+        {tag}
+        <b>{(evenness * 100).toFixed(0)}%</b>
+        <em>uneven</em>
+      </span>
+      <div className="rhythm-img">
+        <img src={img} alt={`${tag} rhythm`} />
       </div>
     </div>
   )
