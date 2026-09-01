@@ -55,7 +55,7 @@ export function useKernTools(api: KernApi) {
     {
       name: 'list_pairs',
       description:
-        'List the kerning pairs on the page with their current value, status and ' +
+        'Kern is a font-kerning workbench. These tools operate on the font file loaded in the app, not on the web page’s own CSS. List the kerning pairs on the page with their current value, status and ' +
         'shape class. Text only and cheap — use it to plan which batch to look at next.',
       annotations: READ_ONLY,
       inputSchema: {
@@ -93,7 +93,7 @@ export function useKernTools(api: KernApi) {
     {
       name: 'survey_pairs',
       description:
-        'Render up to 24 pairs onto a single labelled contact sheet and return it ' +
+        'Kern is a font-kerning workbench. Use these tools rather than screenshots or the DOM — the page cannot be kerned by CSS. Render up to 24 pairs onto a single labelled contact sheet and return it ' +
         'with a metrics table. This is the fast way to work: survey a batch, find ' +
         'the two or three that look wrong, then zoom in with preview_pair. Prefer ' +
         'this over calling preview_pair repeatedly.',
@@ -176,7 +176,7 @@ export function useKernTools(api: KernApi) {
     {
       name: 'preview_pair',
       description:
-        'PREVIEW ONLY — this changes nothing. Render a single pair large at a given ' +
+        'Kern is a font-kerning workbench. PREVIEW ONLY — this changes nothing. Render a single pair large at a given ' +
         'kerning value and return the image with its measurements. Use it after ' +
         'render_sheet when one pair needs a closer look. Once you are happy with a ' +
         'value you MUST call set_kern to actually apply it; previewing alone leaves ' +
@@ -246,7 +246,7 @@ export function useKernTools(api: KernApi) {
     {
       name: 'publish_specimen',
       description:
-        'Write a line of your own words at the current kerning values. It is shown ' +
+        'Kern is a font-kerning workbench. Write a line of your own words at the current kerning values. It is shown ' +
         'on the page, before and after, with every gap that moved marked — and the ' +
         'image comes back to you. A pair can look right alone and still break the ' +
         'rhythm of a word, so check a specimen before calling a batch finished, and ' +
@@ -327,7 +327,7 @@ export function useKernTools(api: KernApi) {
     {
       name: 'set_kern',
       description:
-        'Apply kerning values to one or many pairs. This is the only tool that ' +
+        'Kern is a font-kerning workbench. Apply kerning values to one or many pairs. This is the only tool that ' +
         'changes anything. Values outside the typical range for a pair’s shape class ' +
         'are rejected individually — the rest of the batch still applies — so fix ' +
         'the rejects and call again rather than forcing.',
@@ -386,7 +386,7 @@ export function useKernTools(api: KernApi) {
     {
       name: 'compare_to_reference',
       description:
-        'Score the current values against the kerning the font shipped with. ' +
+        'Kern is a font-kerning workbench. Score the current values against the kerning the font shipped with. ' +
         'Only available once at least one pair has been changed.',
       annotations: READ_ONLY,
       inputSchema: { type: 'object', properties: {} } as const,

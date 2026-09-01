@@ -262,3 +262,9 @@ button:hover { border-color: var(--muted); }
   margin-left: 6px; font-size: 10px; text-transform: uppercase;
   letter-spacing: .05em; text-decoration: none; display: inline-block;
 }
+
+.idle { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.idle code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px;
+  background: #f4f2ec; padding: 3px 9px; border-radius: 5px; color: var(--fg);
+}

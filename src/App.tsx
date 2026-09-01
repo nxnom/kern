@@ -27,6 +27,7 @@ export default function App() {
   const [logOpen, setLogOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hasWebMCP, setHasWebMCP] = useState(false)
+  const [toolCount, setToolCount] = useState(0)
 
   const fileInput = useRef<HTMLInputElement>(null)
   const activeTimer = useRef<number | undefined>(undefined)
@@ -38,8 +39,17 @@ export default function App() {
   pairsRef.current = pairs
 
   useEffect(() => {
-    setHasWebMCP(typeof document !== 'undefined' && 'modelContext' in document)
-  }, [])
+    const mc = (document as unknown as { modelContext?: { getTools?: () => Promise<unknown[]> } })
+      .modelContext
+    setHasWebMCP(Boolean(mc))
+    // Show the live count so it is obvious the tools really did register.
+    if (!mc?.getTools) return
+    const read = () => void mc.getTools!().then((t) => setToolCount(t.length)).catch(() => {})
+    read()
+    const target = mc as unknown as EventTarget
+    target.addEventListener?.('toolchange', read)
+    return () => target.removeEventListener?.('toolchange', read)
+  }, [loaded])
 
   // Keep the newest line in view, both on open and as calls arrive.
   useEffect(() => {
@@ -243,8 +253,13 @@ export default function App() {
             {detail?.note && <span className="reason"> · {detail.note}</span>}
           </>
         ) : (
-          <span className="muted">
-            Idle. Ask your agent: “Survey the kerning on this page and fix what needs it.”
+          <span className="idle">
+            <span className="muted">Idle. Ask your agent:</span>
+            <code>Kern the font loaded in Kern, using its tools.</code>
+            <span className="muted">
+              {toolCount} tools registered · say “using its tools” so the agent reaches
+              for WebMCP instead of screenshotting the page
+            </span>
           </span>
         )}
       </section>
