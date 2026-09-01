@@ -19,7 +19,7 @@ Built for the [OpenAI WebMCP Challenge](https://webmcp.devpost.com/).
 Open the live URL in **the ChatGPT app's browser with GPT 5.6 or newer**, or in
 **Chrome 149+** with `chrome://flags/#enable-webmcp-testing` enabled, then say:
 
-> Survey the kerning of the loaded font and fix what needs it.
+> Survey the kerning of the loaded font and fix what needs it, using this page’s WebMCP tools.
 
 The page carries a copy button for that line, because the wording matters — see
 [Naming beats documentation](#naming-beats-documentation).
@@ -158,7 +158,11 @@ than of this app: a page can register a perfect tool surface and still be
 ignored in favour of screenshots. Tool discovery is solved; tool *preference*
 is not — and until it is, telling the human reader also tells the agent.
 
-The prompt does not name WebMCP, and does not need to.
+Even so, the suggested prompt names WebMCP. Without it the agent still opens in
+browser-control mode, reads the banner, announces *"the workbench exposes
+font-specific kerning tools, so I'm switching"* and then does the right thing —
+but it wastes a turn getting there, and a judge watching a three-minute video
+should not have to sit through the detour.
 
 **Models weight names far above descriptions.** A read-only tool called
 `render_pair` was called dozens of times and never followed by a write, because

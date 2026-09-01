@@ -407,3 +407,7 @@ button svg { flex: none; }
 }
 .specimen-head input:focus { outline: none; border-color: var(--muted); }
 .specimen-head .muted { font-size: 12px; }
+
+/* Tool-entry lines read as headers above the detail they produced. */
+.drawer-body li.call { font-weight: 600; }
+.drawer-body li:not(.call) { padding-left: 12px; color: var(--muted); }

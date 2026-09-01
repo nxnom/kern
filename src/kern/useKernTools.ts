@@ -17,6 +17,8 @@ export interface KernApi {
   /** Light the tiles the agent is currently looking at. */
   highlight: (keys: string[]) => void
   log: (line: string, rejected?: boolean) => void
+  /** Called once per tool invocation, so the counter means what it says. */
+  countCall: (tool: string) => void
   /** True once the agent has changed anything — gates compare_to_reference. */
   hasChanges: boolean
   /** The agent's chosen proof text, shown on the page when it is done. */
@@ -86,6 +88,7 @@ export function useKernTools(api: KernApi) {
       } as const,
       enabled: ready,
       execute: async ({ status }) => {
+        api.countCall('list_pairs')
         const wanted = (status ?? 'all') as PairStatus | 'all'
         const rows = [...api.getPairs().values()]
           .filter((p) => wanted === 'all' || p.status === wanted)
@@ -134,6 +137,7 @@ export function useKernTools(api: KernApi) {
       } as const,
       enabled: ready,
       execute: async ({ pairs, status, offset, limit, columns }) => {
+        api.countCall('survey_pairs')
         const all = api.getPairs()
         let chosen: PairState[]
         if (pairs?.length) {
@@ -212,6 +216,7 @@ export function useKernTools(api: KernApi) {
       } as const,
       enabled: ready,
       execute: async ({ left, right, kern }) => {
+        api.countCall('preview_pair')
         if ([...left].length !== 1 || [...right].length !== 1) {
           throw new Error('left and right must each be exactly one character.')
         }
@@ -285,6 +290,7 @@ export function useKernTools(api: KernApi) {
       } as const,
       enabled: ready,
       execute: async ({ text, note }) => {
+        api.countCall('publish_specimen')
         const line = text.slice(0, 60)
         const chars = [...line]
         const pairs = api.getPairs()
@@ -373,6 +379,7 @@ export function useKernTools(api: KernApi) {
       } as const,
       enabled: ready,
       execute: async ({ pairs, force }) => {
+        api.countCall('set_kern')
         const updates = pairs
           .filter((p) => [...p.pair].length === 2)
           .map((p) => ({ left: p.pair[0], right: p.pair[1], value: p.kern }))
@@ -408,6 +415,7 @@ export function useKernTools(api: KernApi) {
       inputSchema: { type: 'object', properties: {} } as const,
       enabled: ready && api.hasChanges,
       execute: async () => {
+        api.countCall('compare_to_reference')
         const rows = [...api.getPairs().values()].filter((p) => p.original !== 0)
         if (!rows.length) {
           return text_('This font shipped no kerning for these pairs, so there is nothing to score against.')

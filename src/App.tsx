@@ -39,6 +39,7 @@ export default function App() {
   const fileInput = useRef<HTMLInputElement>(null)
   const activeTimer = useRef<number | undefined>(undefined)
   const logId = useRef(0)
+  const [callCount, setCallCount] = useState(0)
   const logBody = useRef<HTMLOListElement>(null)
   // Tools read state through this ref so they never close over a stale map,
   // and so registering them does not depend on every keystroke of state.
@@ -128,7 +129,6 @@ export default function App() {
   loadedRef.current = loaded
 
   const list = useMemo(() => [...pairs.values()], [pairs])
-  const calls = list.reduce((n, p) => n + p.attempts.length, 0)
   // How much kerning the font arrived with — the honest starting point.
   const kernedInFont = list.filter((p) => p.original !== 0).length
 
@@ -148,6 +148,10 @@ export default function App() {
       applyKerns,
       highlight,
       log: log_,
+      countCall: (tool: string) => {
+        setCallCount((n) => n + 1)
+        log_(`→ ${tool}`)
+      },
       hasChanges,
       setSpecimen: (text: string, note?: string) =>
         setSpecimenState({ text, note, fromAgent: text }),
@@ -214,7 +218,7 @@ export default function App() {
       <section className="bar">
         <div className="stats">
           <span><b>{changed.length}</b> of {list.length} kerned</span>
-          <span><b>{calls}</b> tool calls</span>
+          <span><b>{callCount}</b> tool calls</span>
         </div>
         <Toggle on={shade} onChange={setShade} icon={<IconContrast />}>
           Negative space
@@ -256,7 +260,7 @@ export default function App() {
         ) : (
           <span className="idle">
             <span className="muted">Idle. Ask your agent:</span>
-            <CopyPrompt text="Survey the kerning of the loaded font and fix what needs it." />
+            <CopyPrompt text="Survey the kerning of the loaded font and fix what needs it, using this page\u2019s WebMCP tools." />
           </span>
         )}
       </section>
@@ -311,14 +315,19 @@ export default function App() {
         <aside className={`drawer ${logOpen ? 'open' : ''}`}>
           <button className="drawer-handle" onClick={() => setLogOpen((v) => !v)}>
             <span>Tool calls</span>
-            <b>{log.length}</b>
+            <b>{callCount}</b>
             <span className="chev">
               <IconChevron up={!logOpen} />
             </span>
           </button>
           <ol className="drawer-body" ref={logBody}>
             {log.map((l) => (
-              <li key={l.id} className={l.rejected ? 'rejected' : ''}>
+              <li
+                key={l.id}
+                className={`${l.rejected ? 'rejected' : ''} ${
+                  l.text.startsWith('→') ? 'call' : ''
+                }`}
+              >
                 <time>{new Date(l.at).toLocaleTimeString('en-GB')}</time>
                 {l.text}
               </li>
