@@ -110,18 +110,21 @@ silently ignores every value.
 
 Kern writes a real **GPOS** table — LookupType 2 PairPos Format 1, ValueFormat
 `0x0004`, sorted Coverage and PairSets — plus the legacy `kern` table for older
-consumers. Verify it yourself:
-
-```bash
-pnpm tsx scripts/verify-export.ts
-```
+consumers. Verify it yourself with `pnpm verify:export`, which also runs on every deploy:
 
 ```
-AV: wrote -80, read back -80 OK
-To: wrote -95, read back -95 OK
-original family: EB Garamond | exported: EB Garamond
-numGlyphs      : 3247 -> 3247 OK
-glyph A outline: 1328 chars -> 1328 IDENTICAL
+kerning round-trips through 673KB of font:
+  ok    AV: -80
+  ok    To: -95
+  ok    r.: -120
+  ok    LT: -110
+  ok    f): 20
+
+the rest of the font survives:
+  ok    family name: EB Garamond
+  ok    glyph count: 3247
+  ok    glyph A outline: 1328 chars, unchanged
+  ok    advance width A: 692
 ```
 
 One documented limitation: the GPOS table is **replaced, not merged**, so other
@@ -194,10 +197,24 @@ pnpm install
 pnpm dev
 ```
 
+Deploying to Cloudflare Workers:
+
 ```bash
-pnpm build
-pnpm dlx wrangler deploy    # Cloudflare Workers, see wrangler.toml
+pnpm login      # once, opens the browser
+pnpm deploy     # check, build, ship
 ```
+
+`pnpm deploy` runs `pnpm check` first — typecheck, lint, and the export
+round-trip test — and stops if any of them fail. `pnpm deploy:preview` uploads
+a version without promoting it to the live URL.
+
+| script | does |
+|---|---|
+| `pnpm dev` | local dev server |
+| `pnpm check` | typecheck, lint, verify the font export |
+| `pnpm verify:export` | round-trip a kerned font and diff it against the source |
+| `pnpm icon` | rebuild `public/icon.svg` from the sample font's K |
+| `pnpm deploy` | check, build, deploy |
 
 ## Stack
 

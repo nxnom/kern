@@ -1,13 +1,21 @@
 {
-  "name": "webmcp-challenge",
+  "name": "kern",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "oxlint src",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "check": "pnpm typecheck && pnpm lint && pnpm verify:export",
+    "verify:export": "tsx scripts/verify-export.ts",
+    "icon": "tsx scripts/make-icon.ts",
+    "deploy": "pnpm check && pnpm build && wrangler deploy",
+    "deploy:preview": "pnpm build && wrangler versions upload",
+    "whoami": "wrangler whoami",
+    "login": "wrangler login"
   },
   "dependencies": {
     "@mcp-b/global": "^5.1.0",
@@ -24,8 +32,10 @@
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.1.0",
     "oxlint": "^1.79.0",
+    "tsx": "^4.23.13",
     "typescript": "~6.0.2",
     "vite": "^8.2.2",
     "wrangler": "^4.127.1"
-  }
+  },
+  "description": "A kerning workbench a browser agent can operate."
 }
