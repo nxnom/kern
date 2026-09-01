@@ -452,3 +452,24 @@ button svg { flex: none; }
   .status.error .fixes { grid-template-columns: 1fr; gap: 14px; }
   .menu-list { min-width: 210px; }
 }
+
+/* --- proof modes ------------------------------------------------------- */
+.segmented { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; }
+.segmented button { border: 0; border-radius: 0; background: transparent; }
+.segmented button:first-child { border-radius: 6px 0 0 6px; }
+.segmented button:last-child { border-radius: 0 6px 6px 0; }
+.segmented button.on { background: var(--fg); color: #fff; }
+
+/* Overlay draws both lines from one origin, so the drift is visible. */
+.specimen-pair.is-overlay { position: relative; display: block; min-height: 3.2em; }
+.specimen-pair.is-overlay .word { position: absolute; inset: 0; }
+.specimen-pair.is-overlay .word.original { color: #d9d3c5; }
+.specimen-pair.is-overlay .word.kern { color: var(--fg); }
+.specimen-pair.is-overlay .word.kern .changed { box-shadow: none; }
+.specimen-pair.is-overlay .specimen-delta { position: absolute; top: 100%; }
+
+.specimen-delta { margin: 6px 0 0 58px; font-size: 12px; color: var(--muted); }
+.specimen-delta b { color: var(--fg); font-variant-numeric: tabular-nums; }
+
+.proof-presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.proof-presets button { font-size: 12px; padding: 4px 9px; }

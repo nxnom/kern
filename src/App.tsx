@@ -5,6 +5,7 @@ import { IconChevron, IconContrast, IconEdit, IconUndo, IconUpload } from './Ico
 import { Toggle } from './Toggle'
 import { PairDetail } from './PairDetail'
 import { PairGrid } from './PairGrid'
+import type { SpecimenMode } from './Specimen'
 import { Specimen } from './Specimen'
 import type { LoadedFont } from './kern/font'
 import { loadFontFromBuffer, loadFontFromUrl } from './kern/font'
@@ -19,6 +20,15 @@ import { checkRange, registeredToolNames, useKernTools } from './kern/useKernToo
 const SAMPLE_FONT = `${import.meta.env.BASE_URL}fonts/EBGaramond-Regular.ttf`
 /** How long tiles stay lit after the agent touches them. */
 const ACTIVE_MS = 2600
+
+/** Standard proof strings, alongside whatever the agent writes. */
+const PROOF_PRESETS = [
+  { label: 'Caps A–Z', text: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' },
+  { label: 'Lowercase a–z', text: 'abcdefghijklmnopqrstuvwxyz' },
+  { label: 'Cap context', text: 'HHAVHH HHToHH HHLTHH HHYaHH' },
+  { label: 'Lowercase context', text: 'nnavnn nnyonn nnvann nnr.nn' },
+  { label: 'Pangram', text: 'Waltz, bad nymph, for quick jigs vex.' },
+]
 
 interface LogLine { id: number; at: number; text: string; rejected: boolean }
 
@@ -35,6 +45,7 @@ export default function App() {
   const [log, setLog] = useState<LogLine[]>([])
   const [logOpen, setLogOpen] = useState(false)
   const [editingSpecimen, setEditingSpecimen] = useState(false)
+  const [specimenMode, setSpecimenMode] = useState<SpecimenMode>('stacked')
   const [error, setError] = useState<string | null>(null)
 
   const fileInput = useRef<HTMLInputElement>(null)
@@ -293,15 +304,43 @@ export default function App() {
                 Reset to the agent’s
               </button>
             )}
+            <div className="segmented">
+              <button
+                className={specimenMode === 'stacked' ? 'on' : ''}
+                onClick={() => setSpecimenMode('stacked')}
+              >
+                Stacked
+              </button>
+              <button
+                className={specimenMode === 'overlay' ? 'on' : ''}
+                onClick={() => setSpecimenMode('overlay')}
+                title="Draw before and after from one origin, so small shifts show"
+              >
+                Overlay
+              </button>
+            </div>
             <button
               className={editingSpecimen ? 'on' : ''}
               onClick={() => setEditingSpecimen((v) => !v)}
             >
               <IconEdit />
-              {editingSpecimen ? 'Done' : 'Edit'}
+              <span className="btn-label">{editingSpecimen ? 'Done' : 'Edit'}</span>
             </button>
           </div>
 
+          {editingSpecimen && (
+            <div className="proof-presets">
+              {PROOF_PRESETS.map((p) => (
+                <button
+                  key={p.label}
+                  onClick={() => setSpecimenState({ ...specimen, text: p.text })}
+                  title={p.text}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          )}
           {editingSpecimen && (
             <textarea
               className="specimen-edit"
@@ -314,7 +353,13 @@ export default function App() {
             />
           )}
 
-          <Specimen loaded={loaded} word={specimen.text} pairs={pairs} showBefore />
+          <Specimen
+            loaded={loaded}
+            word={specimen.text}
+            pairs={pairs}
+            showBefore
+            mode={specimenMode}
+          />
           {specimen.note && specimen.text === specimen.fromAgent && (
             <p className="specimen-note">{specimen.note}</p>
           )}
