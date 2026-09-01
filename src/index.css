@@ -173,20 +173,27 @@ button:hover { border-color: var(--muted); }
 }
 .drawer-handle {
   width: 100%; display: flex; align-items: center; gap: 10px;
-  padding: 9px 24px; border: 0; border-radius: 0; background: #fff;
-  font-size: 13px; color: var(--muted); cursor: pointer;
+  padding: 14px 24px; border: 0; border-radius: 0; background: #fff;
+  font-size: 14px; color: var(--muted); cursor: pointer;
 }
+.drawer-handle:hover { background: #faf9f6; }
 .drawer-handle b {
   font-variant-numeric: tabular-nums; color: var(--fg);
   background: #f4f2ec; padding: 1px 7px; border-radius: 10px; font-size: 12px;
 }
-.drawer-handle .chev { margin-left: auto; }
+.drawer-handle .chev {
+  margin-left: auto; font-size: 15px; line-height: 1; color: var(--fg);
+  width: 30px; height: 30px; display: grid; place-items: center;
+  border: 1px solid var(--line); border-radius: 6px;
+}
+/* Collapsed must clip completely: `overflow-y: auto` with a zero max-height
+   still leaks padding and a scrollbar. */
 .drawer-body {
-  list-style: none; margin: 0; padding: 0 24px 16px;
-  max-height: 0; overflow-y: auto; transition: max-height .2s ease;
+  list-style: none; margin: 0; padding: 0 24px;
+  max-height: 0; overflow: hidden; transition: max-height .2s ease;
   font-size: 13px; font-variant-numeric: tabular-nums;
 }
-.drawer.open .drawer-body { max-height: 260px; }
+.drawer.open .drawer-body { max-height: 260px; overflow-y: auto; padding-bottom: 16px; }
 .drawer-body li { padding: 5px 0; border-bottom: 1px solid var(--line); }
 .drawer-body li.rejected { color: var(--accent); }
 
@@ -198,3 +205,21 @@ button:hover { border-color: var(--muted); }
 .font-id strong { font-size: 15px; }
 .font-id .style { color: var(--muted); font-weight: 400; }
 .font-id .muted { font-size: 12px; }
+
+/* Hovering a tile swaps the delta for a "before" label in the same slot. */
+.tile-delta.is-before {
+  color: var(--muted); font-weight: 600; text-transform: uppercase;
+  letter-spacing: .05em; font-size: 10px;
+}
+.tile:hover .tile-img img { opacity: .92; }
+
+/* Agent-chosen proof line */
+.specimen h2 {
+  font-size: 12px; text-transform: uppercase; letter-spacing: .07em;
+  color: var(--fg); font-weight: 600; margin: 0 0 14px;
+}
+.specimen h2 .muted { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.specimen-note { margin: 14px 0 0; font-size: 13px; color: var(--muted); max-width: 60ch; }
+.word.kern .changed {
+  color: var(--fg); box-shadow: inset 0 -2px 0 rgba(245, 158, 11, .55);
+}

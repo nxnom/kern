@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { LoadedFont } from './kern/font'
 import { drawPair } from './kern/font'
 import type { PairState } from './kern/state'
@@ -8,12 +8,10 @@ interface Props {
   pairs: PairState[]
   activeKeys: string[]
   onSelect: (key: string) => void
-  /** Show every tile at its original value, for a straight comparison. */
-  showOriginal: boolean
   shade: boolean
 }
 
-export function PairGrid({ loaded, pairs, activeKeys, onSelect, showOriginal, shade }: Props) {
+export function PairGrid({ loaded, pairs, activeKeys, onSelect, shade }: Props) {
   const active = new Set(activeKeys)
   const lead = activeKeys[0]
   return (
@@ -26,7 +24,6 @@ export function PairGrid({ loaded, pairs, activeKeys, onSelect, showOriginal, sh
           active={active.has(p.key)}
           lead={p.key === lead}
           onSelect={onSelect}
-          showOriginal={showOriginal}
           shade={shade}
         />
       ))}
@@ -40,7 +37,6 @@ function PairTile({
   active,
   lead,
   onSelect,
-  showOriginal,
   shade,
 }: {
   loaded: LoadedFont
@@ -48,11 +44,13 @@ function PairTile({
   active: boolean
   lead: boolean
   onSelect: (key: string) => void
-  showOriginal: boolean
   shade: boolean
 }) {
   const ref = useRef<HTMLButtonElement>(null)
-  const value = showOriginal ? pair.original : pair.kern
+  const [hovering, setHovering] = useState(false)
+  const wasChanged = pair.kern !== pair.original
+  // Hovering a changed tile shows what it looked like before.
+  const value = hovering && wasChanged ? pair.original : pair.kern
 
   // Redraw only when the value that affects the picture changes.
   const src = useMemo(
@@ -71,17 +69,19 @@ function PairTile({
   return (
     <button
       ref={ref}
-      className={`tile ${pair.status} ${active ? 'active' : ''}`}
+      className={`tile ${pair.status} ${active ? 'active' : ''} ${lead ? 'lead' : ''}`}
       onClick={() => onSelect(pair.key)}
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
       title={`${pair.key} · ${pair.attempts.length} attempts`}
     >
       <span className="tile-img">{src && <img src={src} alt={pair.key} />}</span>
       <span className="tile-meta">
         <span className="tile-name">{pair.key}</span>
+        {/* The label reuses the delta slot so hovering never shifts the layout. */}
         {delta !== 0 && (
-          <span className="tile-delta">
-            {delta > 0 ? '+' : ''}
-            {delta}
+          <span className={`tile-delta ${hovering ? 'is-before' : ''}`}>
+            {hovering ? 'before' : `${delta > 0 ? '+' : ''}${delta}`}
           </span>
         )}
       </span>

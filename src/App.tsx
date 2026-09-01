@@ -3,7 +3,7 @@ import { PairGrid } from './PairGrid'
 import { Specimen } from './Specimen'
 import type { LoadedFont } from './kern/font'
 import { drawPair, loadFontFromBuffer, loadFontFromUrl } from './kern/font'
-import { SPECIMEN_WORDS, typicalRange } from './kern/pairs'
+import { typicalRange } from './kern/pairs'
 import type { PairState } from './kern/state'
 import { initialPairs, pairKey } from './kern/state'
 import { buildFeatureFile, buildKernedFont, download } from './kern/export'
@@ -21,8 +21,8 @@ export default function App() {
   const [pairs, setPairs] = useState<Map<string, PairState>>(new Map())
   const [activeKeys, setActiveKeys] = useState<string[]>([])
   const [selected, setSelected] = useState('AV')
-  const [showOriginal, setShowOriginal] = useState(false)
   const [shade, setShade] = useState(true)
+  const [specimen, setSpecimenState] = useState<{ text: string; note?: string } | null>(null)
   const [log, setLog] = useState<LogLine[]>([])
   const [logOpen, setLogOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -134,6 +134,7 @@ export default function App() {
       highlight,
       log: log_,
       hasChanges,
+      setSpecimen: (text: string, note?: string) => setSpecimenState({ text, note }),
     }),
     [loaded, applyKerns, highlight, log_, hasChanges],
   )
@@ -203,16 +204,6 @@ export default function App() {
         <button className={shade ? 'on' : ''} onClick={() => setShade((v) => !v)}>
           Negative space
         </button>
-        {hasChanges && (
-          <button
-            className={showOriginal ? 'on' : ''}
-            onMouseDown={() => setShowOriginal(true)}
-            onMouseUp={() => setShowOriginal(false)}
-            onMouseLeave={() => setShowOriginal(false)}
-          >
-            {showOriginal ? 'Showing before' : 'Hold to compare'}
-          </button>
-        )}
         <button onClick={exportFont} disabled={!hasChanges}>Download .ttf</button>
         <button
           onClick={() =>
@@ -253,7 +244,6 @@ export default function App() {
           pairs={list}
           activeKeys={activeKeys}
           onSelect={setSelected}
-          showOriginal={showOriginal}
           shade={shade}
         />
       )}
@@ -279,11 +269,13 @@ export default function App() {
         </section>
       )}
 
-      {loaded && (
+      {loaded && specimen && (
         <section className="specimen">
-          {SPECIMEN_WORDS.map((w) => (
-            <Specimen key={w} loaded={loaded} word={w} pairs={pairs} showBefore={hasChanges} />
-          ))}
+          <h2>
+            Proof <span className="muted">chosen by the agent</span>
+          </h2>
+          <Specimen loaded={loaded} word={specimen.text} pairs={pairs} showBefore />
+          {specimen.note && <p className="specimen-note">{specimen.note}</p>}
         </section>
       )}
 

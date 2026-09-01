@@ -11,7 +11,7 @@ export function Specimen({
   loaded,
   word,
   pairs,
-  size = 38,
+  size = 44,
   showBefore,
 }: {
   loaded: LoadedFont
@@ -58,11 +58,13 @@ function Line({
         const k = state ? state[which] : 0
         const changed =
           which === 'kern' && state !== undefined && state.kern !== state.original
+        const shift = state ? state.kern - state.original : 0
         return (
           <span
             key={`${ch}-${i}`}
             className={changed ? 'changed' : undefined}
             style={{ marginRight: `${(k / loaded.unitsPerEm) * size}px` }}
+            title={changed ? `${state!.key} moved ${shift}` : undefined}
           >
             {ch}
           </span>

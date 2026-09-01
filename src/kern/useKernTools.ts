@@ -19,12 +19,14 @@ export interface KernApi {
   log: (line: string, rejected?: boolean) => void
   /** True once the agent has changed anything — gates compare_to_reference. */
   hasChanges: boolean
+  /** The agent's chosen proof text, shown on the page when it is done. */
+  setSpecimen: (text: string, note?: string) => void
 }
 
 export interface Applied { key: string; from: number; to: number }
 export interface Rejected { key: string; value: number; reason: string }
 
-const text = (s: string) => ({ content: [{ type: 'text' as const, text: s }] })
+const text_ = (s: string) => ({ content: [{ type: 'text' as const, text: s }] })
 const READ_ONLY = { readOnlyHint: true }
 
 export function useKernTools(api: KernApi) {
@@ -60,7 +62,7 @@ export function useKernTools(api: KernApi) {
               `${typicalRange(p.left, p.right, font!.unitsPerEm).pairClass}\t` +
               `${p.attempts.length} attempts`,
           )
-        return text(
+        return text_(
           `pair\tkern\toriginal\tstatus\tclass\tattempts\n${rows.join('\n')}\n\n` +
             `${rows.length} pairs. em = ${font!.unitsPerEm}.`,
         )
@@ -115,7 +117,7 @@ export function useKernTools(api: KernApi) {
         const take = Math.min(24, Math.max(1, limit ?? 16))
         chosen = chosen.slice(start, start + take)
 
-        if (!chosen.length) return text('No pairs match that filter.')
+        if (!chosen.length) return text_('No pairs match that filter.')
 
         const sheet = drawSheet(
           font!,
@@ -314,10 +316,60 @@ export function useKernTools(api: KernApi) {
           lines.push(...rejected.map((r) => `  ${r.key}: ${r.reason}`))
           lines.push('Revise the rejected pairs and call set_kern again.')
         }
-        return text(lines.join('\n'))
+        return text_(lines.join('\n'))
       },
     },
     [ready, font],
+  )
+
+  // ---- set_specimen: the agent chooses how to prove its work ----------
+  useWebMCP(
+    {
+      name: 'set_specimen',
+      description:
+        'Publish a line of text on the page as proof of the work. Choose words that ' +
+        'actually exercise the pairs you changed — a phrase full of pairs you never ' +
+        'touched proves nothing. The page shows it before and after, marking the gaps ' +
+        'that moved. Call this once you are finished.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          text: {
+            type: 'string',
+            description: 'The line to set. Keep it under about 40 characters.',
+          },
+          note: {
+            type: 'string',
+            description: 'One line on why this text shows the change. Shown beside it.',
+          },
+        },
+        required: ['text'],
+      } as const,
+      enabled: ready && api.hasChanges,
+      execute: async ({ text, note }) => {
+        const trimmed = text.slice(0, 60)
+        const chars = [...trimmed]
+        const pairs = api.getPairs()
+        const touched = chars
+          .slice(0, -1)
+          .map((c, i) => pairs.get(`${c}${chars[i + 1]}`))
+          .filter((p) => p && p.kern !== p.original)
+
+        if (!touched.length) {
+          return text_(
+            `Rejected: none of the pairs in "${trimmed}" were changed, so it would ` +
+              `show no difference. Pick words containing pairs you actually kerned.`,
+          )
+        }
+        api.setSpecimen(trimmed, note)
+        api.log(`specimen published: "${trimmed}" (${touched.length} changed pairs)`)
+        return text_(
+          `Published "${trimmed}". It contains ${touched.length} pairs you changed: ` +
+            touched.map((p) => p!.key).join(', '),
+        )
+      },
+    },
+    [ready, api.hasChanges],
   )
 
   // ---- compare_to_reference: only exists once there is work to score ---
@@ -333,12 +385,12 @@ export function useKernTools(api: KernApi) {
       execute: async () => {
         const rows = [...api.getPairs().values()].filter((p) => p.original !== 0)
         if (!rows.length) {
-          return text('This font shipped no kerning for these pairs, so there is nothing to score against.')
+          return text_('This font shipped no kerning for these pairs, so there is nothing to score against.')
         }
         const diffs = rows.map((p) => Math.abs(p.kern - p.original))
         const within = (n: number) => diffs.filter((d) => d <= n).length
         const mean = diffs.reduce((a, b) => a + b, 0) / diffs.length
-        return text(
+        return text_(
           [
             `Scored against ${rows.length} pairs the designer kerned.`,
             `mean absolute difference: ${mean.toFixed(1)} font units`,
