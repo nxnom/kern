@@ -8,9 +8,11 @@ interface Props {
   pairs: PairState[]
   activeKey: string | null
   onSelect: (key: string) => void
+  /** Show every tile at its original value, for a straight comparison. */
+  showOriginal: boolean
 }
 
-export function PairGrid({ loaded, pairs, activeKey, onSelect }: Props) {
+export function PairGrid({ loaded, pairs, activeKey, onSelect, showOriginal }: Props) {
   return (
     <div className="grid">
       {pairs.map((p) => (
@@ -20,6 +22,7 @@ export function PairGrid({ loaded, pairs, activeKey, onSelect }: Props) {
           pair={p}
           active={p.key === activeKey}
           onSelect={onSelect}
+          showOriginal={showOriginal}
         />
       ))}
     </div>
@@ -31,18 +34,21 @@ function PairTile({
   pair,
   active,
   onSelect,
+  showOriginal,
 }: {
   loaded: LoadedFont
   pair: PairState
   active: boolean
   onSelect: (key: string) => void
+  showOriginal: boolean
 }) {
   const ref = useRef<HTMLButtonElement>(null)
+  const value = showOriginal ? pair.original : pair.kern
 
   // Redraw only when the value that affects the picture changes.
   const src = useMemo(
-    () => drawPair(loaded, pair.left, pair.right, pair.kern, 88),
-    [loaded, pair.left, pair.right, pair.kern],
+    () => drawPair(loaded, pair.left, pair.right, value, 88),
+    [loaded, pair.left, pair.right, value],
   )
 
   // Keep the pair the agent is working on in view.

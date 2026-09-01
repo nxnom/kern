@@ -18,8 +18,6 @@ h1 {
   font-family: Georgia, "Times New Roman", serif;
   font-size: 44px; font-weight: 400; margin: 0; letter-spacing: -0.02em;
 }
-.tagline { max-width: 62ch; color: var(--muted); margin: 8px 0 32px; }
-.tagline em { color: var(--fg); font-style: italic; }
 .banner {
   background: #fff7ed; border: 1px solid #fed7aa; color: #7c2d12;
   padding: 12px 16px; border-radius: 8px; margin-bottom: 24px; font-size: 14px;
@@ -55,15 +53,6 @@ button:hover { border-color: var(--muted); }
   display: flex; justify-content: center; align-items: center; min-height: 240px;
 }
 .preview img { max-width: 100%; height: auto; }
-.log h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; }
-.log ol { list-style: none; padding: 0; margin: 0; font-size: 14px; }
-.log li { padding: 7px 0; border-bottom: 1px solid var(--line); }
-.log li.rejected { color: var(--accent); }
-.log code {
-  font-family: Georgia, serif; font-size: 17px;
-  background: #f4f2ec; padding: 1px 7px; border-radius: 4px; margin-right: 6px;
-}
-.reason { font-size: 13px; }
 
 /* --- bar ------------------------------------------------------------- */
 .bar {
@@ -136,11 +125,67 @@ button:hover { border-color: var(--muted); }
 .detail dd { margin: 0; font-variant-numeric: tabular-nums; font-weight: 600; }
 
 /* --- specimen -------------------------------------------------------- */
+
+/* --- header ---------------------------------------------------------- */
+.app { padding-bottom: 120px; }
+.head { display: flex; align-items: baseline; gap: 16px; margin-bottom: 20px; }
+.head h1 { flex: none; }
+.head-right { margin-left: auto; display: flex; align-items: baseline; gap: 10px; font-size: 14px; }
+.bar button.on { background: var(--fg); color: #fff; border-color: var(--fg); }
+.bar button:disabled { opacity: .4; cursor: not-allowed; }
+.bar .stats { margin-left: 0; margin-right: auto; }
+
+/* --- before / after -------------------------------------------------- */
+.detail figure { margin: 0; text-align: center; }
+.detail figure img {
+  max-height: 120px; display: block; padding: 6px 10px;
+  border: 1px dashed var(--line); border-radius: 6px;
+}
+.detail figure.changed img { border-color: #86efac; border-style: solid; background: #f0fdf4; }
+.detail figcaption {
+  font-size: 11px; color: var(--muted); margin-top: 6px;
+  text-transform: uppercase; letter-spacing: .06em; font-variant-numeric: tabular-nums;
+}
+
+/* --- specimen: before over after ------------------------------------- */
 .specimen {
-  padding: 20px 24px; background: #fff; border: 1px solid var(--line);
-  border-radius: 10px; margin-bottom: 28px;
+  padding: 18px 22px; background: #fff; border: 1px solid var(--line);
+  border-radius: 10px; margin-bottom: 28px; display: grid; gap: 18px;
 }
-.specimen .word {
-  font-family: Georgia, "Times New Roman", serif; font-size: 40px;
-  line-height: 1.35; white-space: nowrap;
+.specimen-pair { display: grid; gap: 2px; }
+.word {
+  font-family: Georgia, "Times New Roman", serif; line-height: 1.28;
+  white-space: nowrap; display: flex; align-items: baseline;
 }
+.word-tag {
+  font-family: ui-sans-serif, system-ui, sans-serif; font-size: 10px;
+  text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
+  width: 52px; flex: none; margin-right: 4px;
+}
+.word.original { color: #b8b3a6; }
+.word.kern .changed { color: var(--fg); }
+
+/* --- log drawer ------------------------------------------------------ */
+.drawer {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  background: #fff; border-top: 1px solid var(--line);
+  box-shadow: 0 -2px 12px rgba(0,0,0,.05);
+}
+.drawer-handle {
+  width: 100%; display: flex; align-items: center; gap: 10px;
+  padding: 9px 24px; border: 0; border-radius: 0; background: #fff;
+  font-size: 13px; color: var(--muted); cursor: pointer;
+}
+.drawer-handle b {
+  font-variant-numeric: tabular-nums; color: var(--fg);
+  background: #f4f2ec; padding: 1px 7px; border-radius: 10px; font-size: 12px;
+}
+.drawer-handle .chev { margin-left: auto; }
+.drawer-body {
+  list-style: none; margin: 0; padding: 0 24px 16px;
+  max-height: 0; overflow-y: auto; transition: max-height .2s ease;
+  font-size: 13px; font-variant-numeric: tabular-nums;
+}
+.drawer.open .drawer-body { max-height: 260px; }
+.drawer-body li { padding: 5px 0; border-bottom: 1px solid var(--line); }
+.drawer-body li.rejected { color: var(--accent); }

@@ -8,6 +8,8 @@ export interface LoadedFont {
   /** Cap height in font units, used to bound the optical measurement band. */
   capHeight: number
   xHeight: number
+  /** Original bytes, kept because export splices a kern table into them. */
+  buffer: ArrayBuffer
 }
 
 export function loadFontFromBuffer(buffer: ArrayBuffer): LoadedFont {
@@ -21,6 +23,7 @@ export function loadFontFromBuffer(buffer: ArrayBuffer): LoadedFont {
     unitsPerEm,
     capHeight: os2?.sCapHeight ?? unitsPerEm * 0.7,
     xHeight: os2?.sxHeight ?? unitsPerEm * 0.5,
+    buffer,
   }
 }
 
