@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { CopyPrompt } from './CopyPrompt'
 import { PairDetail } from './PairDetail'
 import { PairGrid } from './PairGrid'
 import { Specimen } from './Specimen'
@@ -7,6 +8,7 @@ import { loadFontFromBuffer, loadFontFromUrl } from './kern/font'
 import type { PairState } from './kern/state'
 import { initialPairs, pairKey } from './kern/state'
 import { useWebMCPSupport } from './kern/useWebMCPSupport'
+import { WebMCPStatus } from './WebMCPStatus'
 import { buildFeatureFile, buildKernedFont, download } from './kern/export'
 import type { Applied, KernApi, Rejected } from './kern/useKernTools'
 import { checkRange, useKernTools } from './kern/useKernTools'
@@ -196,21 +198,7 @@ export default function App() {
         </div>
       </header>
 
-      {webmcp.supported ? (
-        <div className="banner ok">
-          <b>{webmcp.source === 'native' ? 'Native WebMCP' : 'WebMCP polyfill'}</b>
-          <span className="muted">
-            {webmcp.tools.length} tools registered
-            {webmcp.tools.length > 0 && `: ${webmcp.tools.join(', ')}`}
-          </span>
-        </div>
-      ) : (
-        <div className="banner">
-          WebMCP not detected. Open in the ChatGPT app’s browser, or Chrome 149+ with{' '}
-          <code>chrome://flags/#enable-webmcp-testing</code> enabled. Everything below
-          still works by hand.
-        </div>
-      )}
+      <WebMCPStatus support={webmcp} />
       {error && <div className="error">{error}</div>}
 
       <section className="bar">
@@ -251,7 +239,7 @@ export default function App() {
         ) : (
           <span className="idle">
             <span className="muted">Idle. Ask your agent:</span>
-            <code>Survey the kerning on this page and fix what needs it, using its tools.</code>
+            <CopyPrompt text="Survey the kerning on this page and fix what needs it, using its tools." />
           </span>
         )}
       </section>

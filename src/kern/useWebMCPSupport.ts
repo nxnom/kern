@@ -2,7 +2,14 @@ import { useEffect, useState } from 'react'
 
 export type WebMCPSource = 'native' | 'polyfill' | 'none'
 
+/**
+ * `checking` matters: the poll runs for ten seconds, so treating "not found
+ * yet" as "not supported" would flash a scary alert at every visitor.
+ */
+export type WebMCPStatus = 'checking' | 'ready' | 'unsupported'
+
 export interface WebMCPSupport {
+  status: WebMCPStatus
   supported: boolean
   source: WebMCPSource
   /** Names of the tools currently registered, live. */
@@ -38,6 +45,7 @@ function readContext(): ModelContextLike | undefined {
  */
 export function useWebMCPSupport(): WebMCPSupport {
   const [support, setSupport] = useState<WebMCPSupport>({
+    status: 'checking',
     supported: false,
     source: 'none',
     tools: [],
@@ -69,6 +77,7 @@ export function useWebMCPSupport(): WebMCPSupport {
       )
       setSupport((prev) => ({
         ...prev,
+        status: 'ready',
         supported: true,
         source: native ? 'native' : 'polyfill',
       }))
@@ -82,7 +91,10 @@ export function useWebMCPSupport(): WebMCPSupport {
       if (cancelled) return
       const mc = readContext()
       if (mc) return attach(mc)
-      if (++tries >= MAX_TRIES) return
+      if (++tries >= MAX_TRIES) {
+        setSupport((prev) => ({ ...prev, status: 'unsupported' }))
+        return
+      }
       timer = window.setTimeout(look, POLL_MS)
     }
     look()
