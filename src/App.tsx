@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CopyPrompt } from './CopyPrompt'
 import { DownloadMenu } from './DownloadMenu'
-import { IconChevron, IconContrast, IconEdit, IconUndo, IconUpload } from './Icons'
+import { IconChevron, IconContrast, IconUpload } from './Icons'
 import { Toggle } from './Toggle'
 import { PairDetail } from './PairDetail'
 import { PairGrid } from './PairGrid'
@@ -20,7 +20,7 @@ const SAMPLE_FONT = `${import.meta.env.BASE_URL}fonts/EBGaramond-Regular.ttf`
 /** How long tiles stay lit after the agent touches them. */
 const ACTIVE_MS = 2600
 
-/** Standard proof strings, alongside whatever the agent writes. */
+/** Fixed proof strings. The changed pairs themselves come first, built live. */
 const PROOF_PRESETS = [
   { label: 'Caps A–Z', text: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' },
   { label: 'Lowercase a–z', text: 'abcdefghijklmnopqrstuvwxyz' },
@@ -38,12 +38,11 @@ export default function App() {
   const [activeKeys, setActiveKeys] = useState<string[]>([])
   const [selected, setSelected] = useState('AV')
   const [shade, setShade] = useState(true)
-  const [specimen, setSpecimenState] = useState<
-    { text: string; note?: string; fromAgent: string } | null
-  >(null)
+  /** null means "the pairs the agent changed", rebuilt as it works. */
+  const [proofText, setProofText] = useState<string | null>(null)
+  const [agentLine, setAgentLine] = useState<string | null>(null)
   const [log, setLog] = useState<LogLine[]>([])
   const [logOpen, setLogOpen] = useState(false)
-  const [editingSpecimen, setEditingSpecimen] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const fileInput = useRef<HTMLInputElement>(null)
@@ -150,6 +149,15 @@ export default function App() {
     [pairs],
   )
   const hasChanges = changed.length > 0
+  const changedPairsLine = useMemo(
+    () =>
+      [...pairs.values()]
+        .filter((p) => p.kern !== p.original)
+        .map((p) => p.key)
+        .join(' '),
+    [pairs],
+  )
+  const proof = proofText ?? changedPairsLine
 
   const api: KernApi = useMemo(
     () => ({
@@ -163,8 +171,10 @@ export default function App() {
         log_(`→ ${tool}`)
       },
       hasChanges,
-      setSpecimen: (text: string, note?: string) =>
-        setSpecimenState({ text, note, fromAgent: text }),
+      setSpecimen: (text: string) => {
+        setAgentLine(text)
+        setProofText(text)
+      },
     }),
     [loaded, applyKerns, highlight, log_, hasChanges],
   )
@@ -288,55 +298,38 @@ export default function App() {
         <PairDetail loaded={loaded} pair={detail} shade={shade} />
       )}
 
-      {loaded && specimen && (
+      {loaded && hasChanges && (
         <section className="specimen">
           <div className="specimen-head">
             <h2>Proof</h2>
-            {specimen.text !== specimen.fromAgent && (
+            <div className="chips">
               <button
-                onClick={() => setSpecimenState({ ...specimen, text: specimen.fromAgent })}
-                title="Reset to what the agent wrote"
+                className={proof === changedPairsLine ? 'on' : ''}
+                onClick={() => setProofText(null)}
               >
-                <IconUndo />
-                <span className="btn-label">Reset</span>
+                Changed pairs
               </button>
-            )}
-            <button
-              className={editingSpecimen ? 'on' : ''}
-              onClick={() => setEditingSpecimen((v) => !v)}
-            >
-              <IconEdit />
-              <span className="btn-label">{editingSpecimen ? 'Done' : 'Edit'}</span>
-            </button>
-          </div>
-
-          {editingSpecimen && (
-            <div className="proof-presets">
+              {agentLine && (
+                <button
+                  className={proof === agentLine ? 'on' : ''}
+                  onClick={() => setProofText(agentLine)}
+                >
+                  Agent’s line
+                </button>
+              )}
               {PROOF_PRESETS.map((p) => (
                 <button
                   key={p.label}
-                  onClick={() => setSpecimenState({ ...specimen, text: p.text })}
+                  className={proof === p.text ? 'on' : ''}
+                  onClick={() => setProofText(p.text)}
                   title={p.text}
                 >
                   {p.label}
                 </button>
               ))}
             </div>
-          )}
-          {editingSpecimen && (
-            <textarea
-              className="specimen-edit"
-              value={specimen.text}
-              rows={2}
-              autoFocus
-              spellCheck={false}
-              aria-label="Specimen text"
-              onChange={(e) => setSpecimenState({ ...specimen, text: e.target.value })}
-            />
-          )}
-
-          <Specimen loaded={loaded} word={specimen.text} pairs={pairs} shade={shade} />
-
+          </div>
+          <Specimen loaded={loaded} word={proof} pairs={pairs} shade={shade} />
         </section>
       )}
 

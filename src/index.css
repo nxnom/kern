@@ -452,3 +452,14 @@ button svg { flex: none; }
   font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums;
 }
 .proof-strip figcaption b { color: var(--fg); font-family: Georgia, serif; font-size: 13px; }
+
+/* --- proof presets ----------------------------------------------------- */
+.specimen-head { align-items: baseline; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips button {
+  font-size: 12px; padding: 4px 10px; border-radius: 20px; color: var(--muted);
+}
+.chips button.on {
+  background: var(--fg); color: #fff; border-color: var(--fg);
+}
+.chips button:hover:not(.on) { color: var(--fg); }
