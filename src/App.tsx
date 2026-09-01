@@ -188,8 +188,11 @@ export default function App() {
         setCallCount((n) => n + 1)
         log_(`→ ${tool}`)
       },
-      // Record it as an option; "Changed pairs" stays the default view.
-      setSpecimen: (text: string) => setAgentLine(text),
+      // Publishing selects it too — the agent chose it, so show it.
+      setSpecimen: (text: string) => {
+        setAgentLine(text)
+        setProofText(text)
+      },
     }),
     [loaded, applyKerns, highlight, log_],
   )
