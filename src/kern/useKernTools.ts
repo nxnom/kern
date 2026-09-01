@@ -2,7 +2,7 @@ import { useWebMCP } from 'usewebmcp'
 import type { LoadedFont } from './font'
 import { drawPair, renderPair } from './font'
 import { drawSheet } from './sheet'
-import { SPECIMEN_WORDS, typicalRange } from './pairs'
+import { typicalRange } from './pairs'
 import type { PairState, PairStatus } from './state'
 
 export interface KernApi {
@@ -28,6 +28,17 @@ export interface Rejected { key: string; value: number; reason: string }
 
 const text_ = (s: string) => ({ content: [{ type: 'text' as const, text: s }] })
 const READ_ONLY = { readOnlyHint: true }
+
+/** Appended to read tools so progress and the next step are always in view. */
+function progressLine(pairs: Map<string, PairState>): string {
+  const all = [...pairs.values()]
+  const done = all.filter((p) => p.kern !== p.original).length
+  return done === 0
+    ? `Nothing has been applied yet — all ${all.length} pairs are still at the font's ` +
+        `original values. Rendering changes nothing; call set_kern to apply.`
+    : `${done} of ${all.length} pairs changed so far.`
+}
+
 
 export function useKernTools(api: KernApi) {
   const { font } = api
@@ -64,7 +75,7 @@ export function useKernTools(api: KernApi) {
           )
         return text_(
           `pair\tkern\toriginal\tstatus\tclass\tattempts\n${rows.join('\n')}\n\n` +
-            `${rows.length} pairs. em = ${font!.unitsPerEm}.`,
+            `${rows.length} pairs. em = ${font!.unitsPerEm}.\n${progressLine(api.getPairs())}`,
         )
       },
     },
@@ -145,7 +156,7 @@ export function useKernTools(api: KernApi) {
                 `reading left to right.\n\npair\tkern\toptical white\tnarrowest gap\n${table}\n\n` +
                 `Pairs of the same shape class should have similar optical white. ` +
                 `Look for the outliers, then apply your corrections in one set_kern ` +
-                `call — rendering alone changes nothing.`,
+                `call.\n\n${progressLine(api.getPairs())}`,
             },
           ],
         }
@@ -219,50 +230,79 @@ export function useKernTools(api: KernApi) {
     [ready, font],
   )
 
-  // ---- render_specimen: rhythm in context -----------------------------
+  // ---- render_specimen: publishes to the page and answers the agent -----
   useWebMCP(
     {
       name: 'render_specimen',
       description:
-        'Render whole words at the current kerning values. A pair can look right ' +
-        'alone and still break the rhythm of a word, so check specimens before ' +
-        'calling a batch finished.',
-      annotations: READ_ONLY,
+        'Write a line of your own words at the current kerning values. It is shown ' +
+        'on the page, before and after, with every gap that moved marked — and the ' +
+        'image comes back to you. A pair can look right alone and still break the ' +
+        'rhythm of a word, so check a specimen before calling a batch finished, and ' +
+        'again at the end. Choose words that actually contain the pairs you changed.',
       inputSchema: {
         type: 'object',
         properties: {
-          words: {
-            type: 'array',
-            items: { type: 'string' },
-            description: `Words to set. Defaults to ${SPECIMEN_WORDS.slice(0, 4).join(', ')}.`,
+          text: {
+            type: 'string',
+            description:
+              'The line to set, up to about 40 characters. Pick it yourself — ' +
+              'something that exercises the pairs you worked on.',
+          },
+          note: {
+            type: 'string',
+            description: 'One line on why this text shows the change. Shown beside it.',
           },
         },
+        required: ['text'],
       } as const,
       enabled: ready,
-      execute: async ({ words }) => {
-        const list = (words?.length ? words : SPECIMEN_WORDS).slice(0, 6)
+      execute: async ({ text, note }) => {
+        const line = text.slice(0, 60)
+        const chars = [...line]
         const pairs = api.getPairs()
-        const items = list.flatMap((w) => {
-          const chars = [...w]
-          return chars.slice(0, -1).map((ch, i) => ({
-            left: ch,
-            right: chars[i + 1],
-            kern: pairs.get(`${ch}${chars[i + 1]}`)?.kern ?? 0,
-          }))
-        })
-        const sheet = drawSheet(font!, items.slice(0, 24), 6)
-        api.log(`specimen · ${list.join(' ')}`)
+        const adjacent = chars.slice(0, -1).map((c, i) => ({
+          left: c,
+          right: chars[i + 1],
+          state: pairs.get(`${c}${chars[i + 1]}`),
+        }))
+        const moved = adjacent.filter((a) => a.state && a.state.kern !== a.state.original)
+
+        api.setSpecimen(line, note)
+        api.log(`specimen "${line}" · ${moved.length} changed pairs`)
+
+        const sheet = drawSheet(
+          font!,
+          adjacent.slice(0, 24).map((a) => ({
+            left: a.left,
+            right: a.right,
+            kern: a.state?.kern ?? 0,
+          })),
+          6,
+        )
+
         return {
           content: [
             { type: 'image' as const, data: sheet.base64, mimeType: 'image/png' },
             {
               type: 'text' as const,
-              text:
-                `Every adjacent pair in: ${list.join(', ')}\n` +
+              text: [
+                `Published "${line}" to the page.`,
+                moved.length
+                  ? `${moved.length} of its pairs have been changed: ${moved
+                      .map((m) => m.state!.key)
+                      .join(', ')}`
+                  : `WARNING: none of its pairs have been changed, so the before and ` +
+                    `after lines are identical. Apply values with set_kern first, or ` +
+                    `pick words containing pairs you have already changed.`,
+                '',
                 sheet.cells
                   .map((c) => `${c.left}${c.right}\t${c.kern}\twhite ${c.metrics.opticalArea}`)
-                  .join('\n') +
-                `\n\nUneven optical white across a word is what a reader notices.`,
+                  .join('\n'),
+                '',
+                'Uneven optical white across a line is what a reader notices.',
+                progressLine(api.getPairs()),
+              ].join('\n'),
             },
           ],
         }
@@ -327,56 +367,6 @@ export function useKernTools(api: KernApi) {
       },
     },
     [ready, font],
-  )
-
-  // ---- set_specimen: the agent chooses how to prove its work ----------
-  useWebMCP(
-    {
-      name: 'set_specimen',
-      description:
-        'Publish a line of text on the page as proof of the work. Choose words that ' +
-        'actually exercise the pairs you changed — a phrase full of pairs you never ' +
-        'touched proves nothing. The page shows it before and after, marking the gaps ' +
-        'that moved. Call this once you are finished.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          text: {
-            type: 'string',
-            description: 'The line to set. Keep it under about 40 characters.',
-          },
-          note: {
-            type: 'string',
-            description: 'One line on why this text shows the change. Shown beside it.',
-          },
-        },
-        required: ['text'],
-      } as const,
-      enabled: ready,
-      execute: async ({ text, note }) => {
-        const trimmed = text.slice(0, 60)
-        const chars = [...trimmed]
-        const pairs = api.getPairs()
-        const touched = chars
-          .slice(0, -1)
-          .map((c, i) => pairs.get(`${c}${chars[i + 1]}`))
-          .filter((p) => p && p.kern !== p.original)
-
-        if (!touched.length) {
-          return text_(
-            `Rejected: none of the pairs in "${trimmed}" were changed, so it would ` +
-              `show no difference. Pick words containing pairs you actually kerned.`,
-          )
-        }
-        api.setSpecimen(trimmed, note)
-        api.log(`specimen published: "${trimmed}" (${touched.length} changed pairs)`)
-        return text_(
-          `Published "${trimmed}". It contains ${touched.length} pairs you changed: ` +
-            touched.map((p) => p!.key).join(', '),
-        )
-      },
-    },
-    [ready],
   )
 
   // ---- compare_to_reference: only exists once there is work to score ---
