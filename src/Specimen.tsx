@@ -2,8 +2,9 @@ import type { LoadedFont } from './kern/font'
 import type { PairState } from './kern/state'
 import { pairKey } from './kern/state'
 
-/** Big enough to judge spacing by eye. Long text wraps rather than shrinking. */
-const SIZE = 40
+// Size lives in CSS so it can change with the viewport. Kerning is expressed
+// in `em`, which is exactly what a font unit is a fraction of, so the margins
+// follow whatever size is in effect without any JavaScript.
 
 /**
  * The agent's proof line, drawn twice at the same size.
@@ -58,7 +59,7 @@ function Line({
       {showTag && (
         <span className="word-tag">{which === 'original' ? 'before' : 'after'}</span>
       )}
-      <div className="word-line" style={{ fontSize: SIZE }}>
+      <div className="word-line">
         {chars.map((ch, i) => {
           const next = chars[i + 1]
           const state = next ? pairs.get(pairKey(ch, next)) : undefined
@@ -69,7 +70,7 @@ function Line({
             <span
               key={`${ch}-${i}`}
               className={changed ? 'changed' : undefined}
-              style={{ marginRight: `${(k / loaded.unitsPerEm) * SIZE}px` }}
+              style={{ marginRight: `${k / loaded.unitsPerEm}em` }}
               title={changed ? `${state.key} moved ${state.kern - state.original}` : undefined}
             >
               {ch === ' ' ? ' ' : ch}

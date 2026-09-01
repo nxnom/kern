@@ -399,8 +399,8 @@ button svg { flex: none; }
   width: 50px; flex: none;
 }
 .word-line {
-  font-family: Georgia, "Times New Roman", serif; line-height: 1.28;
-  min-width: 0; /* wraps rather than shrinking, so it stays readable */
+  font-family: Georgia, "Times New Roman", serif; font-size: 40px;
+  line-height: 1.28; min-width: 0; /* wraps rather than shrinking */
 }
 
 .specimen-head {
@@ -446,7 +446,7 @@ button svg { flex: none; }
   .detail { gap: 18px; padding: 16px; }
   .detail-renders { gap: 12px; }
   .specimen { padding: 16px; }
-  .word-line { font-size: 30px !important; }
+  .word-line { font-size: 28px; }
   .word-tag { width: 42px; }
   .status.error { padding: 14px 16px; }
   .status.error .fixes { grid-template-columns: 1fr; gap: 14px; }
