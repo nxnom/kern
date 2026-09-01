@@ -19,7 +19,7 @@ Built for the [OpenAI WebMCP Challenge](https://webmcp.devpost.com/).
 Open the live URL in **the ChatGPT app's browser with GPT 5.6 or newer**, or in
 **Chrome 149+** with `chrome://flags/#enable-webmcp-testing` enabled, then say:
 
-> Survey the kerning on this page and fix what needs it, using the WebMCP tools.
+> Survey the kerning of the loaded font and fix what needs it, using the WebMCP tools.
 
 The page carries a copy button for that line, because the wording matters — see
 [Naming beats documentation](#naming-beats-documentation).
@@ -143,15 +143,20 @@ Two findings worth more than the code.
 inspection — reasonably, since kerning a web page really is a CSS job. The word
 *page* was the trap.
 
-Fixing the tool descriptions to say they operate on the loaded font, not the
-page's CSS, was not enough on its own. Nor was *"using its tools"*. The prompt
-has to name the protocol — **"using the WebMCP tools"** — before the agent
-reliably picks them over browser control.
+Two things fixed it. Naming the object rather than the surface — *"the kerning
+of the loaded font"* rather than *"the kerning on this page"* — and naming the
+protocol outright.
+
+**But the most effective fix was accidental.** The status banner that reports
+`Native WebMCP · 6 tools registered` is plain text on the page, so an agent
+already in browser-control mode *reads it*, discovers there is a tool surface,
+and switches to it mid-task. A visible statement of capability turned out to be
+better discovery than anything in the tool metadata.
 
 That is worth saying plainly, because it is a property of the standard rather
 than of this app: a page can register a perfect tool surface and still be
-ignored in favour of screenshots unless the user names it. Tool discovery is
-solved; tool *preference* is not.
+ignored in favour of screenshots. Tool discovery is solved; tool *preference*
+is not — and until it is, telling the human reader also tells the agent.
 
 **Models weight names far above descriptions.** A read-only tool called
 `render_pair` was called dozens of times and never followed by a write, because

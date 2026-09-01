@@ -253,7 +253,7 @@ export default function App() {
         ) : (
           <span className="idle">
             <span className="muted">Idle. Ask your agent:</span>
-            <CopyPrompt text="Survey the kerning on this page and fix what needs it, using the WebMCP tools." />
+            <CopyPrompt text="Survey the kerning of the loaded font and fix what needs it, using the WebMCP tools." />
           </span>
         )}
       </section>
