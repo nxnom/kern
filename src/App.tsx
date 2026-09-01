@@ -1,78 +1,115 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { PairGrid } from './PairGrid'
 import type { LoadedFont } from './kern/font'
-import { existingKern, loadFontFromBuffer, loadFontFromUrl, renderPair } from './kern/font'
-import { PRIORITY_PAIRS, typicalRange } from './kern/pairs'
-import type { ToolCall } from './kern/useRenderPairTool'
+import { drawPair, loadFontFromBuffer, loadFontFromUrl } from './kern/font'
+import { SPECIMEN_WORDS, typicalRange } from './kern/pairs'
+import type { PairState } from './kern/state'
+import { initialPairs, pairKey } from './kern/state'
+import type { ToolEvent } from './kern/useRenderPairTool'
 import { useRenderPairTool } from './kern/useRenderPairTool'
 
 const SAMPLE_FONT = `${import.meta.env.BASE_URL}fonts/EBGaramond-Regular.ttf`
+/** How long a tile stays lit after the agent touches it. */
+const ACTIVE_MS = 2200
+
+interface LogLine {
+  id: number
+  text: string
+  rejected: boolean
+}
 
 export default function App() {
   const [loaded, setLoaded] = useState<LoadedFont | null>(null)
+  const [pairs, setPairs] = useState<Map<string, PairState>>(new Map())
+  const [activeKey, setActiveKey] = useState<string | null>(null)
+  const [selected, setSelected] = useState<string>('AV')
+  const [log, setLog] = useState<LogLine[]>([])
   const [error, setError] = useState<string | null>(null)
-  const [pair, setPair] = useState<[string, string]>(['A', 'V'])
-  const [kern, setKern] = useState(0)
-  const [preview, setPreview] = useState<string | null>(null)
-  const [calls, setCalls] = useState<ToolCall[]>([])
   const [hasWebMCP, setHasWebMCP] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
+  const activeTimer = useRef<number | undefined>(undefined)
+  const logId = useRef(0)
 
   useEffect(() => {
     setHasWebMCP(typeof document !== 'undefined' && 'modelContext' in document)
   }, [])
 
-  // Load the bundled sample so the page is useful on first paint.
   useEffect(() => {
-    loadFontFromUrl(SAMPLE_FONT)
-      .then(setLoaded)
-      .catch((e: unknown) => setError(String(e)))
+    loadFontFromUrl(SAMPLE_FONT).then(adopt).catch((e: unknown) => setError(String(e)))
   }, [])
 
-  // Redraw whenever the font or the pair changes.
-  useEffect(() => {
-    if (!loaded) return
-    const seed = existingKern(loaded, pair[0], pair[1])
-    setKern(seed)
-  }, [loaded, pair])
+  function adopt(lf: LoadedFont) {
+    setLoaded(lf)
+    setPairs(initialPairs(lf))
+    setLog([])
+    setActiveKey(null)
+    setError(null)
+  }
 
-  useEffect(() => {
-    if (!loaded) return
-    try {
-      const { render } = renderPair(loaded, pair[0], pair[1], kern)
-      setPreview(render.dataUrl)
-      setError(null)
-    } catch (e) {
-      setError(String(e))
-    }
-  }, [loaded, pair, kern])
+  /** Every tool call lands here: light the tile, record the attempt, log it. */
+  const onEvent = useCallback((e: ToolEvent) => {
+    const key = pairKey(e.left, e.right)
 
-  const onRender = useCallback(
-    (left: string, right: string, value: number, dataUrl: string) => {
-      setPair([left, right])
-      setKern(value)
-      setPreview(dataUrl)
-    },
-    [],
-  )
+    setActiveKey(key)
+    window.clearTimeout(activeTimer.current)
+    activeTimer.current = window.setTimeout(() => setActiveKey(null), ACTIVE_MS)
 
-  const onCall = useCallback((call: ToolCall) => {
-    setCalls((prev) => [call, ...prev].slice(0, 60))
+    setPairs((prev) => {
+      const next = new Map(prev)
+      const cur =
+        next.get(key) ??
+        ({
+          key,
+          left: e.left,
+          right: e.right,
+          original: 0,
+          kern: 0,
+          status: 'untouched',
+          attempts: [],
+        } as PairState)
+
+      next.set(key, {
+        ...cur,
+        kern: e.rejected ? cur.kern : e.kern,
+        status: e.rejected ? 'rejected' : e.kern === cur.original ? 'examining' : 'adjusted',
+        attempts: [...cur.attempts, e.kern],
+        note: e.rejected,
+        touchedAt: Date.now(),
+      })
+      return next
+    })
+
+    setLog((prev) =>
+      [
+        {
+          id: logId.current++,
+          rejected: Boolean(e.rejected),
+          text: e.rejected
+            ? `${e.left}${e.right} — proposed ${e.kern}, rejected as out of range`
+            : `${e.left}${e.right} — kern ${e.kern}, white ${e.opticalArea}, gap ${e.minGap}` +
+              (e.collides ? ' — COLLIDES' : ''),
+        },
+        ...prev,
+      ].slice(0, 80),
+    )
   }, [])
 
-  useRenderPairTool({ loaded, onRender, onCall })
+  useRenderPairTool({ loaded, onEvent })
 
-  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
+  async function onFile(ev: React.ChangeEvent<HTMLInputElement>) {
+    const file = ev.target.files?.[0]
     if (!file) return
     try {
-      setLoaded(loadFontFromBuffer(await file.arrayBuffer()))
-      setError(null)
+      adopt(loadFontFromBuffer(await file.arrayBuffer()))
     } catch {
       setError(`Could not read ${file.name}. Kern needs a .ttf or .otf file.`)
     }
   }
 
-  const range = loaded ? typicalRange(pair[0], pair[1], loaded.unitsPerEm) : null
+  const list = useMemo(() => [...pairs.values()], [pairs])
+  const touched = list.filter((p) => p.status === 'adjusted').length
+  const calls = list.reduce((n, p) => n + p.attempts.length, 0)
+  const detail = pairs.get(activeKey ?? selected)
 
   return (
     <div className="app">
@@ -89,101 +126,111 @@ export default function App() {
         <div className="banner">
           WebMCP not detected. Open this page in the ChatGPT app’s browser, or in
           Chrome 149+ with <code>chrome://flags/#enable-webmcp-testing</code> enabled.
-          The page still works by hand below.
         </div>
       )}
-
-      <section className="controls">
-        <div className="font-row">
-          <strong>{loaded ? loaded.familyName : 'Loading…'}</strong>
-          {loaded && <span className="muted"> · {loaded.unitsPerEm} units/em</span>}
-          <button onClick={() => fileInput.current?.click()}>Load a font</button>
-          <input
-            ref={fileInput}
-            type="file"
-            accept=".ttf,.otf"
-            hidden
-            onChange={onFile}
-          />
-        </div>
-
-        <div className="pair-row">
-          <label>
-            Pair
-            <input
-              value={pair[0]}
-              maxLength={1}
-              onChange={(e) => setPair([e.target.value || 'A', pair[1]])}
-            />
-            <input
-              value={pair[1]}
-              maxLength={1}
-              onChange={(e) => setPair([pair[0], e.target.value || 'V'])}
-            />
-          </label>
-          <select
-            value={`${pair[0]}${pair[1]}`}
-            onChange={(e) => setPair([e.target.value[0], e.target.value[1]])}
-          >
-            {PRIORITY_PAIRS.map(([l, r]) => (
-              <option key={`${l}${r}`} value={`${l}${r}`}>
-                {l}
-                {r}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {loaded && range && (
-          <div className="kern-row">
-            <input
-              type="range"
-              min={Math.round(-0.25 * loaded.unitsPerEm)}
-              max={Math.round(0.1 * loaded.unitsPerEm)}
-              value={kern}
-              onChange={(e) => setKern(Number(e.target.value))}
-            />
-            <span className="value">{kern}</span>
-            <span className="muted">
-              {range.pairClass} · typical {range.min} to {range.max}
-            </span>
-          </div>
-        )}
-      </section>
-
       {error && <div className="error">{error}</div>}
 
-      <section className="preview">
-        {preview && <img src={preview} alt={`${pair[0]}${pair[1]} at ${kern}`} />}
+      <section className="bar">
+        <div>
+          <strong>{loaded ? loaded.familyName : 'Loading…'}</strong>
+          {loaded && <span className="muted"> · {loaded.unitsPerEm} units/em</span>}
+        </div>
+        <div className="stats">
+          <span><b>{touched}</b> of {list.length} kerned</span>
+          <span><b>{calls}</b> tool calls</span>
+        </div>
+        <button onClick={() => fileInput.current?.click()}>Load a font</button>
+        <input ref={fileInput} type="file" accept=".ttf,.otf" hidden onChange={onFile} />
       </section>
 
-      <section className="log">
-        <h2>Tool calls ({calls.length})</h2>
-        {calls.length === 0 && (
-          <p className="muted">
-            Nothing yet. Ask your agent: “Kern the pair AV in this font.”
-          </p>
+      <section className={`now ${activeKey ? 'live' : ''}`}>
+        {activeKey ? (
+          <>
+            <span className="dot" />
+            Agent is looking at <code>{activeKey}</code>
+            {detail && detail.attempts.length > 1 && (
+              <span className="muted"> · attempt {detail.attempts.length}</span>
+            )}
+            {detail?.note && <span className="reason"> · {detail.note}</span>}
+          </>
+        ) : (
+          <span className="muted">
+            Idle. Ask your agent: “Work through the kerning pairs on this page.”
+          </span>
         )}
+      </section>
+
+      {loaded && (
+        <PairGrid
+          loaded={loaded}
+          pairs={list}
+          activeKey={activeKey}
+          onSelect={setSelected}
+        />
+      )}
+
+      {loaded && detail && (
+        <section className="detail">
+          <img
+            src={drawPair(loaded, detail.left, detail.right, detail.kern, 190)}
+            alt={detail.key}
+          />
+          <dl>
+            <dt>pair</dt><dd>{detail.key}</dd>
+            <dt>kern</dt><dd>{detail.kern}</dd>
+            <dt>was</dt><dd>{detail.original}</dd>
+            <dt>class</dt>
+            <dd>{typicalRange(detail.left, detail.right, loaded.unitsPerEm).pairClass}</dd>
+            <dt>attempts</dt><dd>{detail.attempts.length}</dd>
+          </dl>
+        </section>
+      )}
+
+      {loaded && (
+        <section className="specimen">
+          {SPECIMEN_WORDS.map((w) => (
+            <Specimen key={w} loaded={loaded} word={w} pairs={pairs} />
+          ))}
+        </section>
+      )}
+
+      <section className="log">
+        <h2>Tool calls</h2>
         <ol>
-          {calls.map((c) => (
-            <li key={c.at} className={c.rejected ? 'rejected' : ''}>
-              <code>
-                {c.left}
-                {c.right}
-              </code>{' '}
-              kern {c.kern}
-              {c.rejected ? (
-                <span className="reason"> — {c.rejected}</span>
-              ) : (
-                <span className="muted">
-                  {' '}
-                  · white {c.opticalArea} · gap {c.minGap}
-                </span>
-              )}
-            </li>
+          {log.map((l) => (
+            <li key={l.id} className={l.rejected ? 'rejected' : ''}>{l.text}</li>
           ))}
         </ol>
       </section>
+    </div>
+  )
+}
+
+/** Specimen text drawn with whatever kerning the agent has settled on so far. */
+function Specimen({
+  loaded,
+  word,
+  pairs,
+}: {
+  loaded: LoadedFont
+  word: string
+  pairs: Map<string, PairState>
+}) {
+  const chars = [...word]
+  return (
+    <div className="word">
+      {chars.map((ch, i) => {
+        const next = chars[i + 1]
+        const k = next ? pairs.get(pairKey(ch, next))?.kern ?? 0 : 0
+        return (
+          <span
+            key={`${ch}-${i}`}
+            style={{ marginRight: `${(k / loaded.unitsPerEm) * 46}px` }}
+          >
+            {ch}
+          </span>
+        )
+      })}
     </div>
   )
 }

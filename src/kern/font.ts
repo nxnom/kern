@@ -64,6 +64,45 @@ const RENDER_PX = 220
 const PAD_PX = 60
 
 /**
+ * Draw a pair and return just the picture. Used for the grid, where fifty
+ * tiles redraw on every change and the pixel measurement would be wasted.
+ */
+export function drawPair(
+  lf: LoadedFont,
+  left: string,
+  right: string,
+  kern: number,
+  sizePx = 96,
+): string {
+  const { font, unitsPerEm } = lf
+  const scale = sizePx / unitsPerEm
+  const pad = Math.round(sizePx * 0.28)
+
+  const lGlyph = font.charToGlyph(left)
+  const rGlyph = font.charToGlyph(right)
+  if (!lGlyph || !rGlyph) return ''
+
+  const lAdvance = lGlyph.advanceWidth ?? 0
+  const rAdvance = rGlyph.advanceWidth ?? 0
+  const width = Math.max(1, Math.ceil((lAdvance + kern + rAdvance) * scale) + pad * 2)
+  const height = sizePx + pad * 2
+  const baselineY = height - pad - sizePx * 0.22
+
+  const canvas = document.createElement('canvas')
+  const dpr = Math.min(2, globalThis.devicePixelRatio || 1)
+  canvas.width = Math.round(width * dpr)
+  canvas.height = Math.round(height * dpr)
+  const ctx = canvas.getContext('2d')!
+  ctx.scale(dpr, dpr)
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, width, height)
+  ctx.fillStyle = '#16150f'
+  lGlyph.getPath(pad, baselineY, sizePx).draw(ctx)
+  rGlyph.getPath(pad + (lAdvance + kern) * scale, baselineY, sizePx).draw(ctx)
+  return canvas.toDataURL('image/png')
+}
+
+/**
  * Draw `left` and `right` at `kern` (font units) and return both the picture
  * and the optical measurements.
  *
