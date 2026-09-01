@@ -6,6 +6,7 @@ import type { LoadedFont } from './kern/font'
 import { loadFontFromBuffer, loadFontFromUrl } from './kern/font'
 import type { PairState } from './kern/state'
 import { initialPairs, pairKey } from './kern/state'
+import { useWebMCPSupport } from './kern/useWebMCPSupport'
 import { buildFeatureFile, buildKernedFont, download } from './kern/export'
 import type { Applied, KernApi, Rejected } from './kern/useKernTools'
 import { checkRange, useKernTools } from './kern/useKernTools'
@@ -17,6 +18,7 @@ const ACTIVE_MS = 2600
 interface LogLine { id: number; at: number; text: string; rejected: boolean }
 
 export default function App() {
+  const webmcp = useWebMCPSupport()
   const [loaded, setLoaded] = useState<LoadedFont | null>(null)
   const [pairs, setPairs] = useState<Map<string, PairState>>(new Map())
   const [activeKeys, setActiveKeys] = useState<string[]>([])
@@ -26,8 +28,6 @@ export default function App() {
   const [log, setLog] = useState<LogLine[]>([])
   const [logOpen, setLogOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [hasWebMCP, setHasWebMCP] = useState(false)
-  const [toolCount, setToolCount] = useState(0)
 
   const fileInput = useRef<HTMLInputElement>(null)
   const activeTimer = useRef<number | undefined>(undefined)
@@ -37,36 +37,6 @@ export default function App() {
   // and so registering them does not depend on every keystroke of state.
   const pairsRef = useRef(pairs)
   pairsRef.current = pairs
-
-  useEffect(() => {
-    const mc = (document as unknown as {
-      modelContext?: { getTools?: () => Promise<unknown[]> }
-    }).modelContext
-    setHasWebMCP(Boolean(mc))
-    if (!mc?.getTools) return
-
-    let cancelled = false
-    let tries = 0
-    const read = () => {
-      mc.getTools!()
-        .then((tools) => {
-          if (cancelled) return
-          setToolCount(tools.length)
-          // registerTool() resolves asynchronously, so an immediate read can
-          // land before the hooks have finished. Retry briefly until they do.
-          if (tools.length === 0 && tries++ < 10) setTimeout(read, 200)
-        })
-        .catch(() => {})
-    }
-    read()
-
-    const target = mc as unknown as EventTarget
-    target.addEventListener?.('toolchange', read)
-    return () => {
-      cancelled = true
-      target.removeEventListener?.('toolchange', read)
-    }
-  }, [loaded])
 
   // Keep the newest line in view, both on open and as calls arrive.
   useEffect(() => {
@@ -226,10 +196,19 @@ export default function App() {
         </div>
       </header>
 
-      {!hasWebMCP && (
+      {webmcp.supported ? (
+        <div className="banner ok">
+          <b>{webmcp.source === 'native' ? 'Native WebMCP' : 'WebMCP polyfill'}</b>
+          <span className="muted">
+            {webmcp.tools.length} tools registered
+            {webmcp.tools.length > 0 && `: ${webmcp.tools.join(', ')}`}
+          </span>
+        </div>
+      ) : (
         <div className="banner">
           WebMCP not detected. Open in the ChatGPT app’s browser, or Chrome 149+ with{' '}
-          <code>chrome://flags/#enable-webmcp-testing</code> enabled.
+          <code>chrome://flags/#enable-webmcp-testing</code> enabled. Everything below
+          still works by hand.
         </div>
       )}
       {error && <div className="error">{error}</div>}
@@ -272,11 +251,7 @@ export default function App() {
         ) : (
           <span className="idle">
             <span className="muted">Idle. Ask your agent:</span>
-            <code>Kern the font loaded in Kern, using its tools.</code>
-            <span className="muted">
-              {toolCount} tools registered · say “using its tools” so the agent reaches
-              for WebMCP instead of screenshotting the page
-            </span>
+            <code>Survey the kerning on this page and fix what needs it, using its tools.</code>
           </span>
         )}
       </section>

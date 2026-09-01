@@ -268,3 +268,9 @@ button:hover { border-color: var(--muted); }
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px;
   background: #f4f2ec; padding: 3px 9px; border-radius: 5px; color: var(--fg);
 }
+
+.banner.ok {
+  background: #f0fdf4; border-color: #bbf7d0; color: #14532d;
+  display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap;
+}
+.banner.ok .muted { color: #3f6212; font-size: 13px; }
