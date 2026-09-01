@@ -267,11 +267,18 @@ export function useKernTools(api: KernApi) {
     {
       name: 'publish_specimen',
       description:
-        'Kern is a font-kerning workbench. Write a line of your own words at the current kerning values. It is shown ' +
-        'on the page, before and after, with every gap that moved marked — and the ' +
-        'image comes back to you. A pair can look right alone and still break the ' +
-        'rhythm of a word, so check a specimen before calling a batch finished, and ' +
-        'again at the end. Choose words that actually contain the pairs you changed.',
+        'Kern is a font-kerning workbench. Write a line at the current kerning ' +
+        'values. It is shown on the page, before and after, with every gap that ' +
+        'moved marked — and the image comes back to you. A pair can look right ' +
+        'alone and still break the rhythm of a word, so check a specimen before ' +
+        'calling a batch finished, and again at the end.\n\n' +
+        'Write REAL LANGUAGE: an ordinary sentence someone could actually read, ' +
+        'chosen so that it happens to contain the pairs you changed. ' +
+        '"Yesterday the valley took on a wavy, tawny light." reads as English and ' +
+        'still exercises Ye, va, To, wa, aw, ny. A string of fragments like ' +
+        '"AVATAR To Yale; We Foil, r. f] f)" covers the pairs but tells you nothing ' +
+        'about rhythm, because nobody reads text like that. Fall back to fragments ' +
+        'only if no natural sentence can reach the pairs you need.',
       inputSchema: {
         type: 'object',
         properties: {
