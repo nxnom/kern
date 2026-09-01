@@ -29,7 +29,9 @@ export default function App() {
   const [activeKeys, setActiveKeys] = useState<string[]>([])
   const [selected, setSelected] = useState('AV')
   const [shade, setShade] = useState(true)
-  const [specimen, setSpecimenState] = useState<{ text: string; note?: string } | null>(null)
+  const [specimen, setSpecimenState] = useState<
+    { text: string; note?: string; fromAgent: string } | null
+  >(null)
   const [log, setLog] = useState<LogLine[]>([])
   const [logOpen, setLogOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -147,7 +149,8 @@ export default function App() {
       highlight,
       log: log_,
       hasChanges,
-      setSpecimen: (text: string, note?: string) => setSpecimenState({ text, note }),
+      setSpecimen: (text: string, note?: string) =>
+        setSpecimenState({ text, note, fromAgent: text }),
     }),
     [loaded, applyKerns, highlight, log_, hasChanges],
   )
@@ -253,7 +256,7 @@ export default function App() {
         ) : (
           <span className="idle">
             <span className="muted">Idle. Ask your agent:</span>
-            <CopyPrompt text="Survey the kerning of the loaded font and fix what needs it, using the WebMCP tools." />
+            <CopyPrompt text="Survey the kerning of the loaded font and fix what needs it." />
           </span>
         )}
       </section>
@@ -274,11 +277,32 @@ export default function App() {
 
       {loaded && specimen && (
         <section className="specimen">
-          <h2>
-            Proof <span className="muted">chosen by the agent</span>
-          </h2>
+          <div className="specimen-head">
+            <h2>Proof</h2>
+            <input
+              value={specimen.text}
+              aria-label="Specimen text"
+              spellCheck={false}
+              onChange={(e) =>
+                setSpecimenState({ ...specimen, text: e.target.value })
+              }
+            />
+            {specimen.text === specimen.fromAgent ? (
+              <span className="muted">chosen by the agent · edit it if you like</span>
+            ) : (
+              <button
+                onClick={() =>
+                  setSpecimenState({ ...specimen, text: specimen.fromAgent })
+                }
+              >
+                Reset to the agent’s
+              </button>
+            )}
+          </div>
           <Specimen loaded={loaded} word={specimen.text} pairs={pairs} showBefore />
-          {specimen.note && <p className="specimen-note">{specimen.note}</p>}
+          {specimen.note && specimen.text === specimen.fromAgent && (
+            <p className="specimen-note">{specimen.note}</p>
+          )}
         </section>
       )}
 

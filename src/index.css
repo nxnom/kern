@@ -395,3 +395,15 @@ button svg { flex: none; }
   font-family: Georgia, "Times New Roman", serif; line-height: 1.3;
   white-space: nowrap; min-width: 0;
 }
+
+.specimen-head {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px;
+}
+.specimen-head h2 { margin: 0; }
+.specimen-head input {
+  font: inherit; font-size: 13px; padding: 5px 10px; min-width: 280px; flex: 1;
+  max-width: 460px; border: 1px solid var(--line); border-radius: 7px;
+  background: #fff; color: var(--fg);
+}
+.specimen-head input:focus { outline: none; border-color: var(--muted); }
+.specimen-head .muted { font-size: 12px; }
