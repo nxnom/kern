@@ -12,16 +12,21 @@ export function Specimen({
   word,
   pairs,
   size = 38,
+  showBefore,
 }: {
   loaded: LoadedFont
   word: string
   pairs: Map<string, PairState>
   size?: number
+  /** The before line is noise until the agent has actually changed something. */
+  showBefore: boolean
 }) {
   return (
     <div className="specimen-pair">
-      <Line loaded={loaded} word={word} pairs={pairs} size={size} which="original" />
-      <Line loaded={loaded} word={word} pairs={pairs} size={size} which="kern" />
+      {showBefore && (
+        <Line loaded={loaded} word={word} pairs={pairs} size={size} which="original" />
+      )}
+      <Line loaded={loaded} word={word} pairs={pairs} size={size} which="kern" showTag={showBefore} />
     </div>
   )
 }
@@ -32,17 +37,21 @@ function Line({
   pairs,
   size,
   which,
+  showTag = true,
 }: {
   loaded: LoadedFont
   word: string
   pairs: Map<string, PairState>
   size: number
   which: 'original' | 'kern'
+  showTag?: boolean
 }) {
   const chars = [...word]
   return (
     <div className={`word ${which}`} style={{ fontSize: size }}>
-      <span className="word-tag">{which === 'original' ? 'before' : 'after'}</span>
+      {showTag && (
+        <span className="word-tag">{which === 'original' ? 'before' : 'after'}</span>
+      )}
       {chars.map((ch, i) => {
         const next = chars[i + 1]
         const state = next ? pairs.get(pairKey(ch, next)) : undefined

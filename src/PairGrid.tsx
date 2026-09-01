@@ -6,13 +6,15 @@ import type { PairState } from './kern/state'
 interface Props {
   loaded: LoadedFont
   pairs: PairState[]
-  activeKey: string | null
+  activeKeys: string[]
   onSelect: (key: string) => void
   /** Show every tile at its original value, for a straight comparison. */
   showOriginal: boolean
 }
 
-export function PairGrid({ loaded, pairs, activeKey, onSelect, showOriginal }: Props) {
+export function PairGrid({ loaded, pairs, activeKeys, onSelect, showOriginal }: Props) {
+  const active = new Set(activeKeys)
+  const lead = activeKeys[0]
   return (
     <div className="grid">
       {pairs.map((p) => (
@@ -20,7 +22,8 @@ export function PairGrid({ loaded, pairs, activeKey, onSelect, showOriginal }: P
           key={p.key}
           loaded={loaded}
           pair={p}
-          active={p.key === activeKey}
+          active={active.has(p.key)}
+          lead={p.key === lead}
           onSelect={onSelect}
           showOriginal={showOriginal}
         />
@@ -33,12 +36,14 @@ function PairTile({
   loaded,
   pair,
   active,
+  lead,
   onSelect,
   showOriginal,
 }: {
   loaded: LoadedFont
   pair: PairState
   active: boolean
+  lead: boolean
   onSelect: (key: string) => void
   showOriginal: boolean
 }) {
@@ -52,9 +57,10 @@ function PairTile({
   )
 
   // Keep the pair the agent is working on in view.
+  // Only the first of a batch scrolls, or sixteen tiles fight over the viewport.
   useEffect(() => {
-    if (active) ref.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-  }, [active])
+    if (lead) ref.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [lead])
 
   const delta = pair.kern - pair.original
 

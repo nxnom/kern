@@ -172,23 +172,54 @@ function measureOpticalGap(
   scale: number,
   splitX: number,
 ): PairMetrics {
-  const bandTop = Math.max(0, Math.floor(baselineY - lf.capHeight * scale))
-  const bandBottom = Math.min(height - 1, Math.ceil(baselineY))
-  const { data } = ctx.getImageData(0, 0, width, height)
-  const inkAt = (x: number, y: number) => data[(y * width + x) * 4] < 128
+  return measureBand(
+    ctx.getImageData(0, 0, width, height),
+    width,
+    0,
+    width,
+    Math.max(0, Math.floor(baselineY - lf.capHeight * scale)),
+    Math.min(height - 1, Math.ceil(baselineY)),
+    splitX,
+    1 / scale,
+  )
+}
 
+/**
+ * Walk each scanline across the cap band. On every line, find the rightmost
+ * ink left of the split and the leftmost ink right of it, and accumulate the
+ * gap between them. Summing those gaps gives the area of trapped white, which
+ * is what "evenly spaced" actually means to a reader.
+ *
+ * Takes a region so the contact sheet can measure every cell from one
+ * getImageData call instead of one per pair.
+ */
+export function measureBand(
+  image: ImageData,
+  imageWidth: number,
+  x0: number,
+  x1: number,
+  yTop: number,
+  yBottom: number,
+  splitX: number,
+  toUnits: number,
+): PairMetrics {
+  const { data } = image
+  const left0 = Math.max(0, Math.floor(x0))
+  const right1 = Math.min(imageWidth, Math.ceil(x1))
   const split = Math.round(splitX)
+  const inkAt = (x: number, y: number) => data[(y * imageWidth + x) * 4] < 128
+
   let areaPx = 0
   let minGapPx = Number.POSITIVE_INFINITY
   let collides = false
 
-  for (let y = bandTop; y <= bandBottom; y++) {
+  for (let y = Math.max(0, yTop); y <= yBottom; y++) {
     let leftEdge = -1
-    for (let x = Math.min(split, width - 1); x >= 0; x--) {
+    for (let x = Math.min(split, right1 - 1); x >= left0; x--) {
       if (inkAt(x, y)) { leftEdge = x; break }
     }
     let rightEdge = -1
-    for (let x = Math.max(split, 0); x < width; x++) {
+    for (let x = Math.max(split, left0); x < right1; x++) {
       if (inkAt(x, y)) { rightEdge = x; break }
     }
     // Scanlines where one side has no ink carry no spacing information.
@@ -200,7 +231,6 @@ function measureOpticalGap(
     if (gap < minGapPx) minGapPx = gap
   }
 
-  const toUnits = 1 / scale
   return {
     opticalArea: Math.round(areaPx * toUnits * toUnits),
     minGap: Number.isFinite(minGapPx) ? Math.round(minGapPx * toUnits) : 0,

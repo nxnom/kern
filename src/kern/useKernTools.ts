@@ -1,0 +1,377 @@
+import { useWebMCP } from 'usewebmcp'
+import type { LoadedFont } from './font'
+import { drawPair, renderPair } from './font'
+import { drawSheet } from './sheet'
+import { SPECIMEN_WORDS, typicalRange } from './pairs'
+import type { PairState, PairStatus } from './state'
+
+export interface KernApi {
+  font: LoadedFont | null
+  /** Read through a ref so tools never close over stale state. */
+  getPairs: () => Map<string, PairState>
+  /** Applies values, returning what stuck and what did not. */
+  applyKerns: (
+    updates: { left: string; right: string; value: number }[],
+    force: boolean,
+  ) => { applied: Applied[]; rejected: Rejected[] }
+  /** Light the tiles the agent is currently looking at. */
+  highlight: (keys: string[]) => void
+  log: (line: string, rejected?: boolean) => void
+  /** True once the agent has changed anything — gates compare_to_reference. */
+  hasChanges: boolean
+}
+
+export interface Applied { key: string; from: number; to: number }
+export interface Rejected { key: string; value: number; reason: string }
+
+const text = (s: string) => ({ content: [{ type: 'text' as const, text: s }] })
+const READ_ONLY = { readOnlyHint: true }
+
+export function useKernTools(api: KernApi) {
+  const { font } = api
+  const ready = font !== null
+
+  // ---- list_pairs: cheap planning, no image ---------------------------
+  useWebMCP(
+    {
+      name: 'list_pairs',
+      description:
+        'List the kerning pairs on the page with their current value, status and ' +
+        'shape class. Text only and cheap — use it to plan which batch to look at next.',
+      annotations: READ_ONLY,
+      inputSchema: {
+        type: 'object',
+        properties: {
+          status: {
+            type: 'string',
+            enum: ['all', 'untouched', 'adjusted', 'rejected'],
+            description: 'Filter by status. Defaults to all.',
+          },
+        },
+      } as const,
+      enabled: ready,
+      execute: async ({ status }) => {
+        const wanted = (status ?? 'all') as PairStatus | 'all'
+        const rows = [...api.getPairs().values()]
+          .filter((p) => wanted === 'all' || p.status === wanted)
+          .map(
+            (p) =>
+              `${p.key}\t${p.kern}\t(was ${p.original})\t${p.status}\t` +
+              `${typicalRange(p.left, p.right, font!.unitsPerEm).pairClass}\t` +
+              `${p.attempts.length} attempts`,
+          )
+        return text(
+          `pair\tkern\toriginal\tstatus\tclass\tattempts\n${rows.join('\n')}\n\n` +
+            `${rows.length} pairs. em = ${font!.unitsPerEm}.`,
+        )
+      },
+    },
+    [ready, font],
+  )
+
+  // ---- render_sheet: survey many pairs in one image -------------------
+  useWebMCP(
+    {
+      name: 'render_sheet',
+      description:
+        'Render up to 24 pairs onto a single labelled contact sheet and return it ' +
+        'with a metrics table. This is the fast way to work: survey a batch, find ' +
+        'the two or three that look wrong, then zoom in with render_pair. Prefer ' +
+        'this over calling render_pair repeatedly.',
+      annotations: READ_ONLY,
+      inputSchema: {
+        type: 'object',
+        properties: {
+          pairs: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Explicit pairs like ["AV","To"]. Omit to use the filter.',
+          },
+          status: {
+            type: 'string',
+            enum: ['all', 'untouched', 'adjusted', 'rejected'],
+            description: 'Which pairs to pull when `pairs` is omitted.',
+          },
+          offset: { type: 'number', description: 'Skip this many, for paging.' },
+          limit: { type: 'number', description: 'How many to show. Default 16, max 24.' },
+          columns: { type: 'number', description: 'Sheet columns. Default 4.' },
+        },
+      } as const,
+      enabled: ready,
+      execute: async ({ pairs, status, offset, limit, columns }) => {
+        const all = api.getPairs()
+        let chosen: PairState[]
+        if (pairs?.length) {
+          chosen = pairs
+            .map((k) => all.get(k))
+            .filter((p): p is PairState => Boolean(p))
+        } else {
+          const wanted = (status ?? 'all') as PairStatus | 'all'
+          chosen = [...all.values()].filter(
+            (p) => wanted === 'all' || p.status === wanted,
+          )
+        }
+        const start = Math.max(0, offset ?? 0)
+        const take = Math.min(24, Math.max(1, limit ?? 16))
+        chosen = chosen.slice(start, start + take)
+
+        if (!chosen.length) return text('No pairs match that filter.')
+
+        const sheet = drawSheet(
+          font!,
+          chosen.map((p) => ({ left: p.left, right: p.right, kern: p.kern })),
+          columns ?? 4,
+        )
+        api.highlight(chosen.map((p) => p.key))
+        api.log(`sheet · ${chosen.length} pairs (${chosen[0].key}…${chosen.at(-1)!.key})`)
+
+        const table = sheet.cells
+          .map(
+            (c) =>
+              `${c.left}${c.right}\t${c.kern}\twhite ${c.metrics.opticalArea}` +
+              `\tgap ${c.metrics.minGap}${c.metrics.collides ? '\tCOLLIDES' : ''}`,
+          )
+          .join('\n')
+
+        return {
+          content: [
+            { type: 'image' as const, data: sheet.base64, mimeType: 'image/png' },
+            {
+              type: 'text' as const,
+              text:
+                `${sheet.cells.length} pairs, ${sheet.columns} columns, ` +
+                `reading left to right.\n\npair\tkern\toptical white\tnarrowest gap\n${table}\n\n` +
+                `Pairs of the same shape class should have similar optical white. ` +
+                `Look for the outliers.`,
+            },
+          ],
+        }
+      },
+    },
+    [ready, font],
+  )
+
+  // ---- render_pair: zoom in on one -----------------------------------
+  useWebMCP(
+    {
+      name: 'render_pair',
+      description:
+        'Render a single pair large, at a given kerning value, and return the image ' +
+        'with its measurements. Use after render_sheet when one pair needs a closer ' +
+        'look. Passing `kern` previews a value without applying it — use set_kern to apply.',
+      annotations: READ_ONLY,
+      inputSchema: {
+        type: 'object',
+        properties: {
+          left: { type: 'string', description: 'Left character, e.g. "A"' },
+          right: { type: 'string', description: 'Right character, e.g. "V"' },
+          kern: {
+            type: 'number',
+            description: 'Value to preview in font units. Omit for the current value.',
+          },
+        },
+        required: ['left', 'right'],
+      } as const,
+      enabled: ready,
+      execute: async ({ left, right, kern }) => {
+        if ([...left].length !== 1 || [...right].length !== 1) {
+          throw new Error('left and right must each be exactly one character.')
+        }
+        const key = `${left}${right}`
+        const state = api.getPairs().get(key)
+        const value = kern ?? state?.kern ?? 0
+        const range = typicalRange(left, right, font!.unitsPerEm)
+
+        const { render, metrics } = renderPair(font!, left, right, value)
+        api.highlight([key])
+        api.log(`${key} · preview ${value} · white ${metrics.opticalArea}`)
+
+        return {
+          content: [
+            { type: 'image' as const, data: render.base64, mimeType: 'image/png' },
+            {
+              type: 'text' as const,
+              text: [
+                `pair: ${key}`,
+                `previewing: ${value} (applied value is ${state?.kern ?? 0})`,
+                `original: ${state?.original ?? 0}`,
+                `optical white: ${metrics.opticalArea}`,
+                `narrowest gap: ${metrics.minGap}`,
+                metrics.collides ? 'WARNING: the outlines collide.' : '',
+                `class ${range.pairClass}, typical ${range.min} to ${range.max}`,
+              ]
+                .filter(Boolean)
+                .join('\n'),
+            },
+          ],
+        }
+      },
+    },
+    [ready, font],
+  )
+
+  // ---- render_specimen: rhythm in context -----------------------------
+  useWebMCP(
+    {
+      name: 'render_specimen',
+      description:
+        'Render whole words at the current kerning values. A pair can look right ' +
+        'alone and still break the rhythm of a word, so check specimens before ' +
+        'calling a batch finished.',
+      annotations: READ_ONLY,
+      inputSchema: {
+        type: 'object',
+        properties: {
+          words: {
+            type: 'array',
+            items: { type: 'string' },
+            description: `Words to set. Defaults to ${SPECIMEN_WORDS.slice(0, 4).join(', ')}.`,
+          },
+        },
+      } as const,
+      enabled: ready,
+      execute: async ({ words }) => {
+        const list = (words?.length ? words : SPECIMEN_WORDS).slice(0, 6)
+        const pairs = api.getPairs()
+        const items = list.flatMap((w) => {
+          const chars = [...w]
+          return chars.slice(0, -1).map((ch, i) => ({
+            left: ch,
+            right: chars[i + 1],
+            kern: pairs.get(`${ch}${chars[i + 1]}`)?.kern ?? 0,
+          }))
+        })
+        const sheet = drawSheet(font!, items.slice(0, 24), 6)
+        api.log(`specimen · ${list.join(' ')}`)
+        return {
+          content: [
+            { type: 'image' as const, data: sheet.base64, mimeType: 'image/png' },
+            {
+              type: 'text' as const,
+              text:
+                `Every adjacent pair in: ${list.join(', ')}\n` +
+                sheet.cells
+                  .map((c) => `${c.left}${c.right}\t${c.kern}\twhite ${c.metrics.opticalArea}`)
+                  .join('\n') +
+                `\n\nUneven optical white across a word is what a reader notices.`,
+            },
+          ],
+        }
+      },
+    },
+    [ready, font],
+  )
+
+  // ---- set_kern: the only writer --------------------------------------
+  useWebMCP(
+    {
+      name: 'set_kern',
+      description:
+        'Apply kerning values to one or many pairs. This is the only tool that ' +
+        'changes anything. Values outside the typical range for a pair’s shape class ' +
+        'are rejected individually — the rest of the batch still applies — so fix ' +
+        'the rejects and call again rather than forcing.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          pairs: {
+            type: 'array',
+            description: 'The values to apply.',
+            items: {
+              type: 'object',
+              properties: {
+                pair: { type: 'string', description: 'Two characters, e.g. "AV"' },
+                kern: { type: 'number', description: 'Value in font units' },
+              },
+              required: ['pair', 'kern'],
+            },
+          },
+          force: {
+            type: 'boolean',
+            description:
+              'Accept values outside the typical range. Use only when a render ' +
+              'clearly justifies it.',
+          },
+        },
+        required: ['pairs'],
+      } as const,
+      enabled: ready,
+      execute: async ({ pairs, force }) => {
+        const updates = pairs
+          .filter((p) => [...p.pair].length === 2)
+          .map((p) => ({ left: p.pair[0], right: p.pair[1], value: p.kern }))
+        if (!updates.length) throw new Error('No valid pairs. Each must be two characters.')
+
+        const { applied, rejected } = api.applyKerns(updates, Boolean(force))
+        api.highlight(updates.map((u) => `${u.left}${u.right}`))
+
+        const lines = [
+          `applied ${applied.length} of ${updates.length}`,
+          ...applied.map((a) => `  ${a.key}: ${a.from} → ${a.to}`),
+        ]
+        if (rejected.length) {
+          lines.push(`rejected ${rejected.length}:`)
+          lines.push(...rejected.map((r) => `  ${r.key}: ${r.reason}`))
+          lines.push('Revise the rejected pairs and call set_kern again.')
+        }
+        return text(lines.join('\n'))
+      },
+    },
+    [ready, font],
+  )
+
+  // ---- compare_to_reference: only exists once there is work to score ---
+  useWebMCP(
+    {
+      name: 'compare_to_reference',
+      description:
+        'Score the current values against the kerning the font shipped with. ' +
+        'Only available once at least one pair has been changed.',
+      annotations: READ_ONLY,
+      inputSchema: { type: 'object', properties: {} } as const,
+      enabled: ready && api.hasChanges,
+      execute: async () => {
+        const rows = [...api.getPairs().values()].filter((p) => p.original !== 0)
+        if (!rows.length) {
+          return text('This font shipped no kerning for these pairs, so there is nothing to score against.')
+        }
+        const diffs = rows.map((p) => Math.abs(p.kern - p.original))
+        const within = (n: number) => diffs.filter((d) => d <= n).length
+        const mean = diffs.reduce((a, b) => a + b, 0) / diffs.length
+        return text(
+          [
+            `Scored against ${rows.length} pairs the designer kerned.`,
+            `mean absolute difference: ${mean.toFixed(1)} font units`,
+            `within 10 units: ${within(10)} of ${rows.length}`,
+            `within 25 units: ${within(25)} of ${rows.length}`,
+            `within 50 units: ${within(50)} of ${rows.length}`,
+            '',
+            ...rows
+              .map((p) => ({ p, d: Math.abs(p.kern - p.original) }))
+              .sort((a, b) => b.d - a.d)
+              .slice(0, 8)
+              .map(({ p, d }) => `  ${p.key}: yours ${p.kern}, designer ${p.original} (off by ${d})`),
+          ].join('\n'),
+        )
+      },
+    },
+    [ready, font, api.hasChanges],
+  )
+}
+
+/** Shared by the tool and the UI so the rule lives in one place. */
+export function checkRange(
+  left: string,
+  right: string,
+  value: number,
+  unitsPerEm: number,
+): string | null {
+  const range = typicalRange(left, right, unitsPerEm)
+  if (value >= range.min && value <= range.max) return null
+  return (
+    `${value} is outside the typical range for ${range.pairClass} pairs ` +
+    `(${range.min} to ${range.max})`
+  )
+}
+
+export { drawPair }

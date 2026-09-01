@@ -189,3 +189,7 @@ button:hover { border-color: var(--muted); }
 .drawer.open .drawer-body { max-height: 260px; }
 .drawer-body li { padding: 5px 0; border-bottom: 1px solid var(--line); }
 .drawer-body li.rejected { color: var(--accent); }
+
+/* Word tag is hidden before the agent runs, so keep the line flush. */
+.word:not(:has(.word-tag)) { padding-left: 0; }
+.tile.active:not(.lead) { box-shadow: 0 0 0 2px #fde68a; transform: none; }
