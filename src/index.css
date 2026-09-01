@@ -34,10 +34,14 @@ h1 {
 .font-row, .pair-row, .kern-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .muted { color: var(--muted); font-size: 13px; }
 button, select {
-  font: inherit; padding: 6px 12px; border: 1px solid var(--line);
-  border-radius: 6px; background: #fff; cursor: pointer;
+  font: inherit; font-size: 13px; padding: 5px 10px;
+  border: 1px solid var(--line); border-radius: 7px; background: #fff;
+  cursor: pointer; color: var(--fg);
+  display: inline-flex; align-items: center; gap: 6px; line-height: 1;
 }
-button:hover { border-color: var(--muted); }
+button:hover:not(:disabled) { border-color: var(--muted); background: #fdfdfc; }
+button:disabled { opacity: .38; cursor: not-allowed; }
+button svg { flex: none; }
 .pair-row label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
 .pair-row input {
   width: 44px; text-align: center; font-size: 18px; padding: 4px;
@@ -117,8 +121,6 @@ button:hover { border-color: var(--muted); }
 .head { display: flex; align-items: baseline; gap: 16px; margin-bottom: 20px; }
 .head h1 { flex: none; }
 .head-right { margin-left: auto; display: flex; align-items: baseline; gap: 10px; font-size: 14px; }
-.bar button.on { background: var(--fg); color: #fff; border-color: var(--fg); }
-.bar button:disabled { opacity: .4; cursor: not-allowed; }
 .bar .stats { margin-left: 0; margin-right: auto; }
 
 /* --- before / after -------------------------------------------------- */
@@ -323,13 +325,6 @@ button:hover { border-color: var(--muted); }
 }
 .status.error .muted { color: #b91c1c; font-size: 13px; }
 
-/* --- copy-able prompt -------------------------------------------------- */
-.copy-prompt { display: inline-flex; align-items: center; gap: 8px; }
-.copy-prompt code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px;
-  background: #f4f2ec; padding: 4px 9px; border-radius: 5px; color: var(--fg);
-}
-.copy-prompt button { padding: 4px 11px; font-size: 12px; }
 
 .status.warn summary {
   padding: 12px 16px; cursor: pointer; display: flex; gap: 12px;
@@ -347,4 +342,51 @@ button:hover { border-color: var(--muted); }
 .status.warn code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
   background: #ffedd5; padding: 2px 7px; border-radius: 4px;
+}
+
+/* --- toggle switch ---------------------------------------------------- */
+.toggle { padding: 5px 8px 5px 10px; color: var(--muted); }
+.toggle.on { color: var(--fg); border-color: var(--muted); }
+.toggle .track {
+  width: 26px; height: 15px; border-radius: 8px; background: #ddd8cc;
+  position: relative; transition: background .18s; margin-left: 2px; flex: none;
+}
+.toggle.on .track { background: #16150f; }
+.toggle .knob {
+  position: absolute; top: 2px; left: 2px; width: 11px; height: 11px;
+  border-radius: 50%; background: #fff; transition: transform .18s;
+}
+.toggle.on .knob { transform: translateX(11px); }
+
+/* --- export menu ------------------------------------------------------ */
+.menu { position: relative; }
+.menu-list {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 30;
+  min-width: 248px; background: #fff; border: 1px solid var(--line);
+  border-radius: 9px; box-shadow: 0 8px 24px rgba(0, 0, 0, .09);
+  padding: 5px; display: grid; gap: 2px;
+}
+.menu-list button {
+  border: 0; border-radius: 6px; width: 100%; text-align: left;
+  flex-direction: column; align-items: flex-start; gap: 1px; padding: 8px 10px;
+}
+.menu-list button:hover { background: #f5f3ee; }
+.menu-list b { font-size: 13px; font-weight: 600; }
+.menu-list .muted { font-size: 12px; }
+
+/* --- copyable prompt, icon inside the text ---------------------------- */
+.copy-prompt {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px;
+  background: #f4f2ec; border: 1px solid transparent; padding: 4px 9px;
+  border-radius: 6px; color: var(--fg); gap: 8px;
+}
+.copy-prompt:hover:not(:disabled) { background: #efece4; border-color: var(--line); }
+.copy-prompt svg { color: var(--muted); }
+.copy-prompt.copied, .copy-prompt.copied svg { color: #15803d; }
+
+/* --- drawer chevron --------------------------------------------------- */
+.drawer-handle .chev {
+  margin-left: auto; color: var(--muted);
+  width: 28px; height: 28px; display: grid; place-items: center;
+  border: 1px solid var(--line); border-radius: 6px;
 }

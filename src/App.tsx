@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CopyPrompt } from './CopyPrompt'
+import { DownloadMenu } from './DownloadMenu'
+import { IconChevron, IconContrast, IconUpload } from './Icons'
+import { Toggle } from './Toggle'
 import { PairDetail } from './PairDetail'
 import { PairGrid } from './PairGrid'
 import { Specimen } from './Specimen'
@@ -194,7 +197,10 @@ export default function App() {
               </span>
             )}
           </div>
-          <button onClick={() => fileInput.current?.click()}>Load font</button>
+          <button onClick={() => fileInput.current?.click()}>
+            <IconUpload />
+            Load font
+          </button>
           <input ref={fileInput} type="file" accept=".ttf,.otf" hidden onChange={onFile} />
         </div>
       </header>
@@ -207,23 +213,30 @@ export default function App() {
           <span><b>{changed.length}</b> of {list.length} kerned</span>
           <span><b>{calls}</b> tool calls</span>
         </div>
-        <button className={shade ? 'on' : ''} onClick={() => setShade((v) => !v)}>
+        <Toggle on={shade} onChange={setShade} icon={<IconContrast />}>
           Negative space
-        </button>
-        <button onClick={exportFont} disabled={!hasChanges}>Download .ttf</button>
-        <button
-          onClick={() =>
-            loaded &&
-            download(
-              buildFeatureFile(loaded, changed),
-              `${loaded.familyName.replace(/\s+/g, '')}-kern.fea`,
-              'text/plain',
-            )
-          }
+        </Toggle>
+        <DownloadMenu
           disabled={!hasChanges}
-        >
-          Download .fea
-        </button>
+          options={[
+            {
+              label: 'Font (.ttf)',
+              hint: 'GPOS kerning, ready to install',
+              onSelect: exportFont,
+            },
+            {
+              label: 'Features (.fea)',
+              hint: 'Adobe syntax for fontmake or AFDKO',
+              onSelect: () =>
+                loaded &&
+                download(
+                  buildFeatureFile(loaded, changed),
+                  `${loaded.familyName.replace(/\s+/g, '')}-kern.fea`,
+                  'text/plain',
+                ),
+            },
+          ]}
+        />
       </section>
 
       <section className={`now ${activeKeys.length ? 'live' : ''}`}>
@@ -273,7 +286,7 @@ export default function App() {
         <button className="drawer-handle" onClick={() => setLogOpen((v) => !v)}>
           <span>Tool calls</span>
           <b>{log.length}</b>
-          <span className="chev">{logOpen ? '▾' : '▴'}</span>
+          <span className="chev"><IconChevron up={!logOpen} /></span>
         </button>
         <ol className="drawer-body" ref={logBody}>
           {log.map((l) => (
