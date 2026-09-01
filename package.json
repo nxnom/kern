@@ -19,11 +19,9 @@
   },
   "dependencies": {
     "@mcp-b/global": "^5.1.0",
-    "@mcp-b/react-webmcp": "^5.1.0",
     "opentype.js": "^2.0.0",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "usewebmcp": "^5.1.0"
+    "react-dom": "^19.2.8"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",

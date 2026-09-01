@@ -218,10 +218,15 @@ a version without promoting it to the live URL.
 
 ## Stack
 
-Vite, React 19, TypeScript. [`@mcp-b/global`](https://mcp-b.ai/) for the runtime,
-which defers to Chrome's native implementation when present and polyfills
-otherwise; `usewebmcp` for the registration hook. `opentype.js` for parsing.
-No backend, no API keys, no network calls at runtime.
+Vite, React 19, TypeScript. `opentype.js` for font parsing. No backend, no API
+keys, no network calls at runtime.
+
+Tools are registered directly against `document.modelContext.registerTool()` in
+`src/kern/useWebMCPTool.ts` — one `AbortController` per registration, aborted on
+unmount or when a tool's `enabled` goes false, which is what fires `toolchange`.
+[`@mcp-b/global`](https://mcp-b.ai/) supplies `document.modelContext` in
+browsers that lack it, and defers to the native implementation where Chrome
+provides one.
 
 ## Licence
 

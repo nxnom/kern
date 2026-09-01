@@ -1,4 +1,4 @@
-import { useWebMCP } from 'usewebmcp'
+import { useWebMCPTool } from './useWebMCPTool'
 import type { LoadedFont } from './font'
 import { drawPair, renderPair } from './font'
 import { drawSheet } from './sheet'
@@ -66,7 +66,7 @@ export function useKernTools(api: KernApi) {
   const ready = font !== null
 
   // ---- list_pairs: cheap planning, no image ---------------------------
-  useWebMCP(
+  useWebMCPTool<{ status?: 'all' | 'untouched' | 'adjusted' | 'rejected' }>(
     {
       name: 'list_pairs',
       description:
@@ -105,7 +105,7 @@ export function useKernTools(api: KernApi) {
   )
 
   // ---- render_sheet: survey many pairs in one image -------------------
-  useWebMCP(
+  useWebMCPTool<{ pairs?: string[]; status?: 'all' | 'untouched' | 'adjusted' | 'rejected'; offset?: number; limit?: number; columns?: number }>(
     {
       name: 'survey_pairs',
       description:
@@ -189,7 +189,7 @@ export function useKernTools(api: KernApi) {
   )
 
   // ---- render_pair: zoom in on one -----------------------------------
-  useWebMCP(
+  useWebMCPTool<{ left: string; right: string; kern?: number }>(
     {
       name: 'preview_pair',
       description:
@@ -260,7 +260,7 @@ export function useKernTools(api: KernApi) {
   )
 
   // ---- render_specimen: publishes to the page and answers the agent -----
-  useWebMCP(
+  useWebMCPTool<{ text: string; note?: string }>(
     {
       name: 'publish_specimen',
       description:
@@ -346,7 +346,7 @@ export function useKernTools(api: KernApi) {
   )
 
   // ---- set_kern: the only writer --------------------------------------
-  useWebMCP(
+  useWebMCPTool<{ pairs: { pair: string; kern: number }[]; force?: boolean }>(
     {
       name: 'set_kern',
       description:

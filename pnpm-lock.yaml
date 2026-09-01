@@ -11,9 +11,6 @@ importers:
       '@mcp-b/global':
         specifier: ^5.1.0
         version: 5.1.0
-      '@mcp-b/react-webmcp':
-        specifier: ^5.1.0
-        version: 5.1.0(react@19.2.8)
       opentype.js:
         specifier: ^2.0.0
         version: 2.0.0
@@ -23,9 +20,6 @@ importers:
       react-dom:
         specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
-      usewebmcp:
-        specifier: ^5.1.0
-        version: 5.1.0(react@19.2.8)
     devDependencies:
       '@types/node':
         specifier: ^24.13.3
@@ -442,12 +436,6 @@ packages:
     resolution: {integrity: sha512-svEHmo31XhPluoA5HJ+F2jGQ+O6Cx7Kpo6dFgI/pGC1g0knvrMOAq9Wb2+9fJycgOFqKcMsYAvM7qTusY5lmsQ==}
     engines: {node: '>=20'}
 
-  '@mcp-b/react-webmcp@5.1.0':
-    resolution: {integrity: sha512-r8NO/xJWjSel6aN/9MkU63iULQXPJ1EOkMfHwRkROE4xrw0mZOe/2tFraWYxsj8eg5a2ewkhDFxPSc28KoyMvQ==}
-    engines: {node: '>=20'}
-    peerDependencies:
-      react: ^18.0.0 || ^19.0.0
-
   '@mcp-b/transports@5.1.0':
     resolution: {integrity: sha512-x+Czu2ZcUaLuiVAzViFMfno2NwPkHIfmUVYP3VeCa0tbAuZ8jRPrgboUuk86bVF0FI3qZ8u7OX7UUR3WmwVsKw==}
     engines: {node: '>=20'}
@@ -462,10 +450,6 @@ packages:
 
   '@mcp-b/webmcp-types@5.1.0':
     resolution: {integrity: sha512-twOKDUr7al60K890HvRcNvoHSfQ2rnGeKJiQs6eUr+Leg+LQ6K+yz3F4K70jykMK1a09ZIgYb3Oc7mAypuKPig==}
-    engines: {node: '>=20'}
-
-  '@modelcontextprotocol/client@2.0.0':
-    resolution: {integrity: sha512-8f1OghQ2rjzIOfqgUCP+8GiUWqRs89njoWLNqAe8kWmDePv3s1fZXseej+QXemssEuuOvLLmLO/kqM3IQHtISw==}
     engines: {node: '>=20'}
 
   '@modelcontextprotocol/core@2.0.0':
@@ -756,10 +740,6 @@ packages:
     resolution: {integrity: sha512-ei8Aos7ja0weRpFzJnEA9UHJ/7XQmqglbRwnf2ATjcB9Wq874VKH9kfjjirM6UhU2/E5fFYadylyhFldcqSidQ==}
     engines: {node: '>=18'}
 
-  cross-spawn@7.0.6:
-    resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
-    engines: {node: '>= 8'}
-
   csstype@3.2.3:
     resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
 
@@ -775,14 +755,6 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
-  eventsource-parser@3.1.1:
-    resolution: {integrity: sha512-EKN1vKAMcZ8MlYMpaNuxN6R9yakzH6uajHcHVTqWJzvu5pWw9DyhbP35HH8MVBQ+dZjAfDxk+A8NiR9KWaXiyQ==}
-    engines: {node: '>=18.0.0'}
-
-  eventsource@3.0.7:
-    resolution: {integrity: sha512-CRT1WTyuQoD771GW56XEZFQ/ZoSfWid1alKGDYMmkt2yl8UXrVR4pspqWNEcqKvVIzg6PAltWjxcSSPrboA4iA==}
-    engines: {node: '>=18.0.0'}
-
   fdir@6.5.0:
     resolution: {integrity: sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg==}
     engines: {node: '>=12.0.0'}
@@ -796,12 +768,6 @@ packages:
     resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
-
-  isexe@2.0.0:
-    resolution: {integrity: sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw==}
-
-  jose@6.2.10:
-    resolution: {integrity: sha512-iiW7J9qRFlGxvCOIBDBDxFePQSn7ZMAnrYGhrrOo6siO/MIqwfyilLR27pkfDgUk+raLuzADS8A3S/KLBisc0g==}
 
   kleur@4.1.5:
     resolution: {integrity: sha512-o+NO+8WrRiQEE4/7nwRJhN1HWpVmJm511pBHUxPLtp0BUISzlBplORYSmTclCnJvQq2tKu/sgl3xVpkc7ZWuQQ==}
@@ -907,10 +873,6 @@ packages:
       vite-plus:
         optional: true
 
-  path-key@3.1.1:
-    resolution: {integrity: sha512-ojmeN0qd+y0jszEtoY48r0Peq5dwMEkIlCOu6Q5f41lfkswXuKtYrhgoTpLnyIcHm24Uhqx+5Tqm2InSwLhE6Q==}
-    engines: {node: '>=8'}
-
   path-to-regexp@6.3.0:
     resolution: {integrity: sha512-Yhpw4T9C6hPpgPeA28us07OJeqZ5EzQTkbfwuhsUg0c237RomFoETJgmp2sa3F/41gfLE6G5cqcYwznmeEeOlQ==}
 
@@ -923,10 +885,6 @@ packages:
   picomatch@4.0.7:
     resolution: {integrity: sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA==}
     engines: {node: '>=12'}
-
-  pkce-challenge@5.0.1:
-    resolution: {integrity: sha512-wQ0b/W4Fr01qtpHlqSqspcj3EhBvimsdh0KlHhH8HRZnMsEa0ea2fTULOXOS9ccQr3om+GcGRk4e+isrZWV8qQ==}
-    engines: {node: '>=16.20.0'}
 
   postcss@8.5.26:
     resolution: {integrity: sha512-u82N74LFzG8ca+dD8puPnplTXoGH4fTPpVGuIbt36G3qvNlkvfD0lEAZSxaly3KX8TS/L1A1gsCEmvKmBcVbkQ==}
@@ -957,14 +915,6 @@ packages:
   sharp@0.35.2:
     resolution: {integrity: sha512-FVtFjtBCMiJS6yb5CX7Sop45WFMpeGw6oRKuJnXYgf/f1ms/D7LE/ZUSNxnW7rZ/dbslQWYkoqFHGPaDBtaK4w==}
     engines: {node: '>=20.9.0'}
-
-  shebang-command@2.0.0:
-    resolution: {integrity: sha512-kHxr2zZpYtdmrN1qDjrrX/Z1rR1kG8Dx+gkpK1G4eXmvXswmcE1hTWBWYUzlraYw1/yZp6YuDY77YtvbN0dmDA==}
-    engines: {node: '>=8'}
-
-  shebang-regex@3.0.0:
-    resolution: {integrity: sha512-7++dFhtcx3353uBaq8DDR4NuxBetBzC7ZQOhmTQInHEd6bSrXdiEyzCvG07Z44UYdLShWUyXt5M/yhz8ekcb1A==}
-    engines: {node: '>=8'}
 
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
@@ -1000,12 +950,6 @@ packages:
 
   unenv@2.0.0-rc.24:
     resolution: {integrity: sha512-i7qRCmY42zmCwnYlh9H2SvLEypEFGye5iRmEMKjcGi7zk9UquigRjFtTLz0TYqr0ZGLZhaMHl/foy1bZR+Cwlw==}
-
-  usewebmcp@5.1.0:
-    resolution: {integrity: sha512-iyp0v9f3HmWmfXVzvQt3IG4/DNlrjXd0DWXKzc692KSveVaSO8en5aanQlLYACEU9AS1BLAobQi17A4+rRKLzg==}
-    engines: {node: '>=20'}
-    peerDependencies:
-      react: ^18.0.0 || ^19.0.0
 
   vite@8.2.2:
     resolution: {integrity: sha512-cFKLV/PRgAUlIRm5WjMjJ86jrftzpqcgH+Us+DS8mI3CDNiH30Whrz8uHL3+MOLPAgqbMBAqWdAHAphOAM+z/Q==}
@@ -1049,11 +993,6 @@ packages:
         optional: true
       yaml:
         optional: true
-
-  which@2.0.2:
-    resolution: {integrity: sha512-BLI3Tl1TW3Pvl70l3yq3Y64i+awpwXqsGBYWkkqMtnbXgrMD+yj7rhW0kuEDxzJaYXGjEW5ogapKNMEKNMjibA==}
-    engines: {node: '>= 8'}
-    hasBin: true
 
   workerd@1.20260828.1:
     resolution: {integrity: sha512-pB9yvt0kkwZDAGZHmpY59r0o3hM0DzdW6BJERqwZOhunZ3ssOyDSgQxOQer2cSZW4YCFeOTIQYN1qwhK5wv/Cw==}
@@ -1326,15 +1265,6 @@ snapshots:
       '@mcp-b/webmcp-types': 5.1.0
       '@modelcontextprotocol/server': 2.0.0
 
-  '@mcp-b/react-webmcp@5.1.0(react@19.2.8)':
-    dependencies:
-      '@mcp-b/webmcp-polyfill': 5.1.0
-      '@mcp-b/webmcp-ts-sdk': 5.1.0
-      '@mcp-b/webmcp-types': 5.1.0
-      '@modelcontextprotocol/client': 2.0.0
-      react: 19.2.8
-      usewebmcp: 5.1.0(react@19.2.8)
-
   '@mcp-b/transports@5.1.0':
     dependencies:
       '@modelcontextprotocol/core': 2.0.0
@@ -1354,16 +1284,6 @@ snapshots:
   '@mcp-b/webmcp-types@5.1.0':
     dependencies:
       '@modelcontextprotocol/server': 2.0.0
-
-  '@modelcontextprotocol/client@2.0.0':
-    dependencies:
-      '@modelcontextprotocol/core': 2.0.0
-      cross-spawn: 7.0.6
-      eventsource: 3.0.7
-      eventsource-parser: 3.1.1
-      jose: 6.2.10
-      pkce-challenge: 5.0.1
-      zod: 4.5.4
 
   '@modelcontextprotocol/core@2.0.0':
     dependencies:
@@ -1521,12 +1441,6 @@ snapshots:
 
   cookie@1.1.1: {}
 
-  cross-spawn@7.0.6:
-    dependencies:
-      path-key: 3.1.1
-      shebang-command: 2.0.0
-      which: 2.0.2
-
   csstype@3.2.3: {}
 
   detect-libc@2.1.2: {}
@@ -1562,22 +1476,12 @@ snapshots:
       '@esbuild/win32-ia32': 0.28.1
       '@esbuild/win32-x64': 0.28.1
 
-  eventsource-parser@3.1.1: {}
-
-  eventsource@3.0.7:
-    dependencies:
-      eventsource-parser: 3.1.1
-
   fdir@6.5.0(picomatch@4.0.7):
     optionalDependencies:
       picomatch: 4.0.7
 
   fsevents@2.3.3:
     optional: true
-
-  isexe@2.0.0: {}
-
-  jose@6.2.10: {}
 
   kleur@4.1.5: {}
 
@@ -1668,8 +1572,6 @@ snapshots:
       '@oxlint/binding-win32-ia32-msvc': 1.81.0
       '@oxlint/binding-win32-x64-msvc': 1.81.0
 
-  path-key@3.1.1: {}
-
   path-to-regexp@6.3.0: {}
 
   pathe@2.0.3: {}
@@ -1677,8 +1579,6 @@ snapshots:
   picocolors@1.1.1: {}
 
   picomatch@4.0.7: {}
-
-  pkce-challenge@5.0.1: {}
 
   postcss@8.5.26:
     dependencies:
@@ -1750,12 +1650,6 @@ snapshots:
       '@img/sharp-win32-ia32': 0.35.2
       '@img/sharp-win32-x64': 0.35.2
 
-  shebang-command@2.0.0:
-    dependencies:
-      shebang-regex: 3.0.0
-
-  shebang-regex@3.0.0: {}
-
   source-map-js@1.2.1: {}
 
   supports-color@10.2.2: {}
@@ -1784,12 +1678,6 @@ snapshots:
     dependencies:
       pathe: 2.0.3
 
-  usewebmcp@5.1.0(react@19.2.8):
-    dependencies:
-      '@mcp-b/webmcp-polyfill': 5.1.0
-      '@mcp-b/webmcp-types': 5.1.0
-      react: 19.2.8
-
   vite@8.2.2(@types/node@24.13.3)(esbuild@0.28.1)(tsx@4.23.13):
     dependencies:
       lightningcss: 1.33.0
@@ -1802,10 +1690,6 @@ snapshots:
       esbuild: 0.28.1
       fsevents: 2.3.3
       tsx: 4.23.13
-
-  which@2.0.2:
-    dependencies:
-      isexe: 2.0.0
 
   workerd@1.20260828.1:
     optionalDependencies:
