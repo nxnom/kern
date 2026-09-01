@@ -20,14 +20,23 @@ const SAMPLE_FONT = `${import.meta.env.BASE_URL}fonts/EBGaramond-Regular.ttf`
 /** How long tiles stay lit after the agent touches them. */
 const ACTIVE_MS = 2600
 
-/** Fixed proof strings. The changed pairs themselves come first, built live. */
-const PROOF_PRESETS = [
-  { label: 'Caps A–Z', text: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' },
-  { label: 'Lowercase a–z', text: 'abcdefghijklmnopqrstuvwxyz' },
-  { label: 'Cap context', text: 'HHAVHH HHToHH HHLTHH HHYaHH' },
-  { label: 'Lowercase context', text: 'nnavnn nnyonn nnvann nnr.nn' },
-  { label: 'Pangram', text: 'Waltz, bad nymph, for quick jigs vex.' },
-]
+const PANGRAM = 'Waltz, bad nymph, for quick jigs vex.'
+
+/**
+ * Each changed pair sandwiched between control glyphs — `H` for caps, `n` for
+ * lowercase — which is how kerning is judged in practice. The controls have
+ * even, vertical sidebearings, so they give the eye a reference rhythm to
+ * compare the pair against.
+ */
+function inControlContext(keys: string[]): string {
+  return keys
+    .slice(0, 10)
+    .map((k) => {
+      const control = /[A-Z]/.test(k[0]) ? 'H' : 'n'
+      return `${control}${control}${k}${control}${control}`
+    })
+    .join(' ')
+}
 
 interface LogLine { id: number; at: number; text: string; rejected: boolean }
 
@@ -157,6 +166,10 @@ export default function App() {
         .join(' '),
     [pairs],
   )
+  const contextLine = useMemo(
+    () => inControlContext(changedPairsLine.split(' ').filter(Boolean)),
+    [changedPairsLine],
+  )
   const proof = proofText ?? changedPairsLine
 
   const api: KernApi = useMemo(
@@ -171,10 +184,8 @@ export default function App() {
         log_(`→ ${tool}`)
       },
       hasChanges,
-      setSpecimen: (text: string) => {
-        setAgentLine(text)
-        setProofText(text)
-      },
+      // Record it as an option; "Changed pairs" stays the default view.
+      setSpecimen: (text: string) => setAgentLine(text),
     }),
     [loaded, applyKerns, highlight, log_, hasChanges],
   )
@@ -317,16 +328,20 @@ export default function App() {
                   Agent’s line
                 </button>
               )}
-              {PROOF_PRESETS.map((p) => (
-                <button
-                  key={p.label}
-                  className={proof === p.text ? 'on' : ''}
-                  onClick={() => setProofText(p.text)}
-                  title={p.text}
-                >
-                  {p.label}
-                </button>
-              ))}
+              <button
+                className={proof === contextLine ? 'on' : ''}
+                onClick={() => setProofText(contextLine)}
+                title={contextLine}
+              >
+                In context
+              </button>
+              <button
+                className={proof === PANGRAM ? 'on' : ''}
+                onClick={() => setProofText(PANGRAM)}
+                title={PANGRAM}
+              >
+                Pangram
+              </button>
             </div>
           </div>
           <Specimen loaded={loaded} word={proof} pairs={pairs} shade={shade} />
