@@ -39,16 +39,33 @@ export default function App() {
   pairsRef.current = pairs
 
   useEffect(() => {
-    const mc = (document as unknown as { modelContext?: { getTools?: () => Promise<unknown[]> } })
-      .modelContext
+    const mc = (document as unknown as {
+      modelContext?: { getTools?: () => Promise<unknown[]> }
+    }).modelContext
     setHasWebMCP(Boolean(mc))
-    // Show the live count so it is obvious the tools really did register.
     if (!mc?.getTools) return
-    const read = () => void mc.getTools!().then((t) => setToolCount(t.length)).catch(() => {})
+
+    let cancelled = false
+    let tries = 0
+    const read = () => {
+      mc.getTools!()
+        .then((tools) => {
+          if (cancelled) return
+          setToolCount(tools.length)
+          // registerTool() resolves asynchronously, so an immediate read can
+          // land before the hooks have finished. Retry briefly until they do.
+          if (tools.length === 0 && tries++ < 10) setTimeout(read, 200)
+        })
+        .catch(() => {})
+    }
     read()
+
     const target = mc as unknown as EventTarget
     target.addEventListener?.('toolchange', read)
-    return () => target.removeEventListener?.('toolchange', read)
+    return () => {
+      cancelled = true
+      target.removeEventListener?.('toolchange', read)
+    }
   }, [loaded])
 
   // Keep the newest line in view, both on open and as calls arrive.
