@@ -193,3 +193,8 @@ button:hover { border-color: var(--muted); }
 /* Word tag is hidden before the agent runs, so keep the line flush. */
 .word:not(:has(.word-tag)) { padding-left: 0; }
 .tile.active:not(.lead) { box-shadow: 0 0 0 2px #fde68a; transform: none; }
+
+.font-id { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.25; }
+.font-id strong { font-size: 15px; }
+.font-id .style { color: var(--muted); font-weight: 400; }
+.font-id .muted { font-size: 12px; }

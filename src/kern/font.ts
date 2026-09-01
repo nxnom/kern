@@ -4,6 +4,9 @@ import opentype from 'opentype.js'
 export interface LoadedFont {
   font: opentype.Font
   familyName: string
+  styleName: string
+  /** Where it came from: the bundled sample, or the file the user picked. */
+  source: string
   unitsPerEm: number
   /** Cap height in font units, used to bound the optical measurement band. */
   capHeight: number
@@ -12,14 +15,35 @@ export interface LoadedFont {
   buffer: ArrayBuffer
 }
 
-export function loadFontFromBuffer(buffer: ArrayBuffer): LoadedFont {
+/**
+ * opentype.js 2.x namespaces the name table by platform, so the old flat
+ * `names.fontFamily` is always undefined. Look through both platforms, and
+ * through whatever locale the font actually shipped, before giving up.
+ */
+function readName(font: opentype.Font, key: string): string | undefined {
+  const names = font.names as unknown as Record<string, Record<string, Record<string, string>>>
+  for (const platform of ['windows', 'macintosh']) {
+    const entry = names[platform]?.[key]
+    if (!entry) continue
+    return entry.en ?? Object.values(entry)[0]
+  }
+  return undefined
+}
+
+export function loadFontFromBuffer(buffer: ArrayBuffer, source = 'uploaded'): LoadedFont {
   const font = opentype.parse(buffer)
   const unitsPerEm = font.unitsPerEm
   // OS/2 metrics are optional; fall back to sensible fractions of the em.
   const os2 = font.tables.os2 as { sCapHeight?: number; sxHeight?: number } | undefined
   return {
     font,
-    familyName: font.names.fontFamily?.en ?? 'Untitled',
+    familyName:
+      readName(font, 'preferredFamily') ??
+      readName(font, 'fontFamily') ??
+      readName(font, 'fullName') ??
+      'Untitled',
+    styleName: readName(font, 'fontSubfamily') ?? '',
+    source,
     unitsPerEm,
     capHeight: os2?.sCapHeight ?? unitsPerEm * 0.7,
     xHeight: os2?.sxHeight ?? unitsPerEm * 0.5,
@@ -27,10 +51,10 @@ export function loadFontFromBuffer(buffer: ArrayBuffer): LoadedFont {
   }
 }
 
-export async function loadFontFromUrl(url: string): Promise<LoadedFont> {
+export async function loadFontFromUrl(url: string, source: string): Promise<LoadedFont> {
   const res = await fetch(url)
   if (!res.ok) throw new Error(`Could not load font: ${res.status}`)
-  return loadFontFromBuffer(await res.arrayBuffer())
+  return loadFontFromBuffer(await res.arrayBuffer(), source)
 }
 
 /** The font's own kerning value for a pair, in font units. 0 if unkerned. */

@@ -41,7 +41,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    loadFontFromUrl(SAMPLE_FONT).then(adopt).catch((e: unknown) => setError(String(e)))
+    loadFontFromUrl(SAMPLE_FONT, 'bundled sample').then(adopt).catch((e: unknown) => setError(String(e)))
   }, [])
 
   function adopt(lf: LoadedFont) {
@@ -112,6 +112,11 @@ export default function App() {
   const loadedRef = useRef(loaded)
   loadedRef.current = loaded
 
+  const list = useMemo(() => [...pairs.values()], [pairs])
+  const calls = list.reduce((n, p) => n + p.attempts.length, 0)
+  // How much kerning the font arrived with — the honest starting point.
+  const kernedInFont = list.filter((p) => p.original !== 0).length
+
   const changed = useMemo(
     () =>
       [...pairs.values()]
@@ -138,14 +143,12 @@ export default function App() {
     const file = ev.target.files?.[0]
     if (!file) return
     try {
-      adopt(loadFontFromBuffer(await file.arrayBuffer()))
+      adopt(loadFontFromBuffer(await file.arrayBuffer(), file.name))
     } catch {
       setError(`Could not read ${file.name}. Kern needs a .ttf or .otf file.`)
     }
   }
 
-  const list = useMemo(() => [...pairs.values()], [pairs])
-  const calls = list.reduce((n, p) => n + p.attempts.length, 0)
   const detail = pairs.get(activeKeys[0] ?? selected)
   const detailChanged = detail ? detail.kern !== detail.original : false
 
@@ -167,8 +170,18 @@ export default function App() {
       <header className="head">
         <h1>Kern</h1>
         <div className="head-right">
-          <strong>{loaded ? loaded.familyName : 'Loading…'}</strong>
-          {loaded && <span className="muted"> · {loaded.unitsPerEm} units/em</span>}
+          <div className="font-id">
+            <strong>
+              {loaded ? loaded.familyName : 'Loading…'}
+              {loaded?.styleName && <span className="style"> {loaded.styleName}</span>}
+            </strong>
+            {loaded && (
+              <span className="muted">
+                {loaded.source} · {loaded.unitsPerEm} units/em ·{' '}
+                {kernedInFont} of {list.length} pairs already kerned
+              </span>
+            )}
+          </div>
           <button onClick={() => fileInput.current?.click()}>Load font</button>
           <input ref={fileInput} type="file" accept=".ttf,.otf" hidden onChange={onFile} />
         </div>
