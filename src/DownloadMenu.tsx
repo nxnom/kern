@@ -39,10 +39,11 @@ export function DownloadMenu({
         disabled={disabled}
         aria-expanded={open}
         aria-haspopup="menu"
+        title="Export the kerned font"
         onClick={() => setOpen((v) => !v)}
       >
         <IconDownload />
-        Export
+        <span className="btn-label">Export</span>
         <IconChevron up={open} size={14} />
       </button>
       {open && (

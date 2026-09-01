@@ -69,6 +69,7 @@ button svg { flex: none; }
 
 /* --- "agent is looking at" ------------------------------------------- */
 .now {
+  align-items: flex-start;
   margin: 14px 0 20px; padding: 11px 16px; border-radius: 8px;
   border: 1px solid var(--line); background: #fff; font-size: 14px;
   display: flex; align-items: center; gap: 8px; min-height: 44px; min-width: 0;
@@ -257,7 +258,7 @@ button svg { flex: none; }
   letter-spacing: .05em; text-decoration: none; display: inline-block;
 }
 
-.idle { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+.idle { display: flex; align-items: baseline; gap: 10px; min-width: 0; flex: 1; }
 .idle > .muted { flex: none; }
 .idle code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px;
@@ -370,15 +371,14 @@ button svg { flex: none; }
 /* --- copyable prompt, icon inside the text ---------------------------- */
 .copy-prompt {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px;
-  background: #f4f2ec; border: 1px solid transparent; padding: 4px 9px;
-  border-radius: 6px; color: var(--fg); gap: 8px;
+  line-height: 1.45; background: #f4f2ec; border: 1px solid transparent;
+  padding: 6px 10px; border-radius: 6px; color: var(--fg); gap: 8px;
   justify-content: flex-start; text-align: left; min-width: 0; max-width: 100%;
+  align-items: flex-start;
 }
-/* One line, always. Truncate on narrow windows rather than wrapping into a
-   centred block — the button still copies the whole string. */
-.copy-prompt > span {
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
-}
+.copy-prompt svg { margin-top: 2px; }
+/* Wraps to as many lines as it needs, always left-aligned. */
+.copy-prompt > span { min-width: 0; }
 .copy-prompt:hover:not(:disabled) { background: #efece4; border-color: var(--line); }
 .copy-prompt svg { color: var(--muted); }
 .copy-prompt.copied, .copy-prompt.copied svg { color: #15803d; }
@@ -421,3 +421,34 @@ button svg { flex: none; }
   color: var(--fg); resize: vertical; margin-bottom: 16px;
 }
 .specimen-edit:focus { outline: none; border-color: var(--fg); }
+
+/* --- narrow windows ---------------------------------------------------- */
+@media (max-width: 720px) {
+  .app { padding: 24px 16px 60px; }
+  .app.has-drawer { padding-bottom: 100px; }
+  h1 { font-size: 32px; }
+
+  .head { flex-wrap: wrap; gap: 10px; }
+  .head-right { width: 100%; margin-left: 0; justify-content: space-between; }
+  .font-id { align-items: flex-start; }
+
+  /* Icon-only controls: the label is the first thing to go. */
+  .btn-label { display: none; }
+  .toggle { padding: 5px 8px; }
+
+  .bar { gap: 10px; }
+  .bar .stats { font-size: 12px; }
+
+  .idle { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .copy-prompt { width: 100%; }
+
+  .grid { grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 6px; }
+  .detail { gap: 18px; padding: 16px; }
+  .detail-renders { gap: 12px; }
+  .specimen { padding: 16px; }
+  .word-line { font-size: 30px !important; }
+  .word-tag { width: 42px; }
+  .status.error { padding: 14px 16px; }
+  .status.error .fixes { grid-template-columns: 1fr; gap: 14px; }
+  .menu-list { min-width: 210px; }
+}

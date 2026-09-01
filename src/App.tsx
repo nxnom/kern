@@ -205,9 +205,9 @@ export default function App() {
               </span>
             )}
           </div>
-          <button onClick={() => fileInput.current?.click()}>
+          <button onClick={() => fileInput.current?.click()} title="Load a font file">
             <IconUpload />
-            Load font
+            <span className="btn-label">Load font</span>
           </button>
           <input ref={fileInput} type="file" accept=".ttf,.otf" hidden onChange={onFile} />
         </div>
@@ -221,7 +221,7 @@ export default function App() {
           <span><b>{changed.length}</b> of {list.length} kerned</span>
         </div>
         <Toggle on={shade} onChange={setShade} icon={<IconContrast />}>
-          Negative space
+          <span className="btn-label">Negative space</span>
         </Toggle>
         <DownloadMenu
           disabled={!hasChanges}
