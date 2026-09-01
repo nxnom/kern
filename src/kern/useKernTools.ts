@@ -19,8 +19,6 @@ export interface KernApi {
   log: (line: string, rejected?: boolean) => void
   /** Called once per tool invocation, so the counter means what it says. */
   countCall: (tool: string) => void
-  /** True once the agent has changed anything — gates compare_to_reference. */
-  hasChanges: boolean
   /** The agent's chosen proof text, shown on the page when it is done. */
   setSpecimen: (text: string, note?: string) => void
 }
@@ -57,11 +55,10 @@ function progressLine(pairs: Map<string, PairState>): string {
  * registrations are perfectly fine, so treating theirs as authoritative
  * produces a false alarm.
  */
-export function registeredToolNames(ready: boolean, hasChanges: boolean): string[] {
-  if (!ready) return []
-  const names = ['list_pairs', 'survey_pairs', 'preview_pair', 'publish_specimen', 'set_kern']
-  if (hasChanges) names.push('compare_to_reference')
-  return names
+export function registeredToolNames(ready: boolean): string[] {
+  return ready
+    ? ['list_pairs', 'survey_pairs', 'preview_pair', 'publish_specimen', 'set_kern']
+    : []
 }
 
 export function useKernTools(api: KernApi) {
@@ -408,48 +405,6 @@ export function useKernTools(api: KernApi) {
     [ready, font],
   )
 
-  // ---- compare_to_reference: only exists once there is work to score ---
-  useWebMCP(
-    {
-      name: 'compare_to_reference',
-      description:
-        'Kern is a font-kerning workbench. Score your values against the kerning ' +
-        'this font shipped with — the reference a professional type designer set. ' +
-        'Only available once you have changed something.',
-      annotations: READ_ONLY,
-      inputSchema: { type: 'object', properties: {} } as const,
-      enabled: ready && api.hasChanges,
-      execute: async () => {
-        api.countCall('compare_to_reference')
-        const rows = [...api.getPairs().values()].filter((p) => p.reference !== 0)
-        if (!rows.length) {
-          return text_(
-            'This font shipped no kerning for these pairs, so there is nothing to ' +
-              'score against. Load the Roboto reference to benchmark yourself.',
-          )
-        }
-        const diffs = rows.map((p) => Math.abs(p.kern - p.reference))
-        const within = (n: number) => diffs.filter((d) => d <= n).length
-        const mean = diffs.reduce((a, b) => a + b, 0) / diffs.length
-        return text_(
-          [
-            `Scored against ${rows.length} pairs the designer kerned.`,
-            `mean absolute difference: ${mean.toFixed(1)} font units`,
-            `within 10 units: ${within(10)} of ${rows.length}`,
-            `within 25 units: ${within(25)} of ${rows.length}`,
-            `within 50 units: ${within(50)} of ${rows.length}`,
-            '',
-            ...rows
-              .map((p) => ({ p, d: Math.abs(p.kern - p.reference) }))
-              .sort((a, b) => b.d - a.d)
-              .slice(0, 8)
-              .map(({ p, d }) => `  ${p.key}: yours ${p.kern}, designer ${p.reference} (off by ${d})`),
-          ].join('\n'),
-        )
-      },
-    },
-    [ready, font, api.hasChanges],
-  )
 }
 
 /** Shared by the tool and the UI so the rule lives in one place. */

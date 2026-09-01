@@ -19,13 +19,7 @@ export interface PairState {
   key: string
   left: string
   right: string
-  /**
-   * What the font shipped. Held separately from `original` so the kerning can
-   * be stripped for a benchmark run while the designer's answer survives to
-   * score against.
-   */
-  reference: number
-  /** The starting value for this session — zero when kerning was stripped. */
+  /** The font's own value, kept so we can show the change. */
   original: number
   kern: number
   status: PairStatus
@@ -35,16 +29,14 @@ export interface PairState {
   touchedAt?: number
 }
 
-export function initialPairs(lf: LoadedFont, strip = false): Map<string, PairState> {
+export function initialPairs(lf: LoadedFont): Map<string, PairState> {
   const map = new Map<string, PairState>()
   for (const [left, right] of PRIORITY_PAIRS) {
-    const reference = existingKern(lf, left, right)
-    const original = strip ? 0 : reference
+    const original = existingKern(lf, left, right)
     map.set(`${left}${right}`, {
       key: `${left}${right}`,
       left,
       right,
-      reference,
       original,
       kern: original,
       status: 'untouched',
