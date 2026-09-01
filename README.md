@@ -19,7 +19,7 @@ Built for the [OpenAI WebMCP Challenge](https://webmcp.devpost.com/).
 Open the live URL in **the ChatGPT app's browser with GPT 5.6 or newer**, or in
 **Chrome 149+** with `chrome://flags/#enable-webmcp-testing` enabled, then say:
 
-> Survey the kerning of the loaded font and fix what needs it, using the WebMCP tools.
+> Survey the kerning of the loaded font and fix what needs it.
 
 The page carries a copy button for that line, because the wording matters — see
 [Naming beats documentation](#naming-beats-documentation).
@@ -143,11 +143,11 @@ Two findings worth more than the code.
 inspection — reasonably, since kerning a web page really is a CSS job. The word
 *page* was the trap.
 
-Two things fixed it. Naming the object rather than the surface — *"the kerning
-of the loaded font"* rather than *"the kerning on this page"* — and naming the
-protocol outright.
+Naming the object rather than the surface helped — *"the kerning of the loaded
+font"* rather than *"the kerning on this page"*, since the latter invites the
+agent to think about the page's own CSS.
 
-**But the most effective fix was accidental.** The status banner that reports
+**But the fix that actually worked was accidental.** The status banner that reports
 `Native WebMCP · 6 tools registered` is plain text on the page, so an agent
 already in browser-control mode *reads it*, discovers there is a tool surface,
 and switches to it mid-task. A visible statement of capability turned out to be
@@ -157,6 +157,8 @@ That is worth saying plainly, because it is a property of the standard rather
 than of this app: a page can register a perfect tool surface and still be
 ignored in favour of screenshots. Tool discovery is solved; tool *preference*
 is not — and until it is, telling the human reader also tells the agent.
+
+The prompt does not name WebMCP, and does not need to.
 
 **Models weight names far above descriptions.** A read-only tool called
 `render_pair` was called dozens of times and never followed by a write, because
