@@ -391,16 +391,16 @@ button svg { flex: none; }
 }
 
 /* --- specimen lines, fitted to the box -------------------------------- */
-.specimen-pair { display: grid; gap: 4px; min-width: 0; }
-.word { display: flex; align-items: baseline; gap: 4px; min-width: 0; }
+.specimen-pair { display: grid; gap: 10px; min-width: 0; }
+.word { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .word-tag {
   font-family: ui-sans-serif, system-ui, sans-serif; font-size: 10px;
   text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
   width: 50px; flex: none;
 }
 .word-line {
-  font-family: Georgia, "Times New Roman", serif; line-height: 1.3;
-  white-space: nowrap; min-width: 0;
+  font-family: Georgia, "Times New Roman", serif; line-height: 1.28;
+  min-width: 0; /* wraps rather than shrinking, so it stays readable */
 }
 
 .specimen-head {

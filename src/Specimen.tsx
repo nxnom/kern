@@ -1,17 +1,16 @@
-import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import type { LoadedFont } from './kern/font'
 import type { PairState } from './kern/state'
 import { pairKey } from './kern/state'
 
-const BASE_SIZE = 46
-const MIN_SIZE = 16
+/** Big enough to judge spacing by eye. Long text wraps rather than shrinking. */
+const SIZE = 40
 
 /**
- * The agent's proof line, drawn twice.
+ * The agent's proof line, drawn twice at the same size.
  *
- * Both lines are set at the same size, scaled down together until the wider of
- * the two fits. Sizing them independently would make the comparison a lie,
- * since the unkerned line is always wider.
+ * Both lines must share a size or the comparison lies: the unkerned line is
+ * always wider, so fitting each to the box independently would render "before"
+ * smaller and flatter the kerning.
  */
 export function Specimen({
   loaded,
@@ -24,52 +23,15 @@ export function Specimen({
   pairs: Map<string, PairState>
   showBefore: boolean
 }) {
-  const box = useRef<HTMLDivElement>(null)
-  const widest = useRef<HTMLDivElement>(null)
-  const [size, setSize] = useState(BASE_SIZE)
-
-  const fit = useCallback(() => {
-    const available = box.current?.clientWidth
-    const line = widest.current
-    if (!available || !line) return
-    // Measure at the base size so the result never depends on the last fit,
-    // then put back exactly what was there. Clearing it instead would wipe the
-    // inline style React set, leaving this line unsized until the next render —
-    // which is why the before line was rendering smaller than the after line.
-    const previous = line.style.fontSize
-    line.style.fontSize = `${BASE_SIZE}px`
-    const natural = line.scrollWidth
-    line.style.fontSize = previous
-    if (!natural) return
-    const scaled = Math.floor(BASE_SIZE * Math.min(1, available / natural))
-    setSize(Math.max(MIN_SIZE, scaled))
-  }, [])
-
-  useLayoutEffect(() => {
-    fit()
-    const ro = new ResizeObserver(fit)
-    if (box.current) ro.observe(box.current)
-    return () => ro.disconnect()
-  }, [fit, word, pairs])
-
   return (
-    <div className="specimen-pair" ref={box}>
+    <div className="specimen-pair">
       {showBefore && (
-        <Line
-          ref={widest}
-          loaded={loaded}
-          word={word}
-          pairs={pairs}
-          size={size}
-          which="original"
-        />
+        <Line loaded={loaded} word={word} pairs={pairs} which="original" />
       )}
       <Line
-        ref={showBefore ? undefined : widest}
         loaded={loaded}
         word={word}
         pairs={pairs}
-        size={size}
         which="kern"
         showTag={showBefore}
       />
@@ -78,29 +40,25 @@ export function Specimen({
 }
 
 function Line({
-  ref,
   loaded,
   word,
   pairs,
-  size,
   which,
   showTag = true,
 }: {
-  ref?: React.Ref<HTMLDivElement>
   loaded: LoadedFont
   word: string
   pairs: Map<string, PairState>
-  size: number
   which: 'original' | 'kern'
   showTag?: boolean
 }) {
   const chars = [...word]
   return (
-    <div className={`word ${which}`}>
+    <div className="word">
       {showTag && (
         <span className="word-tag">{which === 'original' ? 'before' : 'after'}</span>
       )}
-      <div className="word-line" ref={ref} style={{ fontSize: size }}>
+      <div className="word-line" style={{ fontSize: SIZE }}>
         {chars.map((ch, i) => {
           const next = chars[i + 1]
           const state = next ? pairs.get(pairKey(ch, next)) : undefined
@@ -111,10 +69,10 @@ function Line({
             <span
               key={`${ch}-${i}`}
               className={changed ? 'changed' : undefined}
-              style={{ marginRight: `${(k / loaded.unitsPerEm) * size}px` }}
+              style={{ marginRight: `${(k / loaded.unitsPerEm) * SIZE}px` }}
               title={changed ? `${state.key} moved ${state.kern - state.original}` : undefined}
             >
-              {ch}
+              {ch === ' ' ? ' ' : ch}
             </span>
           )
         })}
