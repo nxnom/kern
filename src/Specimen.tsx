@@ -41,22 +41,9 @@ export function Specimen({
 
   return (
     <div className="proof">
-      <div className="proof-line">
-        {chars.map((ch, i) => {
-          const next = chars[i + 1]
-          const state = next ? pairs.get(pairKey(ch, next)) : undefined
-          const moved = state && state.kern !== state.original
-          return (
-            <span
-              key={`${ch}-${i}`}
-              className={moved ? 'changed' : undefined}
-              style={{ marginRight: `${(state?.kern ?? 0) / loaded.unitsPerEm}em` }}
-              title={moved ? `${state.key} moved ${state.kern - state.original}` : undefined}
-            >
-              {ch}
-            </span>
-          )
-        })}
+      <div className="proof-lines">
+        <Line loaded={loaded} chars={chars} pairs={pairs} which="original" />
+        <Line loaded={loaded} chars={chars} pairs={pairs} which="kern" />
       </div>
 
       {changed.length === 0 ? (
@@ -93,6 +80,41 @@ export function Specimen({
           </div>
         </>
       )}
+    </div>
+  )
+}
+
+function Line({
+  loaded,
+  chars,
+  pairs,
+  which,
+}: {
+  loaded: LoadedFont
+  chars: string[]
+  pairs: Map<string, PairState>
+  which: 'original' | 'kern'
+}) {
+  return (
+    <div className={`proof-line ${which}`}>
+      <span className="proof-tag">{which === 'original' ? 'before' : 'after'}</span>
+      <span className="proof-text">
+        {chars.map((ch, i) => {
+          const next = chars[i + 1]
+          const state = next ? pairs.get(pairKey(ch, next)) : undefined
+          const moved = which === 'kern' && state && state.kern !== state.original
+          return (
+            <span
+              key={`${ch}-${i}`}
+              className={moved ? 'changed' : undefined}
+              style={{ marginRight: `${(state?.[which] ?? 0) / loaded.unitsPerEm}em` }}
+              title={moved ? `${state.key} moved ${state.kern - state.original}` : undefined}
+            >
+              {ch}
+            </span>
+          )
+        })}
+      </span>
     </div>
   )
 }

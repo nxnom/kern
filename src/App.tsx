@@ -292,14 +292,13 @@ export default function App() {
         <section className="specimen">
           <div className="specimen-head">
             <h2>Proof</h2>
-            {specimen.text === specimen.fromAgent ? (
-              <span className="muted">chosen by the agent</span>
-            ) : (
+            {specimen.text !== specimen.fromAgent && (
               <button
                 onClick={() => setSpecimenState({ ...specimen, text: specimen.fromAgent })}
+                title="Reset to what the agent wrote"
               >
                 <IconUndo />
-                Reset to the agent’s
+                <span className="btn-label">Reset</span>
               </button>
             )}
             <button
@@ -337,9 +336,7 @@ export default function App() {
           )}
 
           <Specimen loaded={loaded} word={specimen.text} pairs={pairs} shade={shade} />
-          {specimen.note && specimen.text === specimen.fromAgent && (
-            <p className="specimen-note">{specimen.note}</p>
-          )}
+
         </section>
       )}
 

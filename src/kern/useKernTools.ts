@@ -272,13 +272,9 @@ export function useKernTools(api: KernApi) {
         'moved marked — and the image comes back to you. A pair can look right ' +
         'alone and still break the rhythm of a word, so check a specimen before ' +
         'calling a batch finished, and again at the end.\n\n' +
-        'Write REAL LANGUAGE: an ordinary sentence someone could actually read, ' +
-        'chosen so that it happens to contain the pairs you changed. ' +
-        '"Yesterday the valley took on a wavy, tawny light." reads as English and ' +
-        'still exercises Ye, va, To, wa, aw, ny. A string of fragments like ' +
-        '"AVATAR To Yale; We Foil, r. f] f)" covers the pairs but tells you nothing ' +
-        'about rhythm, because nobody reads text like that. Fall back to fragments ' +
-        'only if no natural sentence can reach the pairs you need.',
+        'Cover as many of the pairs you changed as you can — that is what the line ' +
+        'is for. Real words are nicer to read than fragments, but coverage matters ' +
+        'more than grammar, so do not drop a pair to keep the sentence tidy.',
       inputSchema: {
         type: 'object',
         properties: {
