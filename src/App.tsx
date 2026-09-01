@@ -181,7 +181,7 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className={`app ${log.length > 0 ? "has-drawer" : ""}`}>
       <header className="head">
         <h1>Kern</h1>
         <div className="head-right">
@@ -282,21 +282,27 @@ export default function App() {
         </section>
       )}
 
-      <aside className={`drawer ${logOpen ? 'open' : ''}`}>
-        <button className="drawer-handle" onClick={() => setLogOpen((v) => !v)}>
-          <span>Tool calls</span>
-          <b>{log.length}</b>
-          <span className="chev"><IconChevron up={!logOpen} /></span>
-        </button>
-        <ol className="drawer-body" ref={logBody}>
-          {log.map((l) => (
-            <li key={l.id} className={l.rejected ? 'rejected' : ''}>
-              <time>{new Date(l.at).toLocaleTimeString('en-GB')}</time>
-              {l.text}
-            </li>
-          ))}
-        </ol>
-      </aside>
+      {/* Nothing to show before the first tool call, so stay out of the way. */}
+      {log.length > 0 && (
+        <aside className={`drawer ${logOpen ? 'open' : ''}`}>
+          <button className="drawer-handle" onClick={() => setLogOpen((v) => !v)}>
+            <span>Tool calls</span>
+            <b>{log.length}</b>
+            <span className="chev">
+              <IconChevron up={!logOpen} />
+            </span>
+          </button>
+          <ol className="drawer-body" ref={logBody}>
+            {log.map((l) => (
+              <li key={l.id} className={l.rejected ? 'rejected' : ''}>
+                <time>{new Date(l.at).toLocaleTimeString('en-GB')}</time>
+                {l.text}
+              </li>
+            ))}
+          </ol>
+        </aside>
+      )}
+
     </div>
   )
 }

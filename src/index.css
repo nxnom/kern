@@ -117,7 +117,8 @@ button svg { flex: none; }
 /* --- specimen -------------------------------------------------------- */
 
 /* --- header ---------------------------------------------------------- */
-.app { padding-bottom: 120px; }
+.app { padding-bottom: 40px; }
+.app.has-drawer { padding-bottom: 120px; }
 .head { display: flex; align-items: baseline; gap: 16px; margin-bottom: 20px; }
 .head h1 { flex: none; }
 .head-right { margin-left: auto; display: flex; align-items: baseline; gap: 10px; font-size: 14px; }
