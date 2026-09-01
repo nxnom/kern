@@ -1,4 +1,5 @@
 import type { LoadedFont } from './font'
+import { makeGposKernTable } from './gpos'
 
 export interface KernEntry {
   left: string
@@ -13,7 +14,11 @@ export interface KernEntry {
  * opentype.js can parse kerning but its writer emits neither `kern` nor
  * `GPOS`, so round-tripping through toArrayBuffer() would quietly discard
  * every value. Instead we keep every original table byte-for-byte and rebuild
- * only the sfnt directory around one added table.
+ * the sfnt directory around the two we replace.
+ *
+ * Note the GPOS table is *replaced*, not merged, so positioning features the
+ * original font carried are not preserved. For production work take the .fea
+ * file into a real build instead.
  */
 export function buildKernedFont(
   original: ArrayBuffer,
@@ -31,6 +36,9 @@ export function buildKernedFont(
     .sort((a, b) => a.left - b.left || a.right - b.right)
 
   const tables = readTables(original)
+  // Both, deliberately. GPOS is what modern shapers read; `kern` is the
+  // fallback for older consumers. Writing only one leaves someone out.
+  tables.set('GPOS', makeGposKernTable(pairs))
   tables.set('kern', makeKernTable(pairs))
   return writeSfnt(new DataView(original).getUint32(0), tables)
 }
