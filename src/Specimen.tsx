@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { LoadedFont } from './kern/font'
-import { drawPair } from './kern/font'
+import { GHOST_INK, RULE, drawPair } from './kern/font'
 import type { PairState } from './kern/state'
 import { pairKey } from './kern/state'
 
@@ -52,26 +52,33 @@ export function Specimen({
       ) : (
         <>
           <h3>
-            {changed.length} pair{changed.length === 1 ? '' : 's'} changed in this line
+            {changed.length} pair{changed.length === 1 ? '' : 's'} changed
           </h3>
           <div className="proof-strip">
             {changed.map((p) => (
               <figure key={p.key}>
                 <div className="ba">
                   <img
-                    src={drawPair(loaded, p.left, p.right, p.original, 74, shade)}
+                    src={drawPair(loaded, p.left, p.right, p.original, 96, shade, {
+                      paper: 'transparent',
+                      ink: GHOST_INK,
+                      baseline: RULE,
+                    })}
                     alt={`${p.key} before`}
                   />
                   <img
                     className="after"
-                    src={drawPair(loaded, p.left, p.right, p.kern, 74, shade)}
+                    src={drawPair(loaded, p.left, p.right, p.kern, 96, shade, {
+                      paper: 'transparent',
+                      baseline: RULE,
+                    })}
                     alt={`${p.key} after`}
                   />
                 </div>
                 <figcaption>
                   <b>{p.key}</b>
                   <span>
-                    {p.original} → {p.kern}
+                    {p.original} <i>→</i> {p.kern}
                   </span>
                 </figcaption>
               </figure>

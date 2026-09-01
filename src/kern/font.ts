@@ -94,6 +94,27 @@ const PAD_PX = 60
  * Draw a pair and return just the picture. Used for the grid, where fifty
  * tiles redraw on every change and the pixel measurement would be wasted.
  */
+export interface DrawStyle {
+  /** Ground colour. Must stay light: the gap measurement reads ink as dark. */
+  paper?: string
+  ink?: string
+  /** Drafting rule along the baseline, as in a type drawing. */
+  baseline?: string
+  shade?: string
+}
+
+/** The "before" state, dark enough to read as type rather than as a hairline. */
+export const GHOST_INK = '#7b8290'
+/** Hairline used for the baseline rule in a drawing cell. */
+export const RULE = '#e6e7ea'
+
+const DEFAULT_STYLE: Required<DrawStyle> = {
+  paper: '#ffffff',
+  ink: '#101014',
+  baseline: 'transparent',
+  shade: 'rgba(43, 95, 217, 0.16)',
+}
+
 export function drawPair(
   lf: LoadedFont,
   left: string,
@@ -101,10 +122,15 @@ export function drawPair(
   kern: number,
   sizePx = 96,
   shade = false,
+  style: DrawStyle = {},
 ): string {
+  // The shading pass reads pixels and treats dark as ink, so it needs a light
+  // ground; only an unshaded tile can sit transparent on the page.
+  const s = { ...DEFAULT_STYLE, ...style }
+  if (shade && s.paper === 'transparent') s.paper = DEFAULT_STYLE.paper
   const { font, unitsPerEm } = lf
   const scale = sizePx / unitsPerEm
-  const pad = Math.round(sizePx * 0.28)
+  const pad = Math.round(sizePx * 0.18)
 
   const lGlyph = font.charToGlyph(left)
   const rGlyph = font.charToGlyph(right)
@@ -113,8 +139,9 @@ export function drawPair(
   const lAdvance = lGlyph.advanceWidth ?? 0
   const rAdvance = rGlyph.advanceWidth ?? 0
   const width = Math.max(1, Math.ceil((lAdvance + kern + rAdvance) * scale) + pad * 2)
-  const height = sizePx + pad * 2
-  const baselineY = height - pad - sizePx * 0.22
+  // Just enough room for ascenders above and descenders below — no more.
+  const height = Math.ceil(sizePx * 1.3)
+  const baselineY = Math.round(sizePx * 1.02)
 
   const canvas = document.createElement('canvas')
   const dpr = Math.min(2, globalThis.devicePixelRatio || 1)
@@ -122,9 +149,19 @@ export function drawPair(
   canvas.height = Math.round(height * dpr)
   const ctx = canvas.getContext('2d', { willReadFrequently: shade })!
   ctx.scale(dpr, dpr)
-  ctx.fillStyle = '#ffffff'
+  ctx.fillStyle = s.paper
   ctx.fillRect(0, 0, width, height)
-  ctx.fillStyle = '#16150f'
+
+  if (s.baseline !== 'transparent') {
+    ctx.strokeStyle = s.baseline
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.moveTo(0, Math.round(baselineY) + 0.5)
+    ctx.lineTo(width, Math.round(baselineY) + 0.5)
+    ctx.stroke()
+  }
+
+  ctx.fillStyle = s.ink
   lGlyph.getPath(pad, baselineY, sizePx).draw(ctx)
   rGlyph.getPath(pad + (lAdvance + kern) * scale, baselineY, sizePx).draw(ctx)
 
@@ -138,6 +175,7 @@ export function drawPair(
       Math.max(0, Math.floor((baselineY - lf.capHeight * scale) * dpr)),
       Math.ceil(baselineY * dpr),
       (pad + lAdvance * scale) * dpr,
+      s.shade,
     )
   }
   return canvas.toDataURL('image/png')
@@ -295,7 +333,7 @@ export function paintGap(
   yTop: number,
   yBottom: number,
   splitX: number,
-  color = 'rgba(245, 158, 11, 0.18)',
+  color = 'rgba(43, 95, 217, 0.16)',
 ) {
   const { data } = image
   const left0 = Math.max(0, Math.floor(x0))
@@ -316,4 +354,47 @@ export function paintGap(
     if (leftEdge < 0 || rightEdge < 0 || rightEdge <= leftEdge) continue
     ctx.fillRect(leftEdge + 1, y, rightEdge - leftEdge - 1, 1)
   }
+}
+
+/**
+ * Draw a word in the loaded font, applying the current kerning.
+ *
+ * Used for the masthead, so the product's own name is set in the material it
+ * works on: load a different font and the wordmark changes with it.
+ */
+export function drawWord(
+  lf: LoadedFont,
+  text: string,
+  sizePx: number,
+  kernFor: (left: string, right: string) => number,
+  ink = '#101014',
+): { dataUrl: string; width: number; height: number } {
+  const scale = sizePx / lf.unitsPerEm
+  const chars = [...text]
+  const pad = Math.round(sizePx * 0.1)
+
+  let pen = pad
+  const placed = chars.map((ch, i) => {
+    const glyph = lf.font.charToGlyph(ch)
+    const at = pen
+    pen += (glyph?.advanceWidth ?? 0) * scale
+    const next = chars[i + 1]
+    if (next) pen += kernFor(ch, next) * scale
+    return { glyph, at }
+  })
+
+  const width = Math.ceil(pen + pad)
+  const height = Math.ceil(sizePx * 1.32)
+  const baselineY = Math.round(sizePx * 1.02)
+
+  const canvas = document.createElement('canvas')
+  const dpr = Math.min(2, globalThis.devicePixelRatio || 1)
+  canvas.width = Math.round(width * dpr)
+  canvas.height = Math.round(height * dpr)
+  const ctx = canvas.getContext('2d')!
+  ctx.scale(dpr, dpr)
+  ctx.fillStyle = ink
+  for (const p of placed) p.glyph?.getPath(p.at, baselineY, sizePx).draw(ctx)
+
+  return { dataUrl: canvas.toDataURL('image/png'), width, height }
 }

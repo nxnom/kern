@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { LoadedFont } from './kern/font'
-import { drawPair } from './kern/font'
+import { RULE, drawPair } from './kern/font'
 import type { PairState } from './kern/state'
 
 interface Props {
@@ -54,7 +54,11 @@ function PairTile({
 
   // Redraw only when the value that affects the picture changes.
   const src = useMemo(
-    () => drawPair(loaded, pair.left, pair.right, value, 88, shade),
+    () =>
+      drawPair(loaded, pair.left, pair.right, value, 88, shade, {
+        paper: 'transparent',
+        baseline: RULE,
+      }),
     [loaded, pair.left, pair.right, value, shade],
   )
 

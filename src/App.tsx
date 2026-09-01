@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CopyPrompt } from './CopyPrompt'
+import { Wordmark } from './Wordmark'
 import { DownloadMenu } from './DownloadMenu'
 import { IconChevron, IconContrast, IconUpload } from './Icons'
 import { Toggle } from './Toggle'
 import { PairDetail } from './PairDetail'
 import { PairGrid } from './PairGrid'
+import { Section } from './Section'
 import { Specimen } from './Specimen'
 import type { LoadedFont } from './kern/font'
 import { loadFontFromBuffer, loadFontFromUrl } from './kern/font'
@@ -210,7 +212,6 @@ export default function App() {
   }
 
   const detail = pairs.get(activeKeys[0] ?? selected)
-  const detailChanged = detail ? detail.kern !== detail.original : false
 
   function exportFont() {
     if (!loaded) return
@@ -229,22 +230,22 @@ export default function App() {
     <div className={`app ${log.length > 0 ? "has-drawer" : ""}`}>
       <header className="head">
         <h1>
-          <img src={`${import.meta.env.BASE_URL}icon.svg`} alt="" width="30" height="30" />
-          Kern
+          <Wordmark loaded={loaded} pairs={pairs} />
         </h1>
         <div className="head-right">
-          <div className="font-id">
-            <strong>
-              {loaded ? loaded.familyName : 'Loading…'}
-              {loaded?.styleName && <span className="style"> {loaded.styleName}</span>}
-            </strong>
-            {loaded && (
-              <span className="muted">
-                {loaded.unitsPerEm} units/em · {kernedInFont} of {list.length} pairs
-                already kerned
-              </span>
-            )}
-          </div>
+          <dl className="spec">
+            <dt>face</dt>
+            <dd>
+              {loaded ? loaded.familyName : 'loading'}
+              {loaded?.styleName && <i> {loaded.styleName}</i>}
+            </dd>
+            <dt>em</dt>
+            <dd>{loaded ? loaded.unitsPerEm : '—'}</dd>
+            <dt>shipped</dt>
+            <dd>
+              {kernedInFont}<i>/{list.length} kerned</i>
+            </dd>
+          </dl>
           <button onClick={() => fileInput.current?.click()} title="Load a font file">
             <IconUpload />
             <span className="btn-label">Load font</span>
@@ -306,23 +307,43 @@ export default function App() {
       </section>
 
       {loaded && (
-        <PairGrid
-          loaded={loaded}
-          pairs={list}
-          activeKeys={activeKeys}
-          onSelect={setSelected}
-          shade={shade}
-        />
+        <Section
+          label="Survey"
+          meta={<>{list.length} pairs worth attention in this face</>}
+        >
+          <PairGrid
+            loaded={loaded}
+            pairs={list}
+            activeKeys={activeKeys}
+            onSelect={setSelected}
+            shade={shade}
+          />
+        </Section>
       )}
 
-      {loaded && detail && (detail.attempts.length > 0 || detailChanged) && (
-        <PairDetail loaded={loaded} pair={detail} shade={shade} />
+      {/* Always present once a pair is selected: hiding it for untouched pairs
+          made the page jump every time you clicked around the grid. */}
+      {loaded && detail && (
+        <Section
+          label="Selected"
+          meta={
+            detail.attempts.length > 0 ? (
+              <>
+                {detail.key} · {detail.attempts.length} attempt
+                {detail.attempts.length === 1 ? '' : 's'}
+              </>
+            ) : (
+              <>{detail.key} · untouched</>
+            )
+          }
+        >
+          <PairDetail loaded={loaded} pair={detail} shade={shade} />
+        </Section>
       )}
 
       {loaded && hasChanges && (
-        <section className="specimen">
+        <Section label="Proof" meta={<>set the line you want to judge</>}>
           <div className="specimen-head">
-            <h2>Proof</h2>
             <div className="chips">
               <button
                 className={proof === changedPairsLine ? 'on' : ''}
@@ -354,8 +375,13 @@ export default function App() {
               </button>
             </div>
           </div>
-          <Specimen loaded={loaded} word={proof} pairs={pairs} shade={shade} />
-        </section>
+          <Specimen
+            loaded={loaded}
+            word={proof}
+            pairs={pairs}
+            shade={shade}
+          />
+        </Section>
       )}
 
       {/* Nothing to show before the first tool call, so stay out of the way. */}

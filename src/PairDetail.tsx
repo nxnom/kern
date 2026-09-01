@@ -1,4 +1,4 @@
-import { drawPair } from './kern/font'
+import { GHOST_INK, RULE, drawPair } from './kern/font'
 import type { LoadedFont } from './kern/font'
 import { typicalRange } from './kern/pairs'
 import type { PairState } from './kern/state'
@@ -29,12 +29,25 @@ export function PairDetail({
       <div className="detail-renders">
         {changed && (
           <figure>
-            <img src={drawPair(loaded, pair.left, pair.right, pair.original, 130, shade)} alt="before" />
+            <img
+              src={drawPair(loaded, pair.left, pair.right, pair.original, 130, shade, {
+                paper: 'transparent',
+                ink: GHOST_INK,
+                baseline: RULE,
+              })}
+              alt="before"
+            />
             <figcaption>before · {pair.original}</figcaption>
           </figure>
         )}
         <figure className={changed ? 'changed' : ''}>
-          <img src={drawPair(loaded, pair.left, pair.right, pair.kern, 130, shade)} alt={pair.key} />
+          <img
+            src={drawPair(loaded, pair.left, pair.right, pair.kern, 130, shade, {
+              paper: 'transparent',
+              baseline: RULE,
+            })}
+            alt={pair.key}
+          />
           <figcaption>{changed ? `after · ${pair.kern}` : `${pair.key} · ${pair.kern}`}</figcaption>
         </figure>
       </div>
@@ -87,7 +100,9 @@ export function PairDetail({
             ))}
           </ol>
         ) : (
-          <p className="muted">The agent has not touched this pair yet.</p>
+          <p className="muted">
+            Still at the value the font shipped. Nothing has been applied here.
+          </p>
         )}
       </div>
     </section>
