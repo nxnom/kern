@@ -71,7 +71,7 @@ button svg { flex: none; }
 .now {
   margin: 14px 0 20px; padding: 11px 16px; border-radius: 8px;
   border: 1px solid var(--line); background: #fff; font-size: 14px;
-  display: flex; align-items: center; gap: 8px; min-height: 44px;
+  display: flex; align-items: center; gap: 8px; min-height: 44px; min-width: 0;
   transition: background .25s, border-color .25s;
 }
 .now.live { background: #fffbeb; border-color: #fcd34d; }
@@ -257,7 +257,8 @@ button svg { flex: none; }
   letter-spacing: .05em; text-decoration: none; display: inline-block;
 }
 
-.idle { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.idle { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+.idle > .muted { flex: none; }
 .idle code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px;
   background: #f4f2ec; padding: 3px 9px; border-radius: 5px; color: var(--fg);
@@ -371,6 +372,12 @@ button svg { flex: none; }
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px;
   background: #f4f2ec; border: 1px solid transparent; padding: 4px 9px;
   border-radius: 6px; color: var(--fg); gap: 8px;
+  justify-content: flex-start; text-align: left; min-width: 0; max-width: 100%;
+}
+/* One line, always. Truncate on narrow windows rather than wrapping into a
+   centred block — the button still copies the whole string. */
+.copy-prompt > span {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
 }
 .copy-prompt:hover:not(:disabled) { background: #efece4; border-color: var(--line); }
 .copy-prompt svg { color: var(--muted); }

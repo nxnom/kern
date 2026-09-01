@@ -218,7 +218,6 @@ export default function App() {
       <section className="bar">
         <div className="stats">
           <span><b>{changed.length}</b> of {list.length} kerned</span>
-          <span><b>{callCount}</b> tool calls</span>
         </div>
         <Toggle on={shade} onChange={setShade} icon={<IconContrast />}>
           Negative space
