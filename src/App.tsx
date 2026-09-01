@@ -22,6 +22,7 @@ export default function App() {
   const [activeKeys, setActiveKeys] = useState<string[]>([])
   const [selected, setSelected] = useState('AV')
   const [showOriginal, setShowOriginal] = useState(false)
+  const [shade, setShade] = useState(true)
   const [log, setLog] = useState<LogLine[]>([])
   const [logOpen, setLogOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -186,6 +187,9 @@ export default function App() {
           <span><b>{changed.length}</b> of {list.length} kerned</span>
           <span><b>{calls}</b> tool calls</span>
         </div>
+        <button className={shade ? 'on' : ''} onClick={() => setShade((v) => !v)}>
+          Negative space
+        </button>
         {hasChanges && (
           <button
             className={showOriginal ? 'on' : ''}
@@ -237,6 +241,7 @@ export default function App() {
           activeKeys={activeKeys}
           onSelect={setSelected}
           showOriginal={showOriginal}
+          shade={shade}
         />
       )}
 
@@ -244,12 +249,12 @@ export default function App() {
         <section className="detail">
           {detailChanged && (
             <figure>
-              <img src={drawPair(loaded, detail.left, detail.right, detail.original, 140)} alt="before" />
+              <img src={drawPair(loaded, detail.left, detail.right, detail.original, 140, shade)} alt="before" />
               <figcaption>before · {detail.original}</figcaption>
             </figure>
           )}
           <figure className={detailChanged ? 'changed' : ''}>
-            <img src={drawPair(loaded, detail.left, detail.right, detail.kern, 140)} alt={detail.key} />
+            <img src={drawPair(loaded, detail.left, detail.right, detail.kern, 140, shade)} alt={detail.key} />
             <figcaption>{detailChanged ? `after · ${detail.kern}` : `${detail.key} · ${detail.kern}`}</figcaption>
           </figure>
           <dl>

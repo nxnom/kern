@@ -76,6 +76,7 @@ export function drawPair(
   right: string,
   kern: number,
   sizePx = 96,
+  shade = false,
 ): string {
   const { font, unitsPerEm } = lf
   const scale = sizePx / unitsPerEm
@@ -95,13 +96,26 @@ export function drawPair(
   const dpr = Math.min(2, globalThis.devicePixelRatio || 1)
   canvas.width = Math.round(width * dpr)
   canvas.height = Math.round(height * dpr)
-  const ctx = canvas.getContext('2d')!
+  const ctx = canvas.getContext('2d', { willReadFrequently: shade })!
   ctx.scale(dpr, dpr)
   ctx.fillStyle = '#ffffff'
   ctx.fillRect(0, 0, width, height)
   ctx.fillStyle = '#16150f'
   lGlyph.getPath(pad, baselineY, sizePx).draw(ctx)
   rGlyph.getPath(pad + (lAdvance + kern) * scale, baselineY, sizePx).draw(ctx)
+
+  if (shade) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
+    paintGap(
+      ctx,
+      ctx.getImageData(0, 0, canvas.width, canvas.height),
+      canvas.width,
+      0, canvas.width,
+      Math.max(0, Math.floor((baselineY - lf.capHeight * scale) * dpr)),
+      Math.ceil(baselineY * dpr),
+      (pad + lAdvance * scale) * dpr,
+    )
+  }
   return canvas.toDataURL('image/png')
 }
 
@@ -235,5 +249,47 @@ export function measureBand(
     opticalArea: Math.round(areaPx * toUnits * toUnits),
     minGap: Number.isFinite(minGapPx) ? Math.round(minGapPx * toUnits) : 0,
     collides,
+  }
+}
+
+/**
+ * Tint the white trapped between the two outlines.
+ *
+ * Kerning shifts are small — a typical pair moves three or four pixels at
+ * reading size — so a grid of raw pairs is unreadable. Painting the negative
+ * space shows the thing the eye is actually judging, and makes an uneven
+ * rhythm obvious at a glance.
+ *
+ * Must run after measuring, since it writes over the pixels being measured.
+ */
+export function paintGap(
+  ctx: CanvasRenderingContext2D,
+  image: ImageData,
+  imageWidth: number,
+  x0: number,
+  x1: number,
+  yTop: number,
+  yBottom: number,
+  splitX: number,
+  color = 'rgba(245, 158, 11, 0.18)',
+) {
+  const { data } = image
+  const left0 = Math.max(0, Math.floor(x0))
+  const right1 = Math.min(imageWidth, Math.ceil(x1))
+  const split = Math.round(splitX)
+  const inkAt = (x: number, y: number) => data[(y * imageWidth + x) * 4] < 128
+
+  ctx.fillStyle = color
+  for (let y = Math.max(0, yTop); y <= yBottom; y++) {
+    let leftEdge = -1
+    for (let x = Math.min(split, right1 - 1); x >= left0; x--) {
+      if (inkAt(x, y)) { leftEdge = x; break }
+    }
+    let rightEdge = -1
+    for (let x = Math.max(split, left0); x < right1; x++) {
+      if (inkAt(x, y)) { rightEdge = x; break }
+    }
+    if (leftEdge < 0 || rightEdge < 0 || rightEdge <= leftEdge) continue
+    ctx.fillRect(leftEdge + 1, y, rightEdge - leftEdge - 1, 1)
   }
 }

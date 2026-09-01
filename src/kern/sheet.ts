@@ -1,5 +1,5 @@
 import type { LoadedFont, PairMetrics } from './font'
-import { measureBand } from './font'
+import { measureBand, paintGap } from './font'
 
 export interface SheetItem {
   left: string
@@ -35,6 +35,7 @@ export function drawSheet(
   lf: LoadedFont,
   items: SheetItem[],
   columns = 4,
+  shade = true,
 ): Sheet {
   const cols = Math.max(1, Math.min(columns, items.length || 1))
   const rows = Math.ceil(items.length / cols)
@@ -108,6 +109,19 @@ export function drawSheet(
       1 / scale,
     ),
   }))
+
+  // Shading overwrites the pixels we just measured, so it comes last.
+  if (shade) {
+    for (const p of placed) {
+      paintGap(
+        ctx, image, width,
+        p.cellX, p.cellX + CELL_W,
+        Math.max(0, Math.floor(p.baselineY - lf.capHeight * scale)),
+        Math.ceil(p.baselineY),
+        p.splitX,
+      )
+    }
+  }
 
   const dataUrl = canvas.toDataURL('image/png')
   return {
