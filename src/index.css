@@ -330,3 +330,21 @@ button:hover { border-color: var(--muted); }
   background: #f4f2ec; padding: 4px 9px; border-radius: 5px; color: var(--fg);
 }
 .copy-prompt button { padding: 4px 11px; font-size: 12px; }
+
+.status.warn summary {
+  padding: 12px 16px; cursor: pointer; display: flex; gap: 12px;
+  align-items: baseline; list-style: none;
+}
+.status.warn summary::-webkit-details-marker { display: none; }
+.status.warn summary::after { content: '▸'; margin-left: auto; }
+.status.warn[open] summary::after { content: '▾'; }
+.status.warn .muted { color: #9a3412; font-size: 13px; }
+.status.warn p { margin: 0 16px 12px; max-width: 68ch; line-height: 1.5; }
+.status.warn ul {
+  margin: 0; padding: 0 16px 14px 16px; display: flex; flex-wrap: wrap; gap: 6px 14px;
+}
+.status.warn li { list-style: none; }
+.status.warn code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
+  background: #ffedd5; padding: 2px 7px; border-radius: 4px;
+}

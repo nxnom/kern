@@ -7,7 +7,14 @@ import type { WebMCPSupport } from './kern/useWebMCPSupport'
  * A judge who opens this in the wrong browser sees an app that silently does
  * nothing, and concludes it is broken. Chrome's own demos have this problem.
  */
-export function WebMCPStatus({ support }: { support: WebMCPSupport }) {
+export function WebMCPStatus({
+  support,
+  registered,
+}: {
+  support: WebMCPSupport
+  /** What this page registered — the answer we can actually vouch for. */
+  registered: string[]
+}) {
   const [copied, setCopied] = useState(false)
 
   if (support.status === 'checking') {
@@ -64,31 +71,57 @@ export function WebMCPStatus({ support }: { support: WebMCPSupport }) {
     )
   }
 
-  // Supported, but nothing registered — a real failure, and a different one.
-  if (support.tools.length === 0) {
+  if (registered.length === 0) {
     return (
       <div className="status warn" role="alert">
-        <b>WebMCP is available but no tools registered.</b>{' '}
+        <b>No tools registered yet.</b>{' '}
         <span className="muted">
-          {support.error
-            ? support.error.message
-            : 'Load a font — the tools register once one is in memory.'}
+          {support.error ? support.error.message : 'Waiting for a font to load.'}
         </span>
       </div>
+    )
+  }
+
+  // The polyfill installs the API but cannot conjure an agent to call it, so
+  // say plainly that this browser can host the tools and not use them.
+  if (support.source === 'polyfill') {
+    return (
+      <details className="status warn">
+        <summary>
+          <b>WebMCP polyfill active</b>
+          <span className="muted">
+            {registered.length} tools registered · no agent can reach them in this
+            browser
+          </span>
+        </summary>
+        <p>
+          This browser has no built-in WebMCP, so <code>@mcp-b/global</code> installed
+          the API and Kern registered its tools against it. That is enough to inspect
+          them, but nothing here can call them. Open this URL in the ChatGPT app’s
+          browser, or Chrome 149+ with the flag enabled.
+        </p>
+        <ToolList names={registered} />
+      </details>
     )
   }
 
   return (
     <details className="status ok">
       <summary>
-        <b>{support.source === 'native' ? 'Native WebMCP' : 'WebMCP polyfill'}</b>
-        <span className="muted">{support.tools.length} tools registered</span>
+        <b>Native WebMCP</b>
+        <span className="muted">{registered.length} tools registered</span>
       </summary>
-      <ul>
-        {support.tools.map((t) => (
-          <li key={t}><code>{t}</code></li>
-        ))}
-      </ul>
+      <ToolList names={registered} />
     </details>
+  )
+}
+
+function ToolList({ names }: { names: string[] }) {
+  return (
+    <ul>
+      {names.map((t) => (
+        <li key={t}><code>{t}</code></li>
+      ))}
+    </ul>
   )
 }

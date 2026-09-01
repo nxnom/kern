@@ -11,7 +11,7 @@ import { useWebMCPSupport } from './kern/useWebMCPSupport'
 import { WebMCPStatus } from './WebMCPStatus'
 import { buildFeatureFile, buildKernedFont, download } from './kern/export'
 import type { Applied, KernApi, Rejected } from './kern/useKernTools'
-import { checkRange, useKernTools } from './kern/useKernTools'
+import { checkRange, registeredToolNames, useKernTools } from './kern/useKernTools'
 
 const SAMPLE_FONT = `${import.meta.env.BASE_URL}fonts/EBGaramond-Regular.ttf`
 /** How long tiles stay lit after the agent touches them. */
@@ -149,6 +149,7 @@ export default function App() {
     [loaded, applyKerns, highlight, log_, hasChanges],
   )
   useKernTools(api)
+  const registered = registeredToolNames(loaded !== null, hasChanges)
 
   async function onFile(ev: React.ChangeEvent<HTMLInputElement>) {
     const file = ev.target.files?.[0]
@@ -198,7 +199,7 @@ export default function App() {
         </div>
       </header>
 
-      <WebMCPStatus support={webmcp} />
+      <WebMCPStatus support={webmcp} registered={registered} />
       {error && <div className="error">{error}</div>}
 
       <section className="bar">

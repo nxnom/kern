@@ -46,6 +46,22 @@ function progressLine(pairs: Map<string, PairState>): string {
 }
 
 
+/**
+ * The tools this page asks for, given its current state.
+ *
+ * Reported separately from `getTools()` because the two answer different
+ * questions: this is what we registered, that is what a connected client can
+ * currently see. Polyfilled runtimes can return an empty list while our
+ * registrations are perfectly fine, so treating theirs as authoritative
+ * produces a false alarm.
+ */
+export function registeredToolNames(ready: boolean, hasChanges: boolean): string[] {
+  if (!ready) return []
+  const names = ['list_pairs', 'survey_pairs', 'preview_pair', 'publish_specimen', 'set_kern']
+  if (hasChanges) names.push('compare_to_reference')
+  return names
+}
+
 export function useKernTools(api: KernApi) {
   const { font } = api
   const ready = font !== null
