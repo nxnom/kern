@@ -1,0 +1,62 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Kerning perception test</title>
+<style>
+  body { margin:0; padding:32px; background:#fff; color:#111;
+         font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+  h1 { font-size:16px; font-weight:600; margin:0 0 4px; }
+  p.note { color:#666; margin:0 0 28px; }
+  .test { border:1px solid #e3e3e3; border-radius:8px; padding:20px 24px; margin-bottom:20px; }
+  .test h2 { font-size:13px; font-weight:600; margin:0 0 14px; color:#444;
+             text-transform:uppercase; letter-spacing:.06em; }
+  .row { display:flex; gap:36px; align-items:flex-end; flex-wrap:wrap; }
+  .sample { text-align:center; }
+  .glyphs { font-family:Georgia,"Times New Roman",serif; font-size:96px; line-height:1.1;
+            white-space:pre; }
+  .label { margin-top:8px; font-size:12px; color:#888; font-weight:600; }
+  .answer { margin-top:18px; font-size:12px; color:#c00; display:none; }
+  body.reveal .answer { display:block; }
+</style>
+
+<h1>Kerning perception test</h1>
+<p class="note">Screenshot this page and ask the model: “In each row, which sample is correctly kerned — A, B or C?”</p>
+
+<div class="test">
+  <h2>Test 1 — AV</h2>
+  <div class="row">
+    <div class="sample"><div class="glyphs" style="letter-spacing:0.10em">AV</div><div class="label">A</div></div>
+    <div class="sample"><div class="glyphs" style="letter-spacing:-0.06em">AV</div><div class="label">B</div></div>
+    <div class="sample"><div class="glyphs" style="letter-spacing:-0.22em">AV</div><div class="label">C</div></div>
+  </div>
+  <div class="answer">answer: B (A too loose, C collides)</div>
+</div>
+
+<div class="test">
+  <h2>Test 2 — To</h2>
+  <div class="row">
+    <div class="sample"><div class="glyphs" style="letter-spacing:0.06em">To</div><div class="label">A</div></div>
+    <div class="sample"><div class="glyphs" style="letter-spacing:-0.19em">To</div><div class="label">B</div></div>
+    <div class="sample"><div class="glyphs" style="letter-spacing:-0.08em">To</div><div class="label">C</div></div>
+  </div>
+  <div class="answer">answer: C</div>
+</div>
+
+<div class="test">
+  <h2>Test 3 — Word rhythm: which line spaces evenly?</h2>
+  <div class="row" style="flex-direction:column; align-items:flex-start; gap:14px">
+    <div class="sample"><div class="glyphs" style="font-size:64px">AVATAR</div><div class="label">A — default, no kerning</div></div>
+    <div class="sample"><div class="glyphs" style="font-size:64px">A<span style="margin-left:-.07em">V</span>A<span style="margin-left:-.05em">T</span>A<span style="margin-left:-.06em">R</span></div><div class="label">B — kerned</div></div>
+    <div class="sample"><div class="glyphs" style="font-size:64px">A<span style="margin-left:-.20em">V</span>A<span style="margin-left:-.18em">T</span>A<span style="margin-left:-.19em">R</span></div><div class="label">C — over-kerned</div></div>
+  </div>
+  <div class="answer">answer: B</div>
+</div>
+
+<div class="test">
+  <h2>Test 4 — Uneven rhythm: which PAIR is wrong?</h2>
+  <div class="glyphs" style="font-size:64px">HAM<span style="margin-left:.16em">B</span>URGER</div>
+  <div class="answer">answer: the M–B pair is too loose</div>
+</div>
+<button onclick="document.body.classList.toggle('reveal')"
+        style="padding:8px 16px;border:1px solid #ccc;border-radius:6px;background:#fafafa;cursor:pointer">
+  Reveal answers (only after you've asked the model)
+</button>
