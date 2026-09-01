@@ -16,7 +16,29 @@ import { buildFeatureFile, buildKernedFont, download } from './kern/export'
 import type { Applied, KernApi, Rejected } from './kern/useKernTools'
 import { checkRange, registeredToolNames, useKernTools } from './kern/useKernTools'
 
-const SAMPLE_FONT = `${import.meta.env.BASE_URL}fonts/EBGaramond-Regular.ttf`
+const BUNDLED = [
+  {
+    id: 'garamond',
+    label: 'EB Garamond',
+    note: 'ships unkerned — real work to do',
+    url: `${import.meta.env.BASE_URL}fonts/EBGaramond-Regular.ttf`,
+    strip: false,
+  },
+  {
+    id: 'roboto',
+    label: 'Roboto',
+    note: 'already kerned by its designer',
+    url: `${import.meta.env.BASE_URL}fonts/Roboto-Regular.ttf`,
+    strip: false,
+  },
+  {
+    id: 'roboto-stripped',
+    label: 'Roboto, stripped',
+    note: 'kerning removed — rebuild it, then score against the original',
+    url: `${import.meta.env.BASE_URL}fonts/Roboto-Regular.ttf`,
+    strip: true,
+  },
+] as const
 /** How long tiles stay lit after the agent touches them. */
 const ACTIVE_MS = 2600
 
@@ -43,6 +65,8 @@ interface LogLine { id: number; at: number; text: string; rejected: boolean }
 export default function App() {
   const webmcp = useWebMCPSupport()
   const [loaded, setLoaded] = useState<LoadedFont | null>(null)
+  const [fontId, setFontId] = useState<string>(BUNDLED[0].id)
+  const [stripped, setStripped] = useState(false)
   const [pairs, setPairs] = useState<Map<string, PairState>>(new Map())
   const [activeKeys, setActiveKeys] = useState<string[]>([])
   const [selected, setSelected] = useState('AV')
@@ -72,12 +96,22 @@ export default function App() {
   }, [logOpen, log])
 
   useEffect(() => {
-    loadFontFromUrl(SAMPLE_FONT, 'bundled sample').then(adopt).catch((e: unknown) => setError(String(e)))
+    void pick(BUNDLED[0])
   }, [])
 
-  function adopt(lf: LoadedFont) {
+  async function pick(font: (typeof BUNDLED)[number]) {
+    try {
+      setFontId(font.id)
+      adopt(await loadFontFromUrl(font.url, font.label), font.strip)
+    } catch (e) {
+      setError(String(e))
+    }
+  }
+
+  function adopt(lf: LoadedFont, strip = false) {
     setLoaded(lf)
-    setPairs(initialPairs(lf))
+    setStripped(strip)
+    setPairs(initialPairs(lf, strip))
     setLog([])
     setActiveKeys([])
     setError(null)
@@ -148,7 +182,7 @@ export default function App() {
 
   const list = useMemo(() => [...pairs.values()], [pairs])
   // How much kerning the font arrived with — the honest starting point.
-  const kernedInFont = list.filter((p) => p.original !== 0).length
+  const kernedInFont = list.filter((p) => p.reference !== 0).length
 
   const changed = useMemo(
     () =>
@@ -196,6 +230,7 @@ export default function App() {
     const file = ev.target.files?.[0]
     if (!file) return
     try {
+      setFontId('')
       adopt(loadFontFromBuffer(await file.arrayBuffer(), file.name))
     } catch {
       setError(`Could not read ${file.name}. Kern needs a .ttf or .otf file.`)
@@ -230,15 +265,29 @@ export default function App() {
             </strong>
             {loaded && (
               <span className="muted">
-                {loaded.source} · {loaded.unitsPerEm} units/em ·{' '}
-                {kernedInFont} of {list.length} pairs already kerned
+                {loaded.unitsPerEm} units/em ·{' '}
+                {stripped
+                  ? `kerning stripped — ${kernedInFont} pairs to rebuild`
+                  : `${kernedInFont} of ${list.length} pairs already kerned`}
               </span>
             )}
           </div>
-          <button onClick={() => fileInput.current?.click()} title="Load a font file">
-            <IconUpload />
-            <span className="btn-label">Load font</span>
-          </button>
+          <div className="fonts">
+            {BUNDLED.map((f) => (
+              <button
+                key={f.id}
+                className={fontId === f.id ? 'on' : ''}
+                onClick={() => void pick(f)}
+                title={f.note}
+              >
+                {f.label}
+              </button>
+            ))}
+            <button onClick={() => fileInput.current?.click()} title="Load your own font file">
+              <IconUpload />
+              <span className="btn-label">Load</span>
+            </button>
+          </div>
           <input ref={fileInput} type="file" accept=".ttf,.otf" hidden onChange={onFile} />
         </div>
       </header>

@@ -465,3 +465,9 @@ button svg { flex: none; }
   background: var(--fg); color: #fff; border-color: var(--fg);
 }
 .chips button:hover:not(.on) { color: var(--fg); }
+
+/* --- font picker ------------------------------------------------------- */
+.fonts { display: flex; gap: 6px; flex-wrap: wrap; }
+.fonts button { font-size: 12px; padding: 4px 10px; color: var(--muted); }
+.fonts button.on { background: var(--fg); color: #fff; border-color: var(--fg); }
+.fonts button:hover:not(.on) { color: var(--fg); }

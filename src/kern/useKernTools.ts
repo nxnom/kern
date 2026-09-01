@@ -413,18 +413,22 @@ export function useKernTools(api: KernApi) {
     {
       name: 'compare_to_reference',
       description:
-        'Kern is a font-kerning workbench. Score the current values against the kerning the font shipped with. ' +
-        'Only available once at least one pair has been changed.',
+        'Kern is a font-kerning workbench. Score your values against the kerning ' +
+        'this font shipped with — the reference a professional type designer set. ' +
+        'Only available once you have changed something.',
       annotations: READ_ONLY,
       inputSchema: { type: 'object', properties: {} } as const,
       enabled: ready && api.hasChanges,
       execute: async () => {
         api.countCall('compare_to_reference')
-        const rows = [...api.getPairs().values()].filter((p) => p.original !== 0)
+        const rows = [...api.getPairs().values()].filter((p) => p.reference !== 0)
         if (!rows.length) {
-          return text_('This font shipped no kerning for these pairs, so there is nothing to score against.')
+          return text_(
+            'This font shipped no kerning for these pairs, so there is nothing to ' +
+              'score against. Load the Roboto reference to benchmark yourself.',
+          )
         }
-        const diffs = rows.map((p) => Math.abs(p.kern - p.original))
+        const diffs = rows.map((p) => Math.abs(p.kern - p.reference))
         const within = (n: number) => diffs.filter((d) => d <= n).length
         const mean = diffs.reduce((a, b) => a + b, 0) / diffs.length
         return text_(
@@ -436,10 +440,10 @@ export function useKernTools(api: KernApi) {
             `within 50 units: ${within(50)} of ${rows.length}`,
             '',
             ...rows
-              .map((p) => ({ p, d: Math.abs(p.kern - p.original) }))
+              .map((p) => ({ p, d: Math.abs(p.kern - p.reference) }))
               .sort((a, b) => b.d - a.d)
               .slice(0, 8)
-              .map(({ p, d }) => `  ${p.key}: yours ${p.kern}, designer ${p.original} (off by ${d})`),
+              .map(({ p, d }) => `  ${p.key}: yours ${p.kern}, designer ${p.reference} (off by ${d})`),
           ].join('\n'),
         )
       },

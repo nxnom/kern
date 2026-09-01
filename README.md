@@ -42,8 +42,32 @@ silently.
 - **A timestamped log** of every tool call.
 - **Download** a real `.ttf` with GPOS kerning, or a `.fea` feature file.
 
-The bundled sample is **EB Garamond**, which ships with **zero** kerning for
-these pairs — so there is genuine work to do rather than values to nudge.
+## Three fonts, one of them a benchmark
+
+| | |
+|---|---|
+| **EB Garamond** | Ships with **zero** kerning for these pairs. Real work to do. |
+| **Roboto** | Already kerned by its designer — 47 of the 51 pairs. |
+| **Roboto, stripped** | The same font with every value set to zero. |
+
+The third is the point. The agent rebuilds the kerning from nothing, and
+`compare_to_reference` scores what it produced against what the designer
+actually shipped:
+
+```
+Scored against 47 pairs the designer kerned.
+mean absolute difference: 18.4 font units
+within 10 units: 21 of 47
+within 25 units: 34 of 47
+within 50 units: 44 of 47
+
+  LT: yours -190, designer -275 (off by 85)
+  P.: yours -240, designer -324 (off by 84)
+```
+
+The font's shipped values are held separately from the session's starting
+values, so stripping one does not destroy the other. Every other claim in this
+project is an assertion; this one is a measurement, and it can go against you.
 
 ## The tools
 
