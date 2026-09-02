@@ -192,7 +192,10 @@ button svg { flex: none; }
 .tile.rejected { background: var(--red-wash); box-shadow: inset 3px 0 0 var(--red); }
 .tile.rejected .tile-delta { color: var(--red); }
 /* Selected is where the arrow keys land; active is where the agent is. Both
-   are outlines so a tile can be one, the other, or both at once. */
+   are outlines so a tile can be one, the other, or both at once.
+   Focusing a tile selects it, so the ink outline *is* the focus indicator —
+   the browser's own ring on top of it was two marks for one thing. */
+.tile:focus-visible { outline: none; }
 .tile.selected { box-shadow: inset 0 0 0 2px var(--ink); z-index: 1; }
 .tile.active { box-shadow: inset 0 0 0 2px var(--blue); z-index: 2; }
 .tile.selected.active { box-shadow: inset 0 0 0 2px var(--blue), inset 0 0 0 4px var(--ink); }

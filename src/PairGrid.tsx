@@ -88,6 +88,7 @@ function PairTile({
       ref={ref}
       className={`tile ${pair.status} ${selected ? 'selected' : ''} ${active ? 'active' : ''}`}
       onClick={() => onSelect(pair.key)}
+      onFocus={() => onSelect(pair.key)}
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
       title={`${pair.key} · ${pair.attempts.length} attempts`}
