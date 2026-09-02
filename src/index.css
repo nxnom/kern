@@ -43,7 +43,13 @@ body {
 /* Numbers are data. They line up. */
 b, dd, time, .stats, .tile-delta, .trail, .range-ends { font-variant-numeric: tabular-nums; }
 
+/* A ring set off from the control reads as a second border. Fields already
+   have one, so focus tightens theirs rather than drawing another. */
 :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 4px; }
+select:focus-visible,
+input:focus-visible {
+  outline: none; border-color: var(--blue); box-shadow: 0 0 0 1px var(--blue);
+}
 
 /* ── controls ──────────────────────────────────────────────────────── */
 button, select {
