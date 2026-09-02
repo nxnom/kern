@@ -273,7 +273,7 @@ button svg { flex: none; }
 /* ── proof ─────────────────────────────────────────────────────────── */
 .specimen { min-width: 0; }
 .specimen-head { margin-bottom: 22px; }
-.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 26px; }
 .chips button {
   font-size: 11.5px; padding: 3px 10px; border-radius: 3px; color: var(--graphite);
 }
