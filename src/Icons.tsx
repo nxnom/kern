@@ -93,3 +93,12 @@ export function IconUndo(props: { size?: number }) {
     </svg>
   )
 }
+
+export function IconReset(props: { size?: number }) {
+  return (
+    <svg {...base} width={props.size ?? 15} height={props.size ?? 15}>
+      <path d="M3 7v6h6" />
+      <path d="M3 13a9 9 0 1 0 3-7.7L3 8" />
+    </svg>
+  )
+}

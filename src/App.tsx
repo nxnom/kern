@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { CopyPrompt } from './CopyPrompt'
+import type { Activity } from './Activity'
+import { ActivityStrip } from './Activity'
+import { Confirm } from './Confirm'
 import { Wordmark } from './Wordmark'
 import { DownloadMenu } from './DownloadMenu'
-import { IconChevron, IconContrast, IconUpload } from './Icons'
+import { IconChevron, IconContrast, IconReset, IconUpload } from './Icons'
 import { Toggle } from './Toggle'
 import { PairDetail } from './PairDetail'
 import { PairGrid } from './PairGrid'
@@ -12,6 +14,14 @@ import type { LoadedFont } from './kern/font'
 import { installFontFace, loadFontFromBuffer, loadFontFromUrl } from './kern/font'
 import type { PairState } from './kern/state'
 import { initialPairs, pairKey } from './kern/state'
+import {
+  clearSession,
+  fontKey,
+  loadSession,
+  restore,
+  saveSession,
+  toStored,
+} from './kern/storage'
 import { useWebMCPSupport } from './kern/useWebMCPSupport'
 import { WebMCPStatus } from './WebMCPStatus'
 import { buildFeatureFile, buildKernedFont, download } from './kern/export'
@@ -43,6 +53,17 @@ function inControlContext(keys: string[]): string {
     .join(' ')
 }
 
+/** Short, human phrasing for a past timestamp. */
+function relativeTime(at: number): string {
+  const mins = Math.round((Date.now() - at) / 60000)
+  if (mins < 1) return 'a moment ago'
+  if (mins < 60) return `${mins} minute${mins === 1 ? '' : 's'} ago`
+  const hours = Math.round(mins / 60)
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`
+  const days = Math.round(hours / 24)
+  return `${days} day${days === 1 ? '' : 's'} ago`
+}
+
 interface LogLine { id: number; at: number; text: string; rejected: boolean }
 
 export default function App() {
@@ -55,12 +76,25 @@ export default function App() {
   /** null means "the pairs the agent changed", rebuilt as it works. */
   const [proofText, setProofText] = useState<string | null>(null)
   const [agentLine, setAgentLine] = useState<string | null>(null)
+  /** Identifies the loaded font by its bytes, so sessions cannot cross over. */
+  const [key, setKey] = useState<string | null>(null)
+  const [restored, setRestored] = useState<{ at: number; count: number } | null>(null)
+  const [confirmingReset, setConfirmingReset] = useState(false)
+  const [activity, setActivity] = useState<Activity | null>(null)
+  /**
+   * Proof claims the work is done, so it should not appear mid-run. It latches
+   * on once the agent has either published a specimen or stopped calling
+   * tools, and stays on — gating it on live activity alone would make it blink
+   * in and out between bursts.
+   */
+  const [proofReady, setProofReady] = useState(false)
   const [log, setLog] = useState<LogLine[]>([])
   const [logOpen, setLogOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const fileInput = useRef<HTMLInputElement>(null)
   const activeTimer = useRef<number | undefined>(undefined)
+  const busyTimer = useRef<number | undefined>(undefined)
   const logId = useRef(0)
   const [callCount, setCallCount] = useState(0)
   const logBody = useRef<HTMLOListElement>(null)
@@ -78,7 +112,7 @@ export default function App() {
 
   useEffect(() => {
     loadFontFromUrl(SAMPLE.url, SAMPLE.label)
-      .then(adopt)
+      .then((lf) => void adopt(lf))
       .catch((e: unknown) => setError(String(e)))
   }, [])
 
@@ -89,12 +123,63 @@ export default function App() {
     return installFontFace(loaded.buffer)
   }, [loaded])
 
-  function adopt(lf: LoadedFont) {
+  async function adopt(lf: LoadedFont) {
+    const fresh = initialPairs(lf)
+    const id = await fontKey(lf.buffer)
+    const saved = loadSession(id)
+
     setLoaded(lf)
-    setPairs(initialPairs(lf))
+    setKey(id)
     setLog([])
     setActiveKeys([])
     setError(null)
+
+    if (saved) {
+      const merged = restore(fresh, saved.pairs)
+      pairsRef.current = merged
+      setPairs(merged)
+      setAgentLine(saved.specimen ?? null)
+      setRestored({ at: saved.savedAt, count: Object.keys(saved.pairs).length })
+    } else {
+      pairsRef.current = fresh
+      setPairs(fresh)
+      setAgentLine(null)
+      setRestored(null)
+    }
+  }
+
+  /** Write after a pause, so a batch of set_kern calls costs one save. */
+  useEffect(() => {
+    if (!loaded || !key) return
+    const stored = toStored(pairs)
+    if (Object.keys(stored).length === 0) return
+    const timer = window.setTimeout(() => {
+      saveSession({
+        version: 'v1',
+        fontKey: key,
+        familyName: loaded.familyName,
+        savedAt: Date.now(),
+        specimen: agentLine ?? undefined,
+        specimenAt: agentLine ? Date.now() : undefined,
+        pairs: stored,
+      })
+    }, 600)
+    return () => window.clearTimeout(timer)
+  }, [pairs, agentLine, loaded, key])
+
+  function resetSession() {
+    setConfirmingReset(false)
+    if (!loaded) return
+    if (key) clearSession(key)
+    const fresh = initialPairs(loaded)
+    pairsRef.current = fresh
+    setPairs(fresh)
+    setAgentLine(null)
+    setProofText(null)
+    setRestored(null)
+    setProofReady(false)
+    setLog([])
+    setActiveKeys([])
   }
 
   // Appended, not prepended: the log reads top to bottom like a transcript.
@@ -182,6 +267,8 @@ export default function App() {
     [pairs],
   )
   const hasChanges = changed.length > 0
+  const showProof = hasChanges && (proofReady || Boolean(agentLine) || !activity)
+  if (showProof && !proofReady) setProofReady(true)
   const changedPairsLine = useMemo(
     () =>
       [...pairs.values()]
@@ -206,6 +293,11 @@ export default function App() {
       countCall: (tool: string) => {
         setCallCount((n) => n + 1)
         log_(`→ ${tool}`)
+        // No disconnect event exists, so "working" means "called something
+        // recently"; the strip falls back to a summary after a quiet spell.
+        setActivity({ tool, at: Date.now() })
+        window.clearTimeout(busyTimer.current)
+        busyTimer.current = window.setTimeout(() => setActivity(null), 6000)
       },
       // Publishing selects it too — the agent chose it, so show it.
       setSpecimen: (text: string) => {
@@ -222,7 +314,7 @@ export default function App() {
     const file = ev.target.files?.[0]
     if (!file) return
     try {
-      adopt(loadFontFromBuffer(await file.arrayBuffer(), file.name))
+      await adopt(loadFontFromBuffer(await file.arrayBuffer(), file.name))
     } catch {
       setError(`Could not read ${file.name}. Kern needs a .ttf or .otf file.`)
     }
@@ -281,6 +373,12 @@ export default function App() {
         <Toggle on={shade} onChange={setShade} icon={<IconContrast />}>
           <span className="btn-label">Negative space</span>
         </Toggle>
+        {hasChanges && (
+          <button onClick={() => setConfirmingReset(true)} title="Discard all changes">
+            <IconReset />
+            <span className="btn-label">Reset</span>
+          </button>
+        )}
         <DownloadMenu
           disabled={!hasChanges}
           options={[
@@ -304,23 +402,23 @@ export default function App() {
         />
       </section>
 
-      <section className={`now ${activeKeys.length ? 'live' : ''}`}>
-        {activeKeys.length ? (
-          <>
-            <span className="dot" />
-            {activeKeys.length === 1 ? (
-              <>Agent is looking at <code>{activeKeys[0]}</code></>
-            ) : (
-              <>Agent is surveying <b>{activeKeys.length}</b> pairs</>
-            )}
-            {detail?.note && <span className="reason"> · {detail.note}</span>}
-          </>
-        ) : (
-          <span className="idle">
-            <span className="muted">Idle. Ask your agent:</span>
-            <CopyPrompt text="Survey the kerning of the loaded font and fix what needs it, using this page’s WebMCP tools." />
-          </span>
-        )}
+      {restored && (
+        <p className="restored">
+          Restored <b>{restored.count}</b> pair{restored.count === 1 ? '' : 's'} from{' '}
+          {relativeTime(restored.at)}. Values are re-measured against this font, so
+          they may read differently now.
+        </p>
+      )}
+
+      <section className={`now ${activity ? 'live' : ''}`}>
+        <ActivityStrip
+          activity={activity}
+          activeKeys={activeKeys}
+          note={detail?.note}
+          changed={changed.length}
+          total={list.length}
+          calls={callCount}
+        />
       </section>
 
       {loaded && (
@@ -358,7 +456,7 @@ export default function App() {
         </Section>
       )}
 
-      {loaded && hasChanges && (
+      {loaded && showProof && (
         <Section label="Proof" meta={<>set the line you want to judge</>}>
           <div className="specimen-head">
             <div className="chips">
@@ -402,6 +500,16 @@ export default function App() {
       )}
 
       {/* Nothing to show before the first tool call, so stay out of the way. */}
+      {confirmingReset && (
+        <Confirm
+          title="Reset this font"
+          body={`This discards all ${changed.length} kerning changes and the saved session for ${loaded?.familyName ?? 'this font'}. It cannot be undone.`}
+          confirmLabel="Discard changes"
+          onConfirm={resetSession}
+          onCancel={() => setConfirmingReset(false)}
+        />
+      )}
+
       {log.length > 0 && (
         <aside className={`drawer ${logOpen ? 'open' : ''}`}>
           <button className="drawer-handle" onClick={() => setLogOpen((v) => !v)}>
