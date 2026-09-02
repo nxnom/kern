@@ -184,12 +184,11 @@ button svg { flex: none; }
   position: absolute; top: 6px; right: 7px;
   font-family: var(--mono); font-size: 9.5px; color: var(--rule-hard);
 }
-/* State is carried by one edge, not by a fill. A tinted cell revealed the
-   canvas as a white rectangle inside it, and stacked with the hairlines and
-   the agent's ring it made four borders on one tile. */
-.tile.adjusted { background: var(--green-wash); box-shadow: inset 3px 0 0 var(--green); }
+/* State is the fill alone. An edge bar as well was a second mark for the same
+   thing, and it fought the outlines that mean selected and active. */
+.tile.adjusted { background: var(--green-wash); }
 .tile.adjusted .tile-delta { color: var(--green); }
-.tile.rejected { background: var(--red-wash); box-shadow: inset 3px 0 0 var(--red); }
+.tile.rejected { background: var(--red-wash); }
 .tile.rejected .tile-delta { color: var(--red); }
 /* Selected is where the arrow keys land; active is where the agent is. Both
    are outlines so a tile can be one, the other, or both at once.
@@ -562,7 +561,7 @@ button svg { flex: none; }
 /* A value the human set outranks one the agent proposed, and says so. Ink,
    not blue: blue is the agent's colour everywhere else on the page. */
 .trail li.mine { border-color: var(--ink); color: var(--ink); }
-.tile.overridden { background: #f2f3f5; box-shadow: inset 3px 0 0 var(--ink); }
+.tile.overridden { background: #eceef1; }
 .tile.overridden .tile-delta { color: var(--ink); }
 .trail li.earlier { border-style: dashed; color: var(--rule-hard); }
 
