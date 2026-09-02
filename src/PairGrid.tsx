@@ -54,11 +54,15 @@ function PairTile({
   const ref = useRef<HTMLButtonElement>(null)
   const [hovering, setHovering] = useState(false)
   const wasChanged = pair.kern !== pair.original
-  // Hovering a changed tile shows what it looked like before — but not while
-  // it is selected. The pointer is still over the tile you just clicked, so
-  // hover-to-compare would replace the value you are editing with the old one
-  // and every arrow press would appear to do nothing.
-  const value = hovering && wasChanged && !selected ? pair.original : pair.kern
+  // Hovering a changed tile shows what it looked like before, selected or not.
+  const value = hovering && wasChanged ? pair.original : pair.kern
+
+  // Editing drops out of compare, because the pointer is still sitting on the
+  // tile you just clicked and would otherwise show the old value while you
+  // change it. Moving the mouse brings compare back.
+  useEffect(() => {
+    setHovering(false)
+  }, [pair.kern])
 
   // Redraw only when the value that affects the picture changes.
   const src = useMemo(
@@ -92,7 +96,7 @@ function PairTile({
       className={`tile ${pair.status} ${selected ? 'selected' : ''} ${active ? 'active' : ''}`}
       onClick={() => onSelect(pair.key)}
       onFocus={() => onSelect(pair.key)}
-      onMouseEnter={() => setHovering(true)}
+      onMouseMove={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
       title={`${pair.key} · ${pair.attempts.length} attempts`}
     >
@@ -102,11 +106,7 @@ function PairTile({
         {/* Always the value, never a word: the number is the thing that moves
             when you hold an arrow key, so hiding it behind a label made the
             edit look like it had not happened. */}
-        <span
-          className={`tile-delta ${
-            hovering && wasChanged && !selected ? 'is-original' : ''
-          }`}
-        >
+        <span className={`tile-delta ${hovering && wasChanged ? 'is-original' : ''}`}>
           {value}
         </span>
       </span>

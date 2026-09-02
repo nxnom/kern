@@ -128,24 +128,15 @@ export default function App() {
   const pairsRef = useRef(pairs)
   pairsRef.current = pairs
 
-  // Clicking away, or Escape, gives the selection up: the arrow keys act on
-  // whatever is selected, so leaving one armed after you have moved on is a
-  // way to change a value you are not looking at.
+  // Escape gives the selection up. Clicking away does not: the grid is the
+  // whole page, and losing your place because you clicked a toolbar button
+  // costs more than an armed selection does.
   useEffect(() => {
-    const onDown = (e: MouseEvent) => {
-      const el = e.target as Element | null
-      if (el?.closest?.('.tile, .detail')) return
-      setSelected(null)
-    }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setSelected(null)
     }
-    document.addEventListener('mousedown', onDown)
     document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onDown)
-      document.removeEventListener('keydown', onKey)
-    }
+    return () => document.removeEventListener('keydown', onKey)
   }, [])
 
   // Keep the newest line in view, both on open and as calls arrive.
