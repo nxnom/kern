@@ -3,6 +3,9 @@ import type { LoadedFont } from './kern/font'
 import { typicalRange } from './kern/pairs'
 import type { PairState } from './kern/state'
 
+/** How many attempts to show before summarising the rest. */
+const TRAIL_LIMIT = 10
+
 /**
  * What the agent did to one pair.
  *
@@ -125,7 +128,13 @@ export function PairDetail({
 
         {pair.attempts.length > 0 ? (
           <ol className="trail">
-            {pair.attempts.map((a, i) => (
+            {/* Only the recent tail is worth reading; the rest is noise. */}
+            {pair.attempts.length > TRAIL_LIMIT && (
+              <li className="earlier">
+                +{pair.attempts.length - TRAIL_LIMIT} earlier
+              </li>
+            )}
+            {pair.attempts.slice(-TRAIL_LIMIT).map((a, i) => (
               <li
                 key={a.at + i}
                 className={`${a.rejected ? 'rejected' : ''} ${a.by === 'human' ? 'mine' : ''}`}

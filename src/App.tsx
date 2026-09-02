@@ -45,6 +45,8 @@ const BUSY_MS = 30_000
  * lie about where the agent's attention is.
  */
 const ACTIVE_MS = 6_000
+/** Human edits closer together than this count as one adjustment. */
+const COALESCE_MS = 1_200
 
 const PANGRAM = 'Waltz, bad nymph, for quick jigs vex.'
 
@@ -249,6 +251,7 @@ export default function App() {
       const em = loadedRef.current?.unitsPerEm ?? 1000
       const applied: Applied[] = []
       const rejected: Rejected[] = []
+      const coalesced = new Set<string>()
       const next = new Map(current)
 
       for (const u of updates) {
@@ -273,15 +276,25 @@ export default function App() {
           continue
         }
         applied.push({ key, from: cur.kern, to: u.value })
+        // A burst of nudges is one decision, not forty. Collapse consecutive
+        // human edits to the same pair into a single entry, so the trail keeps
+        // showing reasoning rather than every keystroke on the way there.
+        const last = cur.attempts.at(-1)
+        const coalesce =
+          by === 'human' &&
+          last?.by === 'human' &&
+          !last.rejected &&
+          Date.now() - last.at < COALESCE_MS
+        if (coalesce) coalesced.add(key)
+        const attempt = { value: u.value, rejected: false, at: Date.now(), by }
         next.set(key, {
           ...cur,
           kern: u.value,
           status: by === 'human' ? 'overridden' : 'adjusted',
           note: undefined,
-          attempts: [
-            ...cur.attempts,
-            { value: u.value, rejected: false, at: Date.now(), by },
-          ],
+          attempts: coalesce
+            ? [...cur.attempts.slice(0, -1), attempt]
+            : [...cur.attempts, attempt],
           touchedAt: Date.now(),
         })
       }
@@ -290,6 +303,8 @@ export default function App() {
       setPairs(next)
 
       for (const a of applied) {
+        // A coalesced nudge already has a line in the log; leave it alone.
+        if (coalesced.has(a.key)) continue
         log_(`${a.key} · ${a.from} → ${a.to}${by === 'human' ? ' (you)' : ''}`)
       }
       for (const r of rejected) log_(`${r.key} · rejected: ${r.reason}`, true)

@@ -558,3 +558,4 @@ button svg { flex: none; }
 .trail li.mine { border-color: var(--ink); color: var(--ink); }
 .tile.overridden { background: var(--blue-wash); box-shadow: inset 2px 0 0 var(--blue); }
 .tile.overridden .tile-delta { color: var(--blue); }
+.trail li.earlier { border-style: dashed; color: var(--rule-hard); }
