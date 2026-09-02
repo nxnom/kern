@@ -144,6 +144,7 @@ export default function App() {
   // and so registering them does not depend on every keystroke of state.
   const pairsRef = useRef(pairs)
   pairsRef.current = pairs
+  const scopedRef = useRef(pairs)
 
   // Escape gives the selection up. Clicking away does not: the grid is the
   // whole page, and losing your place because you clicked a toolbar button
@@ -206,7 +207,7 @@ export default function App() {
     if (loadedRef.current && activityRef.current) fontEpoch.current += 1
     setActivity(null)
     generated.current = buildPairList(lf)
-    const fresh = initialPairs(lf, pairsInScope(generated.current, SCOPES[scope].extra))
+    const fresh = initialPairs(lf, generated.current)
     const id = await fontKey(lf.buffer)
     const saved = loadSession(id)
 
@@ -221,6 +222,7 @@ export default function App() {
       pairsRef.current = merged
       setPairs(merged)
       setAgentLine(saved.specimen ?? null)
+      if (saved.scope && saved.scope in SCOPES) setScope(saved.scope as ScopeId)
       setRestored({ at: saved.savedAt, count: Object.keys(saved.pairs).length })
     } else {
       pairsRef.current = fresh
@@ -241,26 +243,22 @@ export default function App() {
         fontKey: key,
         familyName: loaded.familyName,
         savedAt: Date.now(),
+        scope,
         specimen: agentLine ?? undefined,
         specimenAt: agentLine ? Date.now() : undefined,
         pairs: stored,
       })
     }, 600)
     return () => window.clearTimeout(timer)
-  }, [pairs, agentLine, loaded, key])
+  }, [pairs, agentLine, scope, loaded, key])
 
-  /** Widen or narrow the work without re-reading the font. */
+  /**
+   * Scope narrows the view, never the work. Rebuilding the map dropped every
+   * pair outside the new scope — and the autosave then wrote that shorter map,
+   * so narrowing quietly erased values you had already set.
+   */
   function changeScope(next: ScopeId) {
     setScope(next)
-    if (!loaded) return
-    const fresh = initialPairs(loaded, pairsInScope(generated.current, SCOPES[next].extra))
-    // Keep every value already set; only the extent of the list changes.
-    for (const [key, p] of pairsRef.current) {
-      const target = fresh.get(key)
-      if (target) fresh.set(key, { ...target, ...p })
-    }
-    pairsRef.current = fresh
-    setPairs(fresh)
   }
 
   function resetSession() {
@@ -431,7 +429,16 @@ export default function App() {
   loadedRef.current = loaded
   activityRef.current = activity
 
-  const list = useMemo(() => [...pairs.values()], [pairs])
+  const inScope = useMemo(
+    () => new Set(pairsInScope(generated.current, SCOPES[scope].extra).map((p) => `${p.left}${p.right}`)),
+    [scope, loaded],
+  )
+  const list = useMemo(
+    () => [...pairs.values()].filter((p) => inScope.has(p.key)),
+    [pairs, inScope],
+  )
+  /** What the agent is given: the scope the reader chose, not the whole face. */
+  scopedRef.current = useMemo(() => new Map(list.map((p) => [p.key, p])), [list])
 
   const changed = useMemo(
     () =>
@@ -482,7 +489,7 @@ export default function App() {
         seenEpoch.current = fontEpoch.current
         return loadedRef.current?.familyName ?? 'a different font'
       },
-      getPairs: () => pairsRef.current,
+      getPairs: () => scopedRef.current,
       applyKerns,
       highlight,
       log: log_,

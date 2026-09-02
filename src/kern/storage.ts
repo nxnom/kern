@@ -25,6 +25,8 @@ export interface StoredSession {
   fontKey: string
   familyName: string
   savedAt: number
+  /** How much of the face was being worked through. */
+  scope?: string
   /** When a specimen was last published, which is how a run usually ends. */
   specimenAt?: number
   specimen?: string
