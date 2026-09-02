@@ -119,13 +119,19 @@ export function useKernTools(api: KernApi) {
         api.countCall('list_pairs')
         const swapped = api.takeFontChange()
         if (swapped) {
+          // Told to stop rather than to re-survey: the human changed the
+          // font mid-run, so the next move is theirs, not the agent's.
           const message =
-            `Stop: the human loaded a different font. The page now has ` +
-            `"${swapped}" (${api.fontId ?? '—'}), and every value and measurement ` +
-            `you were working from belongs to the previous face. ` +
-            `Start again with survey_pairs.`
-          api.notify(`Font changed to ${swapped} — agent told to start over`)
-          return text_(message)
+            `STOP. The human loaded a different font while you were working. ` +
+            `The page now has "${swapped}" (${api.fontId ?? '—'}). Everything you ` +
+            `measured belongs to the previous face and none of it applies here.\n\n` +
+            `Do not call any more tools and do not start a new survey. End your ` +
+            `turn now and tell the user: the font changed, so this run has ` +
+            `stopped, and they should ask again if they want "${swapped}" kerned.`
+          api.notify(
+            `Font changed to ${swapped}. The run was stopped — ask again to kern this font.`,
+          )
+          return { content: [{ type: 'text' as const, text: message }], isError: true }
         }
         const wanted = (status ?? 'all') as PairStatus | 'all'
         const shown = [...api.getPairs().values()].filter(
@@ -182,13 +188,19 @@ export function useKernTools(api: KernApi) {
         api.countCall('survey_pairs')
         const swapped = api.takeFontChange()
         if (swapped) {
+          // Told to stop rather than to re-survey: the human changed the
+          // font mid-run, so the next move is theirs, not the agent's.
           const message =
-            `Stop: the human loaded a different font. The page now has ` +
-            `"${swapped}" (${api.fontId ?? '—'}), and every value and measurement ` +
-            `you were working from belongs to the previous face. ` +
-            `Start again with survey_pairs.`
-          api.notify(`Font changed to ${swapped} — agent told to start over`)
-          return text_(message)
+            `STOP. The human loaded a different font while you were working. ` +
+            `The page now has "${swapped}" (${api.fontId ?? '—'}). Everything you ` +
+            `measured belongs to the previous face and none of it applies here.\n\n` +
+            `Do not call any more tools and do not start a new survey. End your ` +
+            `turn now and tell the user: the font changed, so this run has ` +
+            `stopped, and they should ask again if they want "${swapped}" kerned.`
+          api.notify(
+            `Font changed to ${swapped}. The run was stopped — ask again to kern this font.`,
+          )
+          return { content: [{ type: 'text' as const, text: message }], isError: true }
         }
         const all = api.getPairs()
         let chosen: PairState[]
@@ -288,13 +300,19 @@ export function useKernTools(api: KernApi) {
         api.countCall('preview_pair')
         const swapped = api.takeFontChange()
         if (swapped) {
+          // Told to stop rather than to re-survey: the human changed the
+          // font mid-run, so the next move is theirs, not the agent's.
           const message =
-            `Stop: the human loaded a different font. The page now has ` +
-            `"${swapped}" (${api.fontId ?? '—'}), and every value and measurement ` +
-            `you were working from belongs to the previous face. ` +
-            `Start again with survey_pairs.`
-          api.notify(`Font changed to ${swapped} — agent told to start over`)
-          return text_(message)
+            `STOP. The human loaded a different font while you were working. ` +
+            `The page now has "${swapped}" (${api.fontId ?? '—'}). Everything you ` +
+            `measured belongs to the previous face and none of it applies here.\n\n` +
+            `Do not call any more tools and do not start a new survey. End your ` +
+            `turn now and tell the user: the font changed, so this run has ` +
+            `stopped, and they should ask again if they want "${swapped}" kerned.`
+          api.notify(
+            `Font changed to ${swapped}. The run was stopped — ask again to kern this font.`,
+          )
+          return { content: [{ type: 'text' as const, text: message }], isError: true }
         }
         if ([...left].length !== 1 || [...right].length !== 1) {
           throw new Error('left and right must each be exactly one character.')
@@ -379,13 +397,19 @@ export function useKernTools(api: KernApi) {
         api.countCall('publish_specimen')
         const swapped = api.takeFontChange()
         if (swapped) {
+          // Told to stop rather than to re-survey: the human changed the
+          // font mid-run, so the next move is theirs, not the agent's.
           const message =
-            `Stop: the human loaded a different font. The page now has ` +
-            `"${swapped}" (${api.fontId ?? '—'}), and every value and measurement ` +
-            `you were working from belongs to the previous face. ` +
-            `Start again with survey_pairs.`
-          api.notify(`Font changed to ${swapped} — agent told to start over`)
-          return text_(message)
+            `STOP. The human loaded a different font while you were working. ` +
+            `The page now has "${swapped}" (${api.fontId ?? '—'}). Everything you ` +
+            `measured belongs to the previous face and none of it applies here.\n\n` +
+            `Do not call any more tools and do not start a new survey. End your ` +
+            `turn now and tell the user: the font changed, so this run has ` +
+            `stopped, and they should ask again if they want "${swapped}" kerned.`
+          api.notify(
+            `Font changed to ${swapped}. The run was stopped — ask again to kern this font.`,
+          )
+          return { content: [{ type: 'text' as const, text: message }], isError: true }
         }
         const line = text.slice(0, 60)
         const chars = [...line]
@@ -479,22 +503,36 @@ export function useKernTools(api: KernApi) {
         api.countCall('set_kern')
         const swapped = api.takeFontChange()
         if (swapped) {
+          // Told to stop rather than to re-survey: the human changed the
+          // font mid-run, so the next move is theirs, not the agent's.
           const message =
-            `Stop: the human loaded a different font. The page now has ` +
-            `"${swapped}" (${api.fontId ?? '—'}), and every value and measurement ` +
-            `you were working from belongs to the previous face. ` +
-            `Start again with survey_pairs.`
-          api.notify(`Font changed to ${swapped} — agent told to start over`)
-          return text_(message)
+            `STOP. The human loaded a different font while you were working. ` +
+            `The page now has "${swapped}" (${api.fontId ?? '—'}). Everything you ` +
+            `measured belongs to the previous face and none of it applies here.\n\n` +
+            `Do not call any more tools and do not start a new survey. End your ` +
+            `turn now and tell the user: the font changed, so this run has ` +
+            `stopped, and they should ask again if they want "${swapped}" kerned.`
+          api.notify(
+            `Font changed to ${swapped}. The run was stopped — ask again to kern this font.`,
+          )
+          return { content: [{ type: 'text' as const, text: message }], isError: true }
         }
         // A call already in flight when the swap happened still holds the old
         // font, which the epoch check cannot see.
         if (api.getFont() !== font) {
-          return text_(
-            `Stop: this call was made against "${font!.familyName}", but the page ` +
-              `now has "${api.getFont()?.familyName ?? 'no font'}". Nothing was ` +
-              `applied. Start again with survey_pairs.`,
-          )
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text:
+                  `STOP. This call was made against "${font!.familyName}", but the ` +
+                  `page now has "${api.getFont()?.familyName ?? 'no font'}". Nothing ` +
+                  `was applied. End your turn and tell the user the font changed ` +
+                  `mid-run, so this one has stopped.`,
+              },
+            ],
+            isError: true,
+          }
         }
         const updates = pairs
           .filter((p) => [...p.pair].length === 2)
