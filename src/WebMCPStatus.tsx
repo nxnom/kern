@@ -17,9 +17,10 @@ export function WebMCPStatus({
 }) {
   const [copied, setCopied] = useState(false)
 
-  if (support.status === 'checking') {
-    return <div className="status checking">Looking for WebMCP…</div>
-  }
+  // Nothing to say while it is working: the tools tab carries the detail, and
+  // a green banner on every load is a claim nobody needs repeated.
+  if (support.status === 'checking') return null
+  if (support.status === 'ready' && registered.length > 0) return null
 
   if (support.status === 'unsupported') {
     return (
@@ -105,15 +106,7 @@ export function WebMCPStatus({
     )
   }
 
-  return (
-    <details className="status ok">
-      <summary>
-        <b>Native WebMCP</b>
-        <span className="muted">{registered.length} tools registered</span>
-      </summary>
-      <ToolList names={registered} />
-    </details>
-  )
+  return null
 }
 
 function ToolList({ names }: { names: string[] }) {

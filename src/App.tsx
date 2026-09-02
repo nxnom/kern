@@ -630,8 +630,7 @@ export default function App() {
         onChange={setTab}
       />
 
-      {tab === 'main' && (
-        <>
+      <div hidden={tab !== 'main'}>
           {detail && (
             <div className="selected-bar">
               <PairDetail
@@ -650,11 +649,9 @@ export default function App() {
             onSelect={setSelected}
             shade={shade}
           />
-        </>
-      )}
+      </div>
 
-      {tab === 'proof' && showProof && (
-        <div className="view">
+      <div className="view" hidden={tab !== 'proof' || !showProof}>
           <div className="chips">
             <button
               className={proof === changedPairsLine ? 'on' : ''}
@@ -686,13 +683,16 @@ export default function App() {
             </button>
           </div>
           <Specimen loaded={loaded} word={proof} pairs={pairs} shade={shade} />
-        </div>
-      )}
+      </div>
 
-      {tab === 'tools' && (
-        <div className="view">
+      <div className="view" hidden={tab !== 'tools'}>
           <p className="view-lead">
-            Registered on <code>document.modelContext</code>. They appear when a font
+            {webmcp.source === 'native'
+              ? 'This browser provides WebMCP itself. '
+              : webmcp.source === 'polyfill'
+                ? 'This browser has no WebMCP of its own, so @mcp-b/global installed it. No agent here can call these. '
+                : 'WebMCP is not available in this browser, so nothing can call these. '}
+            Registered on <code>document.modelContext</code>: they appear when a font
             is loaded and unregister when one is swapped, which is what fires{' '}
             <code>toolchange</code>.
           </p>
@@ -704,11 +704,9 @@ export default function App() {
               </li>
             ))}
           </ul>
-        </div>
-      )}
+      </div>
 
-      {tab === 'log' && (
-        <div className="view">
+      <div className="view" hidden={tab !== 'log'}>
           <ol className="log-list" ref={logBody}>
             {log.map((l) => (
               <li
@@ -722,8 +720,7 @@ export default function App() {
               </li>
             ))}
           </ol>
-        </div>
-      )}
+      </div>
 
       {busy && (
         <div className="busy-scrim" role="status" aria-live="polite">
