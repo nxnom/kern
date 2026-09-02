@@ -292,6 +292,7 @@ export default function App() {
   const api: KernApi = useMemo(
     () => ({
       font: loaded,
+      getFont: () => loadedRef.current,
       getPairs: () => pairsRef.current,
       applyKerns,
       highlight,

@@ -7,6 +7,8 @@ import type { PairState, PairStatus } from './state'
 
 export interface KernApi {
   font: LoadedFont | null
+  /** The font loaded right now, which is not always the one a tool captured. */
+  getFont: () => LoadedFont | null
   /** Read through a ref so tools never close over stale state. */
   getPairs: () => Map<string, PairState>
   /** Applies values, returning what stuck and what did not. */
@@ -407,6 +409,16 @@ export function useKernTools(api: KernApi) {
       enabled: ready,
       execute: async ({ pairs, force }) => {
         api.countCall('set_kern')
+        // A tool call can outlive the font it was made against: the human is
+        // free to load a different face mid-run, and values computed for one
+        // typeface mean nothing on another.
+        if (api.getFont() !== font) {
+          return text_(
+            `Rejected: the page now has "${api.getFont()?.familyName ?? 'no font'}" ` +
+              `loaded, not "${font!.familyName}". The values you worked out do not ` +
+              `apply to it. Call survey_pairs to look at what is loaded now.`,
+          )
+        }
         const updates = pairs
           .filter((p) => [...p.pair].length === 2)
           .map((p) => ({ left: p.pair[0], right: p.pair[1], value: p.kern }))
