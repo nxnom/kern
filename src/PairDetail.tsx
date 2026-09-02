@@ -37,9 +37,11 @@ export function PairDetail({
 
   return (
     <section className="detail">
+      {/* Both are always drawn. Dropping the original when a value returned to
+          it moved everything left, and a click aimed at one control landed on
+          another. */}
       <div className="detail-renders">
-        {changed && (
-          <figure>
+        <figure className={changed ? '' : 'same'}>
             <img
               src={drawPair(loaded, pair.left, pair.right, pair.original, 130, shade, {
                 paper: 'transparent',
@@ -48,9 +50,8 @@ export function PairDetail({
               })}
               alt="original"
             />
-            <figcaption>original · {pair.original}</figcaption>
-          </figure>
-        )}
+          <figcaption>original · {pair.original}</figcaption>
+        </figure>
         <figure className={changed ? 'changed' : ''}>
           <img
             src={drawPair(loaded, pair.left, pair.right, pair.kern, 130, shade, {
@@ -59,7 +60,7 @@ export function PairDetail({
             })}
             alt={pair.key}
           />
-          <figcaption>{changed ? `kerned · ${pair.kern}` : `${pair.key} · ${pair.kern}`}</figcaption>
+          <figcaption>kerned · {pair.kern}</figcaption>
         </figure>
       </div>
 

@@ -182,19 +182,14 @@ button svg { flex: none; }
   position: absolute; top: 6px; right: 7px;
   font-family: var(--mono); font-size: 9.5px; color: var(--rule-hard);
 }
-.tile.adjusted {
-  background: var(--green-wash);
-  box-shadow: inset 2px 0 0 var(--green);
-}
+/* State is carried by one edge, not by a fill. A tinted cell revealed the
+   canvas as a white rectangle inside it, and stacked with the hairlines and
+   the agent's ring it made four borders on one tile. */
+.tile.adjusted { box-shadow: inset 3px 0 0 var(--green); }
 .tile.adjusted .tile-delta { color: var(--green); }
-.tile.rejected {
-  background: var(--red-wash);
-  box-shadow: inset 2px 0 0 var(--red);
-}
-.tile.active {
-  background: var(--blue-wash);
-  box-shadow: inset 0 0 0 2px var(--blue); z-index: 1;
-}
+.tile.rejected { box-shadow: inset 3px 0 0 var(--red); }
+.tile.rejected .tile-delta { color: var(--red); }
+.tile.active { box-shadow: inset 0 0 0 2px var(--blue); z-index: 1; }
 
 /* ── pair detail: what the agent tried ─────────────────────────────── */
 .detail {
@@ -555,8 +550,13 @@ button svg { flex: none; }
 .nudge .link:hover { color: var(--ink); background: transparent; }
 .nudge .muted { margin-left: 4px; font-size: 11px; }
 
-/* A value the human set outranks one the agent proposed, and says so. */
+/* A value the human set outranks one the agent proposed, and says so. Ink,
+   not blue: blue is the agent's colour everywhere else on the page. */
 .trail li.mine { border-color: var(--ink); color: var(--ink); }
-.tile.overridden { background: var(--blue-wash); box-shadow: inset 2px 0 0 var(--blue); }
-.tile.overridden .tile-delta { color: var(--blue); }
+.tile.overridden { box-shadow: inset 3px 0 0 var(--ink); }
+.tile.overridden .tile-delta { color: var(--ink); }
 .trail li.earlier { border-style: dashed; color: var(--rule-hard); }
+
+/* When the two are equal the comparison is not saying anything, so the
+   original recedes rather than disappearing and moving everything sideways. */
+.detail figure.same { opacity: .45; }

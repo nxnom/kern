@@ -94,6 +94,28 @@ const PAD_PX = 60
  * Draw a pair and return just the picture. Used for the grid, where fifty
  * tiles redraw on every change and the pixel measurement would be wasted.
  */
+
+/**
+ * Draw one glyph in a given colour.
+ *
+ * `Path.draw()` assigns `ctx.fillStyle` from the path's own `fill`, which is
+ * black unless told otherwise — so a colour set on the context is thrown away.
+ * Every glyph goes through here to avoid that; it is invisible in black on
+ * white and wrong everywhere else.
+ */
+export function drawGlyphInto(
+  ctx: CanvasRenderingContext2D,
+  glyph: opentype.Glyph,
+  x: number,
+  baselineY: number,
+  sizePx: number,
+  fill: string,
+) {
+  const path = glyph.getPath(x, baselineY, sizePx)
+  path.fill = fill
+  path.draw(ctx)
+}
+
 export interface DrawStyle {
   /** Ground colour. Must stay light: the gap measurement reads ink as dark. */
   paper?: string
@@ -124,10 +146,7 @@ export function drawPair(
   shade = false,
   style: DrawStyle = {},
 ): string {
-  // The shading pass reads pixels and treats dark as ink, so it needs a light
-  // ground; only an unshaded tile can sit transparent on the page.
   const s = { ...DEFAULT_STYLE, ...style }
-  if (shade && s.paper === 'transparent') s.paper = DEFAULT_STYLE.paper
   const { font, unitsPerEm } = lf
   const scale = sizePx / unitsPerEm
   const pad = Math.round(sizePx * 0.18)
@@ -162,16 +181,30 @@ export function drawPair(
   }
 
   ctx.fillStyle = s.ink
-  lGlyph.getPath(pad, baselineY, sizePx).draw(ctx)
-  rGlyph.getPath(pad + (lAdvance + kern) * scale, baselineY, sizePx).draw(ctx)
+  drawGlyphInto(ctx, lGlyph, pad, baselineY, sizePx, s.ink)
+  drawGlyphInto(ctx, rGlyph, pad + (lAdvance + kern) * scale, baselineY, sizePx, s.ink)
 
   if (shade) {
+    // The measurement reads brightness to find ink, so it needs a solid
+    // ground — but filling the visible canvas would paint a rectangle over
+    // whatever is behind it. So measure on a throwaway copy and paint the
+    // result onto the real one.
+    const gauge = document.createElement('canvas')
+    gauge.width = canvas.width
+    gauge.height = canvas.height
+    const gctx = gauge.getContext('2d', { willReadFrequently: true })!
+    gctx.scale(dpr, dpr)
+    gctx.fillStyle = s.paper === 'transparent' ? DEFAULT_STYLE.paper : s.paper
+    gctx.fillRect(0, 0, width, height)
+    drawGlyphInto(gctx, lGlyph, pad, baselineY, sizePx, s.ink)
+    drawGlyphInto(gctx, rGlyph, pad + (lAdvance + kern) * scale, baselineY, sizePx, s.ink)
+
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     paintGap(
       ctx,
-      ctx.getImageData(0, 0, canvas.width, canvas.height),
-      canvas.width,
-      0, canvas.width,
+      gctx.getImageData(0, 0, gauge.width, gauge.height),
+      gauge.width,
+      0, gauge.width,
       Math.max(0, Math.floor((baselineY - lf.capHeight * scale) * dpr)),
       Math.ceil(baselineY * dpr),
       (pad + lAdvance * scale) * dpr,
@@ -219,8 +252,8 @@ export function renderPair(
   ctx.fillStyle = '#111111'
 
   const originX = PAD_PX
-  lGlyph.getPath(originX, baselineY, RENDER_PX).draw(ctx)
-  rGlyph.getPath(originX + (lAdvance + kern) * scale, baselineY, RENDER_PX).draw(ctx)
+  drawGlyphInto(ctx, lGlyph, originX, baselineY, RENDER_PX, '#111111')
+  drawGlyphInto(ctx, rGlyph, originX + (lAdvance + kern) * scale, baselineY, RENDER_PX, '#111111')
 
   const metrics = measureOpticalGap(
     ctx, width, height, baselineY, lf, scale, originX + lAdvance * scale,
@@ -394,7 +427,9 @@ export function drawWord(
   const ctx = canvas.getContext('2d')!
   ctx.scale(dpr, dpr)
   ctx.fillStyle = ink
-  for (const p of placed) p.glyph?.getPath(p.at, baselineY, sizePx).draw(ctx)
+  for (const p of placed) {
+    if (p.glyph) drawGlyphInto(ctx, p.glyph, p.at, baselineY, sizePx, ink)
+  }
 
   return { dataUrl: canvas.toDataURL('image/png'), width, height }
 }

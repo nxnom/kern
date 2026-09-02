@@ -1,5 +1,5 @@
 import type { LoadedFont, PairMetrics } from './font'
-import { measureBand, paintGap } from './font'
+import { drawGlyphInto, measureBand, paintGap } from './font'
 
 export interface SheetItem {
   left: string
@@ -68,8 +68,8 @@ export function drawSheet(
     const startX = cx + (CELL_W - totalPx) / 2
 
     ctx.fillStyle = '#16150f'
-    lGlyph.getPath(startX, baselineY, GLYPH_PX).draw(ctx)
-    rGlyph.getPath(startX + (lAdv + item.kern) * scale, baselineY, GLYPH_PX).draw(ctx)
+    drawGlyphInto(ctx, lGlyph, startX, baselineY, GLYPH_PX, '#16150f')
+    drawGlyphInto(ctx, rGlyph, startX + (lAdv + item.kern) * scale, baselineY, GLYPH_PX, '#16150f')
 
     // Label, so the agent can name what it is looking at.
     ctx.fillStyle = '#8a857a'
