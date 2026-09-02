@@ -27,6 +27,11 @@ export function PairDetail({
 }) {
   const range = typicalRange(pair.left, pair.right, loaded.unitsPerEm)
   const changed = pair.kern !== pair.original
+  // The last value the agent actually applied, so a hand edit can be undone
+  // back to its proposal rather than only all the way to the font's own value.
+  const agentValue = [...pair.attempts]
+    .reverse()
+    .find((a) => a.by !== 'human' && !a.rejected)?.value
   const span = range.max - range.min || 1
   const pos = (v: number) => Math.max(0, Math.min(100, ((v - range.min) / span) * 100))
 
@@ -118,9 +123,22 @@ export function PairDetail({
           <button onClick={() => onNudge(pair.kern + 10)} title="Loosen by 10">
             +10
           </button>
-          {pair.kern !== pair.original && (
-            <button className="link" onClick={() => onNudge(pair.original)}>
-              back to {pair.original}
+          {agentValue !== undefined && agentValue !== pair.kern && (
+            <button
+              className="link"
+              onClick={() => onNudge(agentValue)}
+              title="Put back the value the agent applied"
+            >
+              agent’s {agentValue}
+            </button>
+          )}
+          {changed && (
+            <button
+              className="link"
+              onClick={() => onNudge(pair.original)}
+              title="Put back the value the font shipped with"
+            >
+              original {pair.original}
             </button>
           )}
           <span className="muted">or ← → with a tile selected</span>

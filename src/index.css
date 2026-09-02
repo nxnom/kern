@@ -550,6 +550,7 @@ button svg { flex: none; }
 .nudge .link {
   border: 0; background: transparent; color: var(--graphite);
   text-decoration: underline; text-underline-offset: 3px;
+  font-family: var(--mono); font-size: 11.5px; padding: 4px 2px;
 }
 .nudge .link:hover { color: var(--ink); background: transparent; }
 .nudge .muted { margin-left: 4px; font-size: 11px; }
