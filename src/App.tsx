@@ -582,19 +582,6 @@ export default function App() {
         </p>
 
         <div className="head-actions">
-          <label className="scope">
-            <select
-              value={scope}
-              onChange={(e) => changeScope(e.target.value as ScopeId)}
-              title="How much of this face to work through"
-            >
-              {(Object.keys(SCOPES) as ScopeId[]).map((id) => (
-                <option key={id} value={id}>
-                  {SCOPES[id].label} · {Math.min(SCOPES[id].count, generated.current.length)} pairs
-                </option>
-              ))}
-            </select>
-          </label>
           <Toggle on={shade} onChange={setShade} icon={<IconContrast />}>
             <span className="btn-label">Negative space</span>
           </Toggle>
@@ -680,6 +667,22 @@ export default function App() {
       />
 
       <div hidden={tab !== 'main'}>
+        <div className="grid-head">
+          <label className="scope">
+            <span>Work through</span>
+            <select
+              value={scope}
+              onChange={(e) => changeScope(e.target.value as ScopeId)}
+            >
+              {(Object.keys(SCOPES) as ScopeId[]).map((id) => (
+                <option key={id} value={id}>
+                  {SCOPES[id].label} · {Math.min(SCOPES[id].count, generated.current.length)} pairs
+                </option>
+              ))}
+            </select>
+          </label>
+          <span className="grid-note">{SCOPES[scope].note}</span>
+        </div>
           {detail && (
             <div className="selected-bar">
               <PairDetail
