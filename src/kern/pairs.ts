@@ -132,20 +132,42 @@ const NOTEWORTHY = 1.18
  * them takes several minutes. The list is ordered worst first, so a smaller
  * scope is not a lesser one — it is the same work, stopped sooner.
  */
+/*
+ * Essential is not "the highest ratios". Measured white is a poor guide to
+ * which pairs a reader notices: `To`, `Vo` and `Tr` measure close to a control
+ * and are the first things any type designer kerns, while `f)` and `XX` measure
+ * high because of what surrounds the join rather than the join itself. So the
+ * essential scope is the classic families, whatever they measure, and the wider
+ * scopes add what this particular face turns up on top.
+ */
 export const SCOPES = {
-  essential: { label: 'Essential', count: 48, note: 'the worst offenders, a minute of work' },
-  standard: { label: 'Standard', count: 120, note: 'a thorough pass, several minutes' },
-  everything: { label: 'Everything', count: 400, note: 'every candidate this face turns up — long' },
+  essential: {
+    label: 'Essential',
+    note: 'the pairs every face needs kerned',
+    extra: 0,
+  },
+  standard: {
+    label: 'Standard',
+    note: 'those plus the widest gaps this face has',
+    extra: 80,
+  },
+  everything: {
+    label: 'Everything',
+    note: 'every candidate found — long, and mostly fine as it is',
+    extra: 400,
+  },
 } as const
 
 export type ScopeId = keyof typeof SCOPES
 
-const MAX_PAIRS = SCOPES.everything.count
+const MAX_PAIRS = 400
 
 export interface GeneratedPair {
   left: string
   right: string
   ratio: number
+  /** One of the classic families, which are kerned on sight, not on measure. */
+  essential: boolean
 }
 
 export function buildPairList(lf: LoadedFont): GeneratedPair[] {
@@ -163,24 +185,38 @@ export function buildPairList(lf: LoadedFont): GeneratedPair[] {
       const reference = /[A-Z0-9]/.test(left) ? control.caps : control.lower
       if (!reference) continue
       const ratio = area / reference
-      if (ratio >= NOTEWORTHY) found.push({ left, right, ratio })
+      if (ratio >= NOTEWORTHY) found.push({ left, right, ratio, essential: false })
     }
   }
 
-  // The classics go in whatever they measure: they are the pairs a type
-  // designer will look for first, and their absence would read as an oversight.
+  // The classics come first and stay in every scope, whatever they measure.
+  const classics: GeneratedPair[] = []
   for (const [left, right] of PRIORITY_PAIRS) {
-    if (found.some((p) => p.left === left && p.right === right)) continue
     if (!hasGlyph(lf, left) || !hasGlyph(lf, right)) continue
     const area = quickWhite(lf, left, right)
     const reference = /[A-Z0-9]/.test(left) ? control.caps : control.lower
     if (area === null || !reference) continue
-    found.push({ left, right, ratio: area / reference })
+    classics.push({ left, right, ratio: area / reference, essential: true })
   }
 
-  return found.sort((a, b) => b.ratio - a.ratio).slice(0, MAX_PAIRS)
+  const known = new Set(classics.map((p) => `${p.left}${p.right}`))
+  const rest = found
+    .filter((p) => !known.has(`${p.left}${p.right}`))
+    .sort((a, b) => b.ratio - a.ratio)
+
+  return [...classics, ...rest].slice(0, MAX_PAIRS)
 }
 
 function hasGlyph(lf: LoadedFont, ch: string): boolean {
   return lf.font.charToGlyphIndex(ch) > 0
+}
+
+/** The pairs a scope covers: every classic, plus the widest gaps beyond them. */
+export function pairsInScope(
+  all: GeneratedPair[],
+  extra: number,
+): GeneratedPair[] {
+  const classics = all.filter((p) => p.essential)
+  const rest = all.filter((p) => !p.essential).slice(0, extra)
+  return [...classics, ...rest]
 }

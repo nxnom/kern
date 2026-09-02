@@ -13,7 +13,7 @@ import { Specimen } from './Specimen'
 import type { LoadedFont } from './kern/font'
 import { installFontFace, loadFontFromBuffer, loadFontFromUrl } from './kern/font'
 import type { PairState } from './kern/state'
-import { SCOPES, buildPairList } from './kern/pairs'
+import { SCOPES, buildPairList, pairsInScope } from './kern/pairs'
 import type { ScopeId } from './kern/pairs'
 import { initialPairs, pairKey, statusFor } from './kern/state'
 import {
@@ -206,7 +206,7 @@ export default function App() {
     if (loadedRef.current && activityRef.current) fontEpoch.current += 1
     setActivity(null)
     generated.current = buildPairList(lf)
-    const fresh = initialPairs(lf, generated.current.slice(0, SCOPES[scope].count))
+    const fresh = initialPairs(lf, pairsInScope(generated.current, SCOPES[scope].extra))
     const id = await fontKey(lf.buffer)
     const saved = loadSession(id)
 
@@ -253,7 +253,7 @@ export default function App() {
   function changeScope(next: ScopeId) {
     setScope(next)
     if (!loaded) return
-    const fresh = initialPairs(loaded, generated.current.slice(0, SCOPES[next].count))
+    const fresh = initialPairs(loaded, pairsInScope(generated.current, SCOPES[next].extra))
     // Keep every value already set; only the extent of the list changes.
     for (const [key, p] of pairsRef.current) {
       const target = fresh.get(key)
@@ -676,7 +676,8 @@ export default function App() {
             >
               {(Object.keys(SCOPES) as ScopeId[]).map((id) => (
                 <option key={id} value={id}>
-                  {SCOPES[id].label} · {Math.min(SCOPES[id].count, generated.current.length)} pairs
+                  {SCOPES[id].label} ·{' '}
+                  {pairsInScope(generated.current, SCOPES[id].extra).length} pairs
                 </option>
               ))}
             </select>
