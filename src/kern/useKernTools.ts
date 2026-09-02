@@ -98,14 +98,17 @@ export function useKernTools(api: KernApi) {
       execute: async ({ status }) => {
         api.countCall('list_pairs')
         const wanted = (status ?? 'all') as PairStatus | 'all'
-        const rows = [...api.getPairs().values()]
-          .filter((p) => wanted === 'all' || p.status === wanted)
+        const shown = [...api.getPairs().values()].filter(
+          (p) => wanted === 'all' || p.status === wanted,
+        )
+        const rows = shown
           .map(
             (p) =>
               `${p.key}\t${p.kern}\t(was ${p.original})\t${p.status}\t` +
               `${typicalRange(p.left, p.right, font!.unitsPerEm).pairClass}\t` +
               `${p.attempts.length} attempts`,
           )
+        api.highlight(shown.map((p) => p.key))
         return text_(
           `pair\tkern\toriginal\tstatus\tclass\tattempts\n${rows.join('\n')}\n\n` +
             `${rows.length} pairs. em = ${font!.unitsPerEm}.\n${progressLine(api.getPairs())}`,
@@ -331,6 +334,7 @@ export function useKernTools(api: KernApi) {
         const moved = adjacent.filter((a) => a.state && a.state.kern !== a.state.original)
 
         api.setSpecimen(line, note)
+        api.highlight(moved.map((m) => m.state!.key))
         api.log(`specimen "${line}" · ${moved.length} changed pairs`)
 
         const sheet = drawSheet(

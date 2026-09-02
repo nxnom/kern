@@ -191,14 +191,9 @@ button svg { flex: none; }
   background: var(--red-wash);
   box-shadow: inset 2px 0 0 var(--red);
 }
-/* Two different marks, two different meanings: the reader picked this one,
-   versus the agent is working on this one right now. */
-.tile.selected {
-  box-shadow: inset 0 0 0 2px var(--ink); z-index: 1;
-}
 .tile.active {
   background: var(--blue-wash);
-  box-shadow: inset 0 0 0 2px var(--blue); z-index: 2;
+  box-shadow: inset 0 0 0 2px var(--blue); z-index: 1;
 }
 
 /* ── pair detail: what the agent tried ─────────────────────────────── */

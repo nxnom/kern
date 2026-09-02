@@ -32,8 +32,6 @@ const SAMPLE = {
   label: 'EB Garamond',
   url: `${import.meta.env.BASE_URL}fonts/EBGaramond-Regular.ttf`,
 }
-/** How long tiles stay lit after the agent touches them. */
-const ACTIVE_MS = 2600
 /**
  * How long after a tool call the agent still counts as working. It pauses to
  * read a contact sheet, so a short window kept dropping it back to idle in the
@@ -99,7 +97,6 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
 
   const fileInput = useRef<HTMLInputElement>(null)
-  const activeTimer = useRef<number | undefined>(undefined)
   const busyTimer = useRef<number | undefined>(undefined)
   const logId = useRef(0)
   const [callCount, setCallCount] = useState(0)
@@ -203,8 +200,6 @@ export default function App() {
 
   const highlight = useCallback((keys: string[]) => {
     setActiveKeys(keys)
-    window.clearTimeout(activeTimer.current)
-    activeTimer.current = window.setTimeout(() => setActiveKeys([]), ACTIVE_MS)
   }, [])
 
   /** The single write path. Rejects per pair so one bad value cannot block a batch. */
@@ -310,7 +305,10 @@ export default function App() {
         // recently"; the strip falls back to a summary after a quiet spell.
         setActivity({ tool, at: Date.now() })
         window.clearTimeout(busyTimer.current)
-        busyTimer.current = window.setTimeout(() => setActivity(null), BUSY_MS)
+        busyTimer.current = window.setTimeout(() => {
+          setActivity(null)
+          setActiveKeys([])
+        }, BUSY_MS)
       },
       // Publishing selects it too — the agent chose it, so show it.
       setSpecimen: (text: string) => {
