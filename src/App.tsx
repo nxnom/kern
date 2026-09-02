@@ -38,6 +38,13 @@ const SAMPLE = {
  * middle of a run.
  */
 const BUSY_MS = 30_000
+/**
+ * How long the tiles it touched stay lit. Much shorter than BUSY_MS on
+ * purpose: the narration describes a run, but a lit tile claims "checking this
+ * right now", and seventeen of them still glowing thirty seconds later is a
+ * lie about where the agent's attention is.
+ */
+const ACTIVE_MS = 6_000
 
 const PANGRAM = 'Waltz, bad nymph, for quick jigs vex.'
 
@@ -100,6 +107,7 @@ export default function App() {
 
   const fileInput = useRef<HTMLInputElement>(null)
   const busyTimer = useRef<number | undefined>(undefined)
+  const activeTimer = useRef<number | undefined>(undefined)
   /**
    * Bumped whenever the human swaps the font. The next tool call, whichever it
    * is, fails once so the agent learns its plan is stale — then work resumes
@@ -213,6 +221,8 @@ export default function App() {
 
   const highlight = useCallback((keys: string[]) => {
     setActiveKeys(keys)
+    window.clearTimeout(activeTimer.current)
+    activeTimer.current = window.setTimeout(() => setActiveKeys([]), ACTIVE_MS)
   }, [])
 
   /** The single write path. Rejects per pair so one bad value cannot block a batch. */
