@@ -511,3 +511,18 @@ button svg { flex: none; }
 .app.booting { padding-top: 44px; }
 .app.booting h1 { margin-bottom: 18px; }
 .app.booting .muted { font-family: var(--mono); font-size: 12.5px; }
+
+/* ── crash ─────────────────────────────────────────────────────────── */
+.crashed { max-width: 720px; }
+.crashed h2 { margin: 22px 0 10px; font-size: 16px; font-weight: 600; }
+.crashed p { margin: 0 0 18px; color: var(--graphite); line-height: 1.6; max-width: 62ch; }
+.crashed pre {
+  margin: 0 0 20px; padding: 14px 16px; overflow-x: auto;
+  font-family: var(--mono); font-size: 12px; line-height: 1.55;
+  color: var(--red); background: var(--red-wash);
+  border-left: 2px solid var(--red); border-radius: 0 5px 5px 0;
+  white-space: pre-wrap; word-break: break-word;
+}
+.crashed-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.crashed-actions .danger { border-color: var(--red); color: var(--red); }
+.crashed-actions .danger:hover { background: var(--red-wash); border-color: var(--red); }

@@ -142,3 +142,14 @@ export function restore(
   }
   return next
 }
+
+/** Drop every saved session. Used as the last resort after a crash. */
+export function clearAllSessions(): void {
+  try {
+    for (const k of Object.keys(localStorage)) {
+      if (k.startsWith(PREFIX)) localStorage.removeItem(k)
+    }
+  } catch {
+    // Nothing to clear, or no storage to clear it from.
+  }
+}
