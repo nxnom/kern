@@ -184,6 +184,14 @@ button svg { flex: none; }
   position: absolute; top: 6px; right: 7px;
   font-family: var(--mono); font-size: 9.5px; color: var(--rule-hard);
 }
+/* Hover as an overlay rather than a background, so it darkens whatever state
+   the cell already has instead of replacing green or red with its own colour. */
+.tile::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: transparent; transition: background .12s;
+}
+.tile:hover::after { background: rgb(16 16 20 / 4%); }
+
 /* State is the fill alone. An edge bar as well was a second mark for the same
    thing, and it fought the outlines that mean selected and active. */
 .tile.adjusted { background: var(--green-wash); }
