@@ -1,5 +1,22 @@
 import type { LoadedFont, PairMetrics } from './font'
-import { drawGlyphInto, measureBand, paintGap } from './font'
+import { GHOST_INK, drawGlyphInto, measurePair, paintGap } from './font'
+
+/**
+ * The letter to stand a pair next to.
+ *
+ * Kerning is judged in company, not in isolation: `AV` can look settled alone
+ * and wrong between an `H` and an `E`. These are the control letters
+ * typographers space against — `H` and `n` for the straight-sided reference,
+ * `o` for anything round or punctuational, where the gap is the whole story.
+ */
+function flankFor(ch: string): string {
+  if (/[A-Z]/.test(ch)) return 'H'
+  if (/[a-z]/.test(ch)) return 'n'
+  if (/[0-9]/.test(ch)) return '0'
+  // Brackets, quotes and the rest. `f)` has to be seen as `off)` to show that
+  // the terminal, not the area, is what runs out of room.
+  return 'o'
+}
 
 export interface SheetItem {
   left: string
@@ -46,9 +63,23 @@ export function drawSheet(
   columns = 4,
   shade = true,
   size: SheetSize = 'judge',
+  context = false,
 ): Sheet {
-  const { glyph: GLYPH_PX, cellW: CELL_W, cellH: CELL_H } = SHEET_SIZES[size]
-  const cols = Math.max(1, Math.min(columns, items.length || 1))
+  const { glyph: GLYPH_PX, cellH: CELL_H } = SHEET_SIZES[size]
+  // Room for a flanking letter on each side. Measured from the font rather
+  // than guessed, so a wide face does not overflow its cell.
+  const flankPx = context
+    ? ((lf.font.charToGlyph('n')?.advanceWidth ?? lf.unitsPerEm * 0.5) * GLYPH_PX * 2) /
+      lf.unitsPerEm
+    : 0
+  const CELL_W = Math.round(SHEET_SIZES[size].cellW + flankPx)
+  // Anything wider than this is resized down before the model sees it, so
+  // extra columns past this point cost detail rather than adding any.
+  const MAX_SHEET_W = 1500
+  const cols = Math.max(
+    1,
+    Math.min(columns, items.length || 1, Math.floor(MAX_SHEET_W / CELL_W) || 1),
+  )
   const rows = Math.ceil(items.length / cols)
   const width = cols * CELL_W
   const height = rows * CELL_H
@@ -75,12 +106,29 @@ export function drawSheet(
 
     const lAdv = lGlyph.advanceWidth ?? 0
     const rAdv = rGlyph.advanceWidth ?? 0
-    const totalPx = (lAdv + item.kern + rAdv) * scale
-    const startX = cx + (CELL_W - totalPx) / 2
 
-    ctx.fillStyle = '#16150f'
-    drawGlyphInto(ctx, lGlyph, startX, baselineY, GLYPH_PX, '#16150f')
-    drawGlyphInto(ctx, rGlyph, startX + (lAdv + item.kern) * scale, baselineY, GLYPH_PX, '#16150f')
+    // The flanks are drawn but never measured — metrics come from measurePair
+    // at a fixed scale — so putting the pair in company cannot skew the
+    // numbers. They are ghosted so the pair being judged still reads first.
+    const preGlyph = context ? lf.font.charToGlyph(flankFor(item.left)) : null
+    const postGlyph = context ? lf.font.charToGlyph(flankFor(item.right)) : null
+    const preAdv = preGlyph?.advanceWidth ?? 0
+    const postAdv = postGlyph?.advanceWidth ?? 0
+
+    const totalPx = (preAdv + lAdv + item.kern + rAdv + postAdv) * scale
+    const startX = cx + (CELL_W - totalPx) / 2
+    const pairX = startX + preAdv * scale
+
+    if (preGlyph) drawGlyphInto(ctx, preGlyph, startX, baselineY, GLYPH_PX, GHOST_INK)
+    drawGlyphInto(ctx, lGlyph, pairX, baselineY, GLYPH_PX, '#16150f')
+    drawGlyphInto(ctx, rGlyph, pairX + (lAdv + item.kern) * scale, baselineY, GLYPH_PX, '#16150f')
+    if (postGlyph) {
+      drawGlyphInto(
+        ctx, postGlyph,
+        pairX + (lAdv + item.kern + rAdv) * scale,
+        baselineY, GLYPH_PX, GHOST_INK,
+      )
+    }
 
     // Label, so the agent can name what it is looking at.
     ctx.fillStyle = '#8a857a'
@@ -101,7 +149,7 @@ export function drawSheet(
       item,
       cellX: cx,
       baselineY,
-      splitX: startX + lAdv * scale,
+      splitX: pairX + lAdv * scale,
     })
   })
 
@@ -109,16 +157,10 @@ export function drawSheet(
   const image = ctx.getImageData(0, 0, width, height)
   const cells: SheetCell[] = placed.map((p) => ({
     ...p.item,
-    metrics: measureBand(
-      image,
-      width,
-      p.cellX,
-      p.cellX + CELL_W,
-      Math.max(0, Math.floor(p.baselineY - lf.capHeight * scale)),
-      Math.ceil(p.baselineY),
-      p.splitX,
-      1 / scale,
-    ),
+    // Measured at a fixed scale, not from these cell pixels. A 76px cell
+    // cannot resolve a 20-unit gap, and pretending it could is what made the
+    // sheet disagree with the close-up.
+    metrics: measurePair(lf, p.item.left, p.item.right, p.item.kern),
   }))
 
   // Shading overwrites the pixels we just measured, so it comes last.

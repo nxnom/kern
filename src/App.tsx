@@ -11,7 +11,12 @@ import { PairDetail } from './PairDetail'
 import { PairGrid } from './PairGrid'
 import { Specimen } from './Specimen'
 import type { LoadedFont } from './kern/font'
-import { installFontFace, loadFontFromBuffer, loadFontFromUrl } from './kern/font'
+import {
+  forgetMeasurements,
+  installFontFace,
+  loadFontFromBuffer,
+  loadFontFromUrl,
+} from './kern/font'
 import type { PairState } from './kern/state'
 import { SCOPES, buildPairList, pairsInScope } from './kern/pairs'
 import type { ScopeId } from './kern/pairs'
@@ -28,7 +33,14 @@ import { useWebMCPSupport } from './kern/useWebMCPSupport'
 import { WebMCPStatus } from './WebMCPStatus'
 import { buildFeatureFile, buildKernedFont, download } from './kern/export'
 import type { Applied, KernApi, Rejected } from './kern/useKernTools'
-import { checkRange, registeredToolNames, useKernTools } from './kern/useKernTools'
+import {
+  checkRange,
+  forgetPreviews,
+  registeredToolNames,
+  resetGuidance,
+  resetPreviewCount,
+  useKernTools,
+} from './kern/useKernTools'
 
 const SAMPLE = {
   label: 'EB Garamond',
@@ -211,6 +223,13 @@ export default function App() {
     // had already finished has no stale plan to warn it about.
     if (loadedRef.current && activityRef.current) fontEpoch.current += 1
     setActivity(null)
+    // Everything the tools remember is about the font that just went away:
+    // which values were previewed, how many previews had gone unapplied, the
+    // measurement cache, and whether the workflow text had been printed.
+    forgetPreviews()
+    resetPreviewCount()
+    resetGuidance()
+    forgetMeasurements()
     generated.current = buildPairList(lf)
     const fresh = initialPairs(lf, generated.current)
     const id = await fontKey(lf.buffer)

@@ -236,6 +236,79 @@ export function drawPair(
  * reads the *direction* of a spacing error reliably but its *magnitude*
  * poorly, so it needs numbers alongside the image.
  */
+/**
+ * Geometry of a pair, always measured at the same scale.
+ *
+ * Every caller used to measure whatever canvas it had already drawn — a 76px
+ * survey cell, a 132px judge cell, a 220px preview — so the three disagreed
+ * about the same pair. A survey warned that `f]` was touching at 0 and the
+ * close-up then reported it clear at 0, -20, -40 and -60. That contradiction
+ * is what let two enclosure pairs get kerned into their brackets.
+ *
+ * Measurement now happens here, at one scale, whatever is being drawn.
+ */
+const measured = new Map<string, PairMetrics>()
+export function measurePair(
+  lf: LoadedFont,
+  left: string,
+  right: string,
+  kern: number,
+): PairMetrics {
+  const key = `${lf.familyName}|${lf.unitsPerEm}|${left}${right}|${kern}`
+  const hit = measured.get(key)
+  if (hit) return hit
+
+  const { font, unitsPerEm } = lf
+  const scale = RENDER_PX / unitsPerEm
+  const lGlyph = font.charToGlyph(left)
+  const rGlyph = font.charToGlyph(right)
+  if (!lGlyph || !rGlyph) throw new Error(`Font has no glyph for "${left}${right}"`)
+  const lAdvance = lGlyph.advanceWidth ?? 0
+  const rAdvance = rGlyph.advanceWidth ?? 0
+
+  const width = Math.ceil((lAdvance + kern + rAdvance) * scale) + PAD_PX * 2
+  const height = RENDER_PX + PAD_PX * 2
+  const baselineY = height - PAD_PX - RENDER_PX * 0.22
+
+  gauge ??= document.createElement('canvas')
+  gauge.width = width
+  gauge.height = height
+  const ctx = gauge.getContext('2d', { willReadFrequently: true })!
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, width, height)
+  drawGlyphInto(ctx, lGlyph, PAD_PX, baselineY, RENDER_PX, '#111111')
+  drawGlyphInto(ctx, rGlyph, PAD_PX + (lAdvance + kern) * scale, baselineY, RENDER_PX, '#111111')
+
+  const m = measureBand(
+    ctx.getImageData(0, 0, width, height),
+    width,
+    0,
+    width,
+    Math.max(0, Math.floor(baselineY - lf.capHeight * scale)),
+    Math.min(height - 1, Math.ceil(baselineY)),
+    PAD_PX + lAdvance * scale,
+    1 / scale,
+    nearUnits(lf),
+  )
+  measured.set(key, m)
+  return m
+}
+
+/** Cleared when a new font is loaded, since the cache is keyed by family. */
+export function forgetMeasurements() {
+  measured.clear()
+}
+
+/**
+ * How close counts as touching: 2% of the em.
+ *
+ * Relative to the em so it means the same thing in a 1000-unit face and a
+ * 2048-unit one.
+ */
+export function nearUnits(lf: LoadedFont): number {
+  return Math.round(lf.unitsPerEm * 0.02)
+}
+
 export function renderPair(
   lf: LoadedFont,
   left: string,
@@ -269,9 +342,9 @@ export function renderPair(
   drawGlyphInto(ctx, lGlyph, originX, baselineY, RENDER_PX, '#111111')
   drawGlyphInto(ctx, rGlyph, originX + (lAdvance + kern) * scale, baselineY, RENDER_PX, '#111111')
 
-  const metrics = measureOpticalGap(
-    ctx, width, height, baselineY, lf, scale, originX + lAdvance * scale,
-  )
+  // Delegated, not measured here: one code path means the close-up can never
+  // contradict the sheet.
+  const metrics = measurePair(lf, left, right, kern)
 
   const dataUrl = canvas.toDataURL('image/png')
   return {
@@ -280,32 +353,6 @@ export function renderPair(
   }
 }
 
-/**
- * Walk each scanline across the cap band. On every line, find the rightmost
- * ink left of the split and the leftmost ink right of it, and accumulate the
- * gap between them. Summing those gaps gives the area of trapped white, which
- * is what "evenly spaced" actually means to a reader.
- */
-function measureOpticalGap(
-  ctx: CanvasRenderingContext2D,
-  width: number,
-  height: number,
-  baselineY: number,
-  lf: LoadedFont,
-  scale: number,
-  splitX: number,
-): PairMetrics {
-  return measureBand(
-    ctx.getImageData(0, 0, width, height),
-    width,
-    0,
-    width,
-    Math.max(0, Math.floor(baselineY - lf.capHeight * scale)),
-    Math.min(height - 1, Math.ceil(baselineY)),
-    splitX,
-    1 / scale,
-  )
-}
 
 /**
  * Walk each scanline across the cap band. On every line, find the rightmost
@@ -325,6 +372,16 @@ export function measureBand(
   yBottom: number,
   splitX: number,
   toUnits: number,
+  /**
+   * How close counts as touching, in FONT UNITS.
+   *
+   * This used to be a flat 3 pixels, which quietly meant a different thing on
+   * every canvas: 3px was 39 units on a 76px survey cell and 14 units on a
+   * 220px preview. The same pair then reported "touching" on the sheet and
+   * "clear" in the close-up, and the contradiction taught the agent to ignore
+   * the warning. Units are the same everywhere.
+   */
+  nearUnits: number,
 ): PairMetrics {
   const { data } = image
   const left0 = Math.max(0, Math.floor(x0))
@@ -339,7 +396,7 @@ export function measureBand(
   let rows = 0
   let contactRows = 0
   let minAtY = 0
-  const NEAR_CONTACT_PX = 3
+  const NEAR_CONTACT_PX = nearUnits / toUnits
 
   for (let y = Math.max(0, yTop); y <= yBottom; y++) {
     let leftEdge = -1
@@ -570,6 +627,7 @@ export function quickWhite(lf: LoadedFont, left: string, right: string): number 
     baselineY,
     PAD + lAdvance * scale,
     1 / scale,
+    nearUnits(lf),
   ).opticalArea
 }
 
@@ -596,4 +654,76 @@ export function safeFloor(
     value = next
   }
   return value
+}
+
+/**
+ * A line of text set twice: as the font ships, and as it stands now.
+ *
+ * `publish_specimen` was returning a contact sheet — the line chopped into pair
+ * cells — while calling itself the word-rhythm check. That is the one view that
+ * shows whether a value works in reading, and it never worked.
+ */
+export function drawSpecimen(
+  lf: LoadedFont,
+  text: string,
+  kernFor: (left: string, right: string) => number,
+  sizePx = 64,
+): { dataUrl: string; base64: string } {
+  // Anything wider than this is resized down before the model sees it, so the
+  // extra pixels cost bytes and buy nothing — they cost detail, in fact, since
+  // the resize squeezes the two lines together. Shrink the type to fit instead.
+  const MAX_WIDTH = 1500
+  const rough = [...text].reduce(
+    (w, ch) => w + (lf.font.charToGlyph(ch)?.advanceWidth ?? 0),
+    0,
+  )
+  const wouldBe = (rough * sizePx) / lf.unitsPerEm + sizePx * 0.6
+  if (wouldBe > MAX_WIDTH) sizePx = Math.max(24, Math.floor((sizePx * MAX_WIDTH) / wouldBe))
+  const pad = Math.round(sizePx * 0.3)
+  const gap = Math.round(sizePx * 0.45)
+  const lay = (kern: (l: string, r: string) => number) => {
+    const chars = [...text]
+    let pen = pad
+    const placed = chars.map((ch, i) => {
+      const glyph = lf.font.charToGlyph(ch)
+      const at = pen
+      pen += ((glyph?.advanceWidth ?? 0) * sizePx) / lf.unitsPerEm
+      const next = chars[i + 1]
+      if (next) pen += (kern(ch, next) * sizePx) / lf.unitsPerEm
+      return { glyph, at }
+    })
+    return { placed, width: pen + pad }
+  }
+
+  const shipped = lay(() => 0)
+  const now = lay(kernFor)
+  const width = Math.ceil(Math.max(shipped.width, now.width))
+  const line = Math.round(sizePx * 1.35)
+  const height = line * 2 + gap + pad
+
+  const canvas = document.createElement('canvas')
+  // 1x on purpose. A retina canvas here is discarded by the resize above.
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')!
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, width, height)
+
+  ctx.font = '12px ui-monospace, Menlo, monospace'
+  ctx.fillStyle = '#8a857a'
+  ctx.fillText('as the font ships', pad, pad * 0.8)
+  for (const p of shipped.placed) {
+    if (p.glyph) drawGlyphInto(ctx, p.glyph, p.at, pad + sizePx, sizePx, '#9aa1ab')
+  }
+
+  ctx.fillStyle = '#8a857a'
+  ctx.fillText('kerned', pad, pad * 0.8 + line + gap)
+  for (const p of now.placed) {
+    if (p.glyph) {
+      drawGlyphInto(ctx, p.glyph, p.at, pad + sizePx + line + gap, sizePx, '#16150f')
+    }
+  }
+
+  const dataUrl = canvas.toDataURL('image/png')
+  return { dataUrl, base64: dataUrl.slice(dataUrl.indexOf(',') + 1) }
 }

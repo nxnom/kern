@@ -50,7 +50,13 @@ const RANGES: Record<PairClass, [number, number]> = {
   'overhang-round': [-0.11, -0.03],
   'overhang-diagonal': [-0.14, -0.04],
   'arm-punctuation': [-0.18, -0.04],
-  'hook-bracket': [-0.10, 0.02],
+  // Barely negative on purpose. The f's upper terminal reaches right and the
+  // bracket climbs high, so the clearance that matters is up top while the
+  // eye-catching white sits lower down. An agent judging the white area
+  // tightened `f)` to -60 and `f]` to -40, both well inside the old -0.10
+  // floor, and drove the terminal into both marks. These pairs usually want
+  // opening, if anything.
+  'hook-bracket': [-0.02, 0.06],
   'round-straight': [-0.03, 0.01],
   'straight-straight': [-0.02, 0.02],
   other: [-0.12, 0.04],

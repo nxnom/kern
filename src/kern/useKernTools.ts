@@ -1,7 +1,7 @@
 import { useWebMCPTool } from './useWebMCPTool'
 import type { LoadedFont } from './font'
 import type { PairMetrics } from './font'
-import { drawPair, relativeWhite, renderPair, safeFloor } from './font'
+import { drawPair, drawSpecimen, nearUnits, renderPair, safeFloor } from './font'
 import { SHEET_SIZES, drawSheet } from './sheet'
 import type { SheetSize } from './sheet'
 import { typicalRange } from './pairs'
@@ -50,6 +50,33 @@ export interface Rejected { key: string; value: number; reason: string }
 
 const text_ = (s: string) => ({ content: [{ type: 'text' as const, text: s }] })
 const READ_ONLY = { readOnlyHint: true }
+
+
+/**
+ * Said once, on the first survey of a session. Repeating it on all seven sheets
+ * of a run cost more than it taught.
+ */
+let firstSurveyDone = false
+export function resetGuidance() {
+  firstSurveyDone = false
+}
+
+const WORKFLOW = [
+  'HOW TO GET THROUGH THIS QUICKLY:',
+  '1. Screen the whole list first — status "unreviewed", detail "screen", 36 at',
+  '   a time — before changing anything.',
+  '2. These read tools change nothing and do not depend on each other. Issue',
+  '   several in the same turn rather than waiting for each: the waiting is',
+  '   most of the time a run takes.',
+  '3. A sheet is looking. If several pairs sit together on one you have seen',
+  '   and their geometry agrees, decide them together — what ruins a font is',
+  '   applying a value to pairs you never saw, not applying one to a group you',
+  '   did.',
+  '4. Use preview_pairs to compare candidates: several pairs, several values,',
+  '   one sheet.',
+  '5. Apply in batches, and send "keep" alongside for the ones you looked at',
+  '   and are leaving — that is what marks them decided rather than unreached.',
+].join('\n')
 
 /** Counts previews since the last write, so the nudge can escalate. */
 let previewsSinceApply = 0
@@ -114,59 +141,46 @@ function stamp(api: KernApi, rescoped?: string | null): string {
  */
 const CRASH_CONTACT = 0.3
 
-/** A recommendation, and labelled as one. Every pair gets exactly one. */
-type Call = 'likely-change' | 'inspect' | 'likely-keep'
-
 /**
- * Sort every pair into one of three, so none is skipped for being unremarkable.
+ * What the geometry can honestly say: whether tightening this pair is safe.
  *
- * Told to "name two or three per sheet", an agent named two or three and moved
- * on — leaving `LV` at 1.91x unexamined. Classifying all of them means the work
- * left is countable, and the guidance can say finish the list rather than pick
- * from it.
- *
- * Contact matters more than the minimum gap here: a serif tip grazing its
- * neighbour reports zero over a few per cent of the height, and two outlines
- * genuinely crashing report zero over a third. Treating those alike made an
- * agent refuse to kern `LV` at all.
+ * Nothing here judges quality. Reporting a ratio and calling it "still loose"
+ * gave the agent a number to satisfy, and it satisfied it — tightening `f)`
+ * until the outlines met, because each step improved the figure the tool kept
+ * showing it. Only the picture can judge spacing; the numbers exist to stop
+ * the agent doing something it cannot undo.
  */
-function classify(
-  m: PairMetrics,
-  rel: number,
-  essential: boolean,
-): { call: Call; why: string } {
-  const wedge = m.minGap > 0 ? m.maxGap / m.minGap : Infinity
-  const crash = m.contact >= 0.3
-  const graze = m.contact > 0 && m.contact < 0.12
-  const where = m.contactAt < 0.35 ? 'up top' : m.contactAt > 0.7 ? 'at the foot' : 'mid-height'
+type Risk = 'clear' | 'tight' | 'very tight' | 'touching' | 'crash'
 
-  if (m.collides || crash) {
+/** Contact is a risk, never a score. */
+function risk(lf: LoadedFont, m: PairMetrics): { risk: Risk; why: string } {
+  const where =
+    m.contactAt < 0.35 ? 'up top' : m.contactAt > 0.7 ? 'at the foot' : 'mid-height'
+  const near = nearUnits(lf)
+
+  if (m.collides || m.contact >= CRASH_CONTACT) {
     return {
-      call: 'likely-keep',
-      why: `outlines meet across ${Math.round(m.contact * 100)}% of the height ${where} — a real crash`,
+      risk: 'crash',
+      why: `outlines meet across ${Math.round(m.contact * 100)}% of the height ${where}`,
     }
   }
-  if (rel >= 1.5 || wedge >= 4) {
+  if (m.contact > 0) {
     return {
-      call: 'likely-change',
-      why: graze
-        ? `${rel.toFixed(2)}x with a wedge; the zero gap is a serif grazing ${where}, not a crash`
-        : `${rel.toFixed(2)}x, gap ${m.minGap}–${m.maxGap}`,
+      risk: 'touching',
+      why: `touching ${Math.round(m.contact * 100)}% ${where} — a serif tip, probably, but look`,
     }
   }
-  if (rel >= 1.12 || wedge >= 2.5 || graze) {
-    return { call: 'inspect', why: `${rel.toFixed(2)}x, gap ${m.minGap}–${m.maxGap}` }
+  // The tier that was missing. Outlines that do not intersect can still be far
+  // too close to read, and reporting only contact meant the gap between "fine"
+  // and "crash" was invisible — so `f)` and `f]` were tightened into their
+  // brackets while the tool reported no contact at every value offered.
+  if (m.minGap < near) {
+    return { risk: 'very tight', why: `only ${m.minGap} units clear ${where} — do not close this further` }
   }
-  // The classic families are never dismissed on measurement alone. `To`, `Tr`
-  // and `ov` sit near the control and still read loose, because their white is
-  // triangular — which is the one thing area cannot see.
-  if (essential) {
-    return {
-      call: 'inspect',
-      why: `${rel.toFixed(2)}x, but this family is judged by eye, not by area`,
-    }
+  if (m.minGap < near * 2) {
+    return { risk: 'tight', why: `${m.minGap} units clear ${where} — little room left` }
   }
-  return { call: 'likely-keep', why: `${rel.toFixed(2)}x, evenly spaced by measure` }
+  return { risk: 'clear', why: `${m.minGap} units clear ${where}` }
 }
 
 /**
@@ -205,7 +219,7 @@ function progressLine(pairs: Map<string, PairState>): string {
  * stand now. A stored "finished" flag would rot the moment a run was
  * interrupted, and a run that touched every pair is not necessarily a good one.
  */
-function resumeLine(api: KernApi, font: LoadedFont): string | null {
+function resumeLine(api: KernApi): string | null {
   const all = [...api.getPairs().values()]
   const touched = all.filter((p) => p.attempts.length > 0 || p.kern !== p.original)
   if (!touched.length) return null
@@ -214,14 +228,6 @@ function resumeLine(api: KernApi, font: LoadedFont): string | null {
   // A rejected proposal with nothing after it is a thought that was never
   // finished — the clearest sign a previous run stopped part-way.
   const abandoned = touched.filter((p) => p.attempts.at(-1)?.rejected)
-  const loose = all
-    .map((p) => ({
-      p,
-      rel: relativeWhite(font, p.left, renderPair(font, p.left, p.right, p.kern).metrics.opticalArea),
-    }))
-    .filter(({ rel }) => rel > 1.4)
-    .sort((a, b) => b.rel - a.rel)
-
   const last = Math.max(...touched.map((p) => p.touchedAt ?? 0))
   const mins = last ? Math.round((Date.now() - last) / 60000) : 0
 
@@ -236,11 +242,8 @@ function resumeLine(api: KernApi, font: LoadedFont): string | null {
       ? `${abandoned.length} were rejected and never revisited, so a previous run ` +
         `probably stopped mid-thought: ${abandoned.map((p) => p.key).join(', ')}`
       : '',
-    loose.length
-      ? `${loose.length} still measure loose regardless of what happened before: ` +
-        loose.slice(0, 8).map(({ p, rel }) => `${p.key} ${rel.toFixed(2)}x`).join(', ')
-      : `Nothing measures above 1.4x any more.`,
-    `A finished run is not necessarily a good one. Judge from the ratios.`,
+    `A run that touched every pair is not the same as a good one. Survey what ` +
+      `is left and look at it before deciding anything.`,
   ]
     .filter(Boolean)
     .join('\n')
@@ -279,13 +282,18 @@ export function useKernTools(api: KernApi) {
     {
       name: 'list_pairs',
       description:
-        'Kern is a font-kerning workbench. These tools operate on the font file ' +
+        'Kern is a font-kerning workbench. ' +
+        'Changes nothing and does not depend on the other read tools — run several in the same turn instead of waiting for each.' +
+        ' These tools operate on the font file ' +
         'loaded in the app, not on the web page’s own CSS. List the pairs with ' +
         'their current value, status and shape class. The list is the classic ' +
         'families every face needs kerned — which are here whatever they measure — ' +
         'followed by whatever else this face traps unusual white in, worst first. ' +
         'Being late in it means little: the ordering is by area, which is the ' +
         'measure that misses wedges. Text only and cheap: use it to plan.',
+      // Read-only and independent of every other read tool: the client is free
+      // to run several of these in one turn. Waiting for each in turn was most
+      // of the wall-clock time of a run.
       annotations: READ_ONLY,
       inputSchema: {
         type: 'object',
@@ -319,7 +327,7 @@ export function useKernTools(api: KernApi) {
               `${p.attempts.length} attempts`,
           )
         api.highlight(shown.map((p) => p.key))
-        const resume = resumeLine(api, font!)
+        const resume = resumeLine(api)
         return text_(
           `${stamp(api, rescoped)}\n\n` +
           (resume ? `${resume}\n\n` : '') +
@@ -343,10 +351,15 @@ export function useKernTools(api: KernApi) {
     {
       name: 'survey_pairs',
       description:
-        'Kern is a font-kerning workbench. Use these tools rather than screenshots or the DOM — the page cannot be kerned by CSS. Render up to 12 pairs onto a single labelled contact sheet and return it ' +
+        'Kern is a font-kerning workbench. ' +
+        'Changes nothing and does not depend on the other read tools — run several in the same turn instead of waiting for each.' +
+        ' Use these tools rather than screenshots or the DOM — the page cannot be kerned by CSS. Render up to 12 pairs onto a single labelled contact sheet and return it ' +
         'with a metrics table. This is the fast way to work: survey a batch, find ' +
         'the two or three that look wrong, then zoom in with preview_pair. Prefer ' +
         'this over calling preview_pair repeatedly.',
+      // Read-only and independent of every other read tool: the client is free
+      // to run several of these in one turn. Waiting for each in turn was most
+      // of the wall-clock time of a run.
       annotations: READ_ONLY,
       inputSchema: {
         type: 'object',
@@ -403,6 +416,8 @@ export function useKernTools(api: KernApi) {
           )
         }
         const start = Math.max(0, offset ?? 0)
+        const firstSurvey = !firstSurveyDone
+        firstSurveyDone = true
         const size: SheetSize = detail === 'judge' ? 'judge' : 'screen'
         const cap = SHEET_SIZES[size].max
         const take = Math.min(cap, Math.max(1, limit ?? cap))
@@ -416,26 +431,24 @@ export function useKernTools(api: KernApi) {
           columns ?? (size === 'screen' ? 6 : 3),
           true,
           size,
+          size === 'judge',
         )
         api.highlight(chosen.map((p) => p.key))
         api.log(`sheet · ${chosen.length} pairs (${chosen[0].key}…${chosen.at(-1)!.key})`)
 
-        const rows = sheet.cells.map((c) => ({
-          c,
-          rel: relativeWhite(font!, c.left, c.metrics.opticalArea),
-        }))
-        const judged = rows.map((r, i) => ({
-          ...r,
-          ...classify(r.c.metrics, r.rel, chosen[i]?.essential ?? false),
-          range: typicalRange(r.c.left, r.c.right, font!.unitsPerEm),
-        }))
-        const table = judged
-          .map(
-            ({ c, call, why, range }) =>
-              `${c.left}${c.right}\t${c.kern}\t${range.min}..${range.max}\t${call}\t${why}`,
-          )
+        const table = sheet.cells
+          .map((c) => {
+            const r = risk(font!, c.metrics)
+            return (
+              `${c.left}${c.right}\t${c.kern}\t` +
+              `${safeFloor(font!, c.left, c.right)}\t${r.risk}\t${r.why}`
+            )
+          })
           .join('\n')
-        const open = judged.filter((j) => j.call !== 'likely-keep')
+        const risky = sheet.cells.filter((c) => {
+      const t = risk(font!, c.metrics).risk
+      return t !== 'clear' && t !== 'tight'
+    })
 
         return {
           content: [
@@ -446,44 +459,23 @@ export function useKernTools(api: KernApi) {
                 `${stamp(api, rescoped)}\n\n` +
                 `${sheet.cells.length} pairs, ${sheet.columns} columns, ` +
                 `reading left to right.\n\n` +
-                `ratio = this pair's trapped white over a control pair's (HH for ` +
-                `caps, nn for lowercase). gap = narrowest–widest distance between ` +
-                `the outlines.\n\n` +
-                `READ THE PICTURE, NOT THE TABLE. The numbers shortlist; they do ` +
-                `not decide. Area is a poor judge on its own: a wedge that is ` +
-                `narrow at one end and wide at the other reads loose while ` +
-                `measuring near 1.00x, and a pair whose surround is open but whose ` +
-                `contact point is tight measures high and must not be closed. ` +
-                `A control like HH cannot speak for an overhang like T or V.\n\n` +
-                `Never apply one value across a shape class. Preview every pair ` +
-                `you intend to change, or change only the ones you previewed.\n\n` +
-                `The call column is a recommendation from the geometry, not a ` +
-                `decision. Resolve EVERY likely-change and inspect on this sheet ` +
-                `before moving on — do not pick a favourite two or three. ` +
-                `likely-keep pairs can go straight into set_kern's "keep" list.\n\n` +
-                `HOW TO WORK THROUGH THIS WITHOUT IT TAKING ALL DAY:\n` +
-                `1. Screen with sheets, not previews. Walk the whole list with ` +
-                `status "unreviewed" and detail "screen" — 36 at a time — before ` +
-                `you change anything, so you know what is there.\n` +
-                `2. Shortlist every likely-change and inspect. Put the rest in ` +
-                `"keep" — that is how a pair counts as decided rather than ` +
-                `unreached. Re-render the shortlist with detail "judge" when you ` +
-                `need to see a serif meeting its neighbour.\n` +
-                `3. Compare the shortlist with preview_pairs — several pairs and ` +
-                `several values in ONE sheet. Previewing pairs one at a time is ` +
-                `what turns a four-minute job into nine.\n` +
-                `4. Apply in batches with "keep" alongside, then move on.\n` +
-                `Being later in the list does not mean a pair is fine. The order ` +
-                `is by trapped white, which is exactly the measure that misses ` +
-                `wedges like Vo and Tr.\n\n` +
-                `pair\tkern\trange\tcall\twhy\n${table}\n\n` +
-                `The range column is what set_kern accepts without argument. A ` +
-                `value outside it is fine if you previewed it — previewing is ` +
-                `what makes it evidence rather than a guess.\n\n` +
-                (open.length
-                  ? `${open.length} of ${judged.length} on this sheet need ` +
-                    `resolving: ${open.map(({ c }) => `${c.left}${c.right}`).join(', ')}\n\n`
-                  : `Nothing on this sheet needs a closer look.\n\n`) +
+                `Each cell in a close-up sheet stands the pair between grey ` +
+                `control letters. Judge the black pair; the grey is company, ` +
+                `not part of the pair — a pair can look settled alone and wrong ` +
+                `with a neighbour on each side.\n\n` +
+                `THE PICTURE DECIDES. Look at the sheet and judge the spacing by ` +
+                `eye. The table below says only what would break — nothing in it ` +
+                `tells you whether a pair looks right, because no measurement can.\n\n` +
+                `floor = where the outlines actually meet. It is a hard limit, ` +
+                `NOT a recommendation — most pairs should stop well short of it.\n` +
+                `risk = what is already touching, if anything.\n\n` +
+                `pair\tkern\tfloor\trisk\twhere\n${table}\n\n` +
+                (risky.length
+                  ? `Touching already: ${risky
+                      .map((c) => `${c.left}${c.right}`)
+                      .join(', ')} — tighten these only if the render says so.\n\n`
+                  : '') +
+                (firstSurvey ? `${WORKFLOW}\n\n` : '') +
                 progressLine(api.getPairs()),
             },
           ],
@@ -503,11 +495,16 @@ export function useKernTools(api: KernApi) {
     {
       name: 'preview_pair',
       description:
-        'Kern is a font-kerning workbench. PREVIEW ONLY — this changes nothing. Render a single pair large at a given ' +
+        'Kern is a font-kerning workbench. ' +
+        'Changes nothing and does not depend on the other read tools — run several in the same turn instead of waiting for each.' +
+        ' PREVIEW ONLY — this changes nothing. Render a single pair large at a given ' +
         'kerning value and return the image with its measurements. Use it after ' +
         'render_sheet when one pair needs a closer look. Once you are happy with a ' +
         'value you MUST call set_kern to actually apply it; previewing alone leaves ' +
         'the font untouched.',
+      // Read-only and independent of every other read tool: the client is free
+      // to run several of these in one turn. Waiting for each in turn was most
+      // of the wall-clock time of a run.
       annotations: READ_ONLY,
       inputSchema: {
         type: 'object',
@@ -555,6 +552,9 @@ export function useKernTools(api: KernApi) {
             font!,
             wanted.map((v) => ({ left, right, kern: v })),
             wanted.length,
+            true,
+            'judge',
+            true,
           )
           for (const v of wanted) notePreview(key, v)
           api.markReviewed([key])
@@ -569,7 +569,7 @@ export function useKernTools(api: KernApi) {
                   stamp(api, rescoped),
                   '',
                   `${key} at ${wanted.join(', ')} — left to right.`,
-                  `${floor} is the tightest safe value and is included above.`,
+                  `${floor} is where the outlines meet — a limit, not a suggestion.`,
                   ...sheet.cells.map(
                     (c) =>
                       `${c.kern}\tgap ${c.metrics.minGap}–${c.metrics.maxGap}` +
@@ -599,8 +599,8 @@ export function useKernTools(api: KernApi) {
                 stamp(api, rescoped),
                 '',
                 `pair: ${key}`,
-                `tightest safe value: ${safeFloor(font!, left, right)} — past this ` +
-                  `the outlines touch and set_kern will refuse`,
+                `floor: ${safeFloor(font!, left, right)} — where the outlines meet and ` +
+                  `set_kern refuses. Reaching it is almost always wrong.`,
                 previewsSinceApply >= 3
                   ? `STOP PREVIEWING. You have previewed ${previewsSinceApply} values ` +
                     `without applying any. Nothing you have done so far has changed the ` +
@@ -608,8 +608,6 @@ export function useKernTools(api: KernApi) {
                   : `PREVIEW ONLY — nothing has been applied.`,
                 `previewing: ${value} (the applied value is still ${state?.kern ?? 0})`,
                 `original: ${state?.original ?? 0}`,
-                `trapped white: ${relativeWhite(font!, left, metrics.opticalArea).toFixed(2)}x ` +
-                  `a control pair (1.00x is normal, above 1.4x is loose)`,
                 `narrowest gap: ${metrics.minGap}`,
                 metrics.collides ? 'WARNING: the outlines collide.' : '',
                 `class ${range.pairClass}, typical ${range.min} to ${range.max}`,
@@ -632,7 +630,8 @@ export function useKernTools(api: KernApi) {
     {
       name: 'publish_specimen',
       description:
-        'Kern is a font-kerning workbench. Write a line at the current kerning ' +
+        'Kern is a font-kerning workbench. ' +
+        ' Write a line at the current kerning ' +
         'values. It is shown on the page, before and after, with every gap that ' +
         'moved marked — and the image comes back to you. A pair can look right ' +
         'alone and still break the rhythm of a word, so check a specimen before ' +
@@ -677,19 +676,13 @@ export function useKernTools(api: KernApi) {
         api.highlight(moved.map((m) => m.state!.key))
         api.log(`specimen "${line}" · ${moved.length} changed pairs`)
 
-        const sheet = drawSheet(
-          font!,
-          adjacent.slice(0, 24).map((a) => ({
-            left: a.left,
-            right: a.right,
-            kern: a.state?.kern ?? 0,
-          })),
-          6,
-        )
+        // A real line, not the line cut into pair cells: this is the only view
+        // that shows whether a value survives being read.
+        const image = drawSpecimen(font!, line, (l, r) => pairs.get(`${l}${r}`)?.kern ?? 0)
 
         return {
           content: [
-            { type: 'image' as const, data: sheet.base64, mimeType: 'image/png' },
+            { type: 'image' as const, data: image.base64, mimeType: 'image/png' },
             {
               type: 'text' as const,
               text: [
@@ -703,11 +696,10 @@ export function useKernTools(api: KernApi) {
                     `after lines are identical. Apply values with set_kern first, or ` +
                     `pick words containing pairs you have already changed.`,
                 '',
-                sheet.cells
-                  .map((c) => `${c.left}${c.right}\t${c.kern}\twhite ${c.metrics.opticalArea}`)
-                  .join('\n'),
-                '',
-                'Uneven optical white across a line is what a reader notices.',
+                `image ${Math.round((image.base64.length * 3) / 4 / 1024)} KB`,
+                'The same line twice: as the font ships, then as it stands now.',
+                'This is the check that matters — a value can look right on its',
+                'own and still break the rhythm of a word.',
                 progressLine(api.getPairs()),
               ].join('\n'),
             },
@@ -725,13 +717,18 @@ export function useKernTools(api: KernApi) {
     {
       name: 'preview_pairs',
       description:
-        'Kern is a font-kerning workbench. Compare several pairs at several ' +
+        'Kern is a font-kerning workbench. ' +
+        'Changes nothing and does not depend on the other read tools — run several in the same turn instead of waiting for each.' +
+        ' Compare several pairs at several ' +
         'candidate values in ONE sheet — one row per pair, one column per value, ' +
         'each cell labelled. Use this instead of calling preview_pair over and ' +
         'over: a run that previewed twenty-six pairs one at a time took nine ' +
         'minutes, and most of it was waiting. Everything shown here counts as ' +
         'previewed, so set_kern will accept these values without arguing about ' +
         'the shape-class range.',
+      // Read-only and independent of every other read tool: the client is free
+      // to run several of these in one turn. Waiting for each in turn was most
+      // of the wall-clock time of a run.
       annotations: READ_ONLY,
       inputSchema: {
         type: 'object',
@@ -748,7 +745,7 @@ export function useKernTools(api: KernApi) {
                   items: { type: 'number' },
                   description:
                     'Values to compare. Omit to get 0, a moderate value and the ' +
-                    'tightest safe one.',
+                    'the floor.',
                 },
               },
               required: ['pair'],
@@ -786,6 +783,9 @@ export function useKernTools(api: KernApi) {
           font!,
           rows.flatMap((r) => r.values.map((v) => ({ left: r.left, right: r.right, kern: v }))),
           columns,
+          true,
+          'judge',
+          true,
         )
 
         for (const r of rows) {
@@ -816,7 +816,7 @@ export function useKernTools(api: KernApi) {
                 `${rows.length} pairs, ${columns} values each, one row per pair.`,
                 ...rows.map(
                   (r) =>
-                    `${r.left}${r.right}: ${r.values.join(', ')} · tightest safe ${r.floor}`,
+                    `${r.left}${r.right}: ${r.values.join(', ')} · floor ${r.floor}`,
                 ),
                 '',
                 `pair\tvalue\tgap\tcontact`,
@@ -838,7 +838,8 @@ export function useKernTools(api: KernApi) {
     {
       name: 'revert',
       description:
-        'Kern is a font-kerning workbench. Put pairs back to the value the font ' +
+        'Kern is a font-kerning workbench. ' +
+        ' Put pairs back to the value the font ' +
         'shipped with. Use it when a change made the rhythm worse, or to clear a ' +
         'line of work and start it again. Reverting is not failure — it is cheaper ' +
         'than guessing another value on top of a bad one.',
@@ -897,10 +898,14 @@ export function useKernTools(api: KernApi) {
     {
       name: 'set_kern',
       description:
-        'Kern is a font-kerning workbench. Apply kerning values to one or many pairs. This is the only tool that ' +
+        'Kern is a font-kerning workbench. ' +
+        ' Apply kerning values to one or many pairs. This is the only tool that ' +
         'changes anything. Values outside the typical range for a pair’s shape class ' +
-        'are rejected individually — the rest of the batch still applies — so fix ' +
-        'the rejects and call again rather than forcing.',
+        'A value you previewed is accepted as it stands — the render you looked ' +
+        'at outranks the shape-class range, so you never need to ask permission ' +
+        'for it. Values you did not preview are checked against that range and ' +
+        'rejected individually; the rest of the batch still applies. Pairs you ' +
+        'judged together on one sheet can be applied together in one call.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -989,7 +994,16 @@ export function useKernTools(api: KernApi) {
           return false
         })
 
-        const { applied, rejected } = api.applyKerns(safe, Boolean(force))
+        // A value that came back from preview_pair or preview_pairs has been
+        // seen. The shape-class range is a guess about pairs in general; the
+        // render is evidence about this one, so the render wins and the agent
+        // never has to ask for permission to use what it just looked at.
+        const sighted = safe.filter((u) => previewed.get(`${u.left}${u.right}`)?.has(u.value))
+        const unsighted = safe.filter((u) => !sighted.includes(u))
+        const a = api.applyKerns(sighted, true)
+        const b = api.applyKerns(unsighted, Boolean(force))
+        const applied = [...a.applied, ...b.applied]
+        const rejected = [...a.rejected, ...b.rejected]
         rejected.push(...collides)
         api.highlight(updates.map((u) => `${u.left}${u.right}`))
 
