@@ -649,23 +649,29 @@ button svg { flex: none; }
 .selected-bar .detail figure img { max-height: 52px; padding: 3px 7px; }
 .selected-bar .detail figcaption { margin-top: 4px; font-size: 9.5px; }
 .selected-bar .detail-body {
-  display: grid; grid-template-columns: auto 1fr; gap: 4px 22px;
-  align-items: center; min-width: 0;
+  display: flex; align-items: center; gap: 26px; min-width: 0; flex: 1;
 }
 .selected-bar .detail-body h3 {
-  margin: 0; grid-row: 1 / span 2; align-self: center;
-  display: flex; align-items: center; gap: 10px; white-space: nowrap;
+  margin: 0; display: grid; gap: 2px; white-space: nowrap;
 }
-.selected-bar .range { min-width: 180px; }
+.selected-bar .detail-body h3 .muted { margin: 0; }
+.selected-bar .range { min-width: 170px; flex: 1; max-width: 320px; }
 .selected-bar .range-ends { margin-top: 3px; font-size: 9.5px; }
-.selected-bar .nudge, .selected-bar .nudge-back { margin-top: 0; }
-.selected-bar .nudge-back { min-height: 0; }
+
+/* The revert links come and go as values change, so they get a row of their
+   own with the height reserved — beside the buttons they shunted them
+   sideways mid-edit. */
+.controls { display: grid; gap: 5px; justify-items: start; }
+.selected-bar .nudge { margin-top: 0; }
+.selected-bar .nudge-back { margin-top: 0; min-height: 20px; }
 .selected-bar .trail { display: none; }
+
 .detail-close {
-  border: 0; background: transparent; color: var(--graphite);
-  padding: 3px; margin-left: 4px;
+  position: absolute; top: 10px; right: 22px;
+  border: 0; background: transparent; color: var(--graphite); padding: 4px;
 }
 .detail-close:hover { color: var(--ink); background: transparent; }
+.selected-bar .detail { position: relative; padding-right: 28px; }
 
 /* Room for the bar, so the last row of tiles stays reachable. */
 .app { padding-bottom: 132px; }

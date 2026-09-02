@@ -40,6 +40,9 @@ export function PairDetail({
 
   return (
     <section className="detail">
+      <button className="detail-close" onClick={onClose} aria-label="Close">
+        <IconClose />
+      </button>
       {/* Both are always drawn. Dropping the original when a value returned to
           it moved everything left, and a click aimed at one control landed on
           another. */}
@@ -70,9 +73,6 @@ export function PairDetail({
       <div className="detail-body">
         <h3>
           {pair.key} <span className="muted">{range.pairClass}</span>
-          <button className="detail-close" onClick={onClose} aria-label="Close">
-            <IconClose />
-          </button>
         </h3>
 
         <div className="range">
@@ -108,6 +108,7 @@ export function PairDetail({
           </div>
         </div>
 
+        <div className="controls">
         <div className="nudge">
           <button onClick={() => onNudge(pair.kern - 10)} title="Tighten by 10">
             −10
@@ -119,6 +120,7 @@ export function PairDetail({
             type="number"
             value={pair.kern}
             aria-label={`Kerning for ${pair.key}, in font units`}
+            title="Arrow keys move by 10 with a tile selected, shift for 1"
             onChange={(e) => {
               const next = Number(e.target.value)
               if (Number.isFinite(next)) onNudge(Math.round(next))
@@ -151,7 +153,7 @@ export function PairDetail({
               original {pair.original}
             </button>
           )}
-          <span className="muted">or ← → to move by 10, shift for 1</span>
+        </div>
         </div>
 
         {pair.attempts.length > 0 ? (
