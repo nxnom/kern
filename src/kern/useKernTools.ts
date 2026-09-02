@@ -120,9 +120,13 @@ function defaultCandidates(lf: LoadedFont, left: string, right: string): number[
   // way — brackets after an f, straight-sided pairs — and otherwise start at 0.
   const top = max > 0 && max >= Math.abs(min) ? max : Math.min(max, 0)
 
-  const step = (top - lo) / 3
+  // Weighted toward the near end, not spread evenly. Four equal steps across
+  // a -110..+10 class meant 40-unit jumps, so the useful -20 and -40 were never
+  // offered and 0 looked like the only restrained choice. Real kerning clusters
+  // near the light end of a class, so the candidates do too.
+  const span = top - lo
   const round5 = (n: number) => Math.round(n / 5) * 5
-  const out = [top, top - step, top - 2 * step, lo].map(round5)
+  const out = [0, 0.2, 0.45, 0.8].map((t) => round5(top - span * t))
 
   // Keep zero on the sheet when it is legal — it is the reference every other
   // cell is judged against — but put it in place of the value NEAREST zero, not
@@ -161,7 +165,11 @@ function statusLabel(p: PairState): string {
  */
 function classLeaning(lf: LoadedFont, left: string, right: string): string {
   const { min, max } = typicalRange(left, right, lf.unitsPerEm)
-  if (max > 0 && Math.abs(max) > Math.abs(min)) return 'class usually OPENS'
+  // Weak on purpose. It is a prior drawn from one calibration face, and it was
+  // wrong for `f)` in a casual font — so it must not read as a recommendation.
+  if (max > 0 && Math.abs(max) > Math.abs(min)) {
+    return 'this class often opens (weak hint — the render decides)'
+  }
   if (max <= 0) return ''
   return ''
 }
@@ -874,7 +882,8 @@ export function useKernTools(api: KernApi) {
             },
           },
         },
-        required: ['pairs'],
+        // Nothing is required: `keep` alone is a valid call.
+        required: [],
       } as const,
       enabled: ready,
       execute: async ({ pairs }) => {
@@ -1034,7 +1043,8 @@ export function useKernTools(api: KernApi) {
       description:
         'Kern is a font-kerning workbench. ' +
         ' Apply kerning values to one or many pairs. This is the only tool that ' +
-        'changes anything. Values outside the typical range for a pair’s shape class ' +
+        'changes anything. Send `keep` on its own to mark pairs reviewed without ' +
+        'changing them — that is a normal call, not a workaround. ' +
         'A value you previewed is accepted as it stands — the render you looked ' +
         'at outranks the shape-class range, so you never need to ask permission ' +
         'for it. Values you did not preview are checked against that range and ' +
@@ -1097,10 +1107,28 @@ export function useKernTools(api: KernApi) {
             isError: true,
           }
         }
-        const updates = pairs
+        // `pairs` is optional: a call that only marks pairs reviewed is a
+        // normal, useful call. It used to throw twice over — omitting `pairs`
+        // hit `undefined.filter`, and sending `[]` hit "No valid pairs" — so
+        // the keep list was thrown away and those pairs stayed unreviewed,
+        // which made a finished run look half-done.
+        const updates = (pairs ?? [])
           .filter((p) => [...p.pair].length === 2)
           .map((p) => ({ left: p.pair[0], right: p.pair[1], value: p.kern }))
-        if (!updates.length) throw new Error('No valid pairs. Each must be two characters.')
+        if (!updates.length && !keep?.length) {
+          throw new Error(
+            'Nothing to do: send pairs to apply, keep to mark reviewed, or both.',
+          )
+        }
+        if (!updates.length) {
+          api.markReviewed(keep!)
+          api.highlight(keep!)
+          return text_(
+            `${stamp(api, api.takeScopeChange())}\n\n` +
+              `Marked ${keep!.length} pair(s) reviewed and left at their current ` +
+              `values: ${keep!.join(', ')}\n\n${progressLine(api.getPairs())}`,
+          )
+        }
 
         previewsSinceApply = 0
         // The measurement warned about tight contact points; refusing here is
