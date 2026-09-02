@@ -66,11 +66,12 @@ const PANGRAM = 'Waltz, bad nymph, for quick jigs vex.'
 const TOOL_BLURBS: Record<string, string> = {
   preview_pairs: 'Several pairs at several values, one sheet, one call.',
   list_pairs: 'Every pair with its value, state and shape class. Text only.',
-  survey_pairs: 'Up to 24 pairs on one contact sheet, with the white each traps.',
-  preview_pair: 'One pair, large, at a proposed value. Changes nothing.',
-  publish_specimen: 'Sets a line of the agent’s words as the proof.',
+  survey_pairs: '36 pairs to screen, or 12 large enough to judge. One sheet.',
+  preview_pair: 'One pair at several candidate values, side by side.',
+  publish_specimen: 'A line of real words, as the font ships and as kerned.',
   set_kern: 'Applies values. The only tool that writes.',
   revert: 'Puts pairs back to what the font shipped.',
+  export_font: 'Saves the kerned .ttf, with real GPOS and kern tables.',
 }
 
 /**
