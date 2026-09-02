@@ -156,7 +156,7 @@ button svg { flex: none; }
 
 /* ── the grid: one drawing cell per pair ───────────────────────────── */
 .grid {
-  display: grid; gap: 0; min-width: 0;
+  display: grid; gap: 0; min-width: 0; margin-top: 22px;
   grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
   border-top: 1px solid var(--rule); border-left: 1px solid var(--rule);
 }
@@ -545,7 +545,7 @@ button svg { flex: none; }
 
 
 /* ── the grid is the page ──────────────────────────────────────────── */
-.grid-wrap { margin-top: 8px; }
+
 
 /* ── reading a font ────────────────────────────────────────────────── */
 /* Measuring a face blocks the main thread, so the page cannot respond anyway —
