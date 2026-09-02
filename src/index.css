@@ -547,83 +547,6 @@ button svg { flex: none; }
 /* ── the grid is the page ──────────────────────────────────────────── */
 .grid-wrap { margin-top: 8px; }
 
-/* ── dock ──────────────────────────────────────────────────────────── */
-/*
-  Everything that reports on the grid lives here: the pair you picked, the
-  proof, the tool log. As three bands above and below a grid of hundreds of
-  tiles, reading one meant losing your place in the others.
-*/
-.dock {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
-  background: var(--card); border-top: 1px solid var(--rule-hard);
-  box-shadow: 0 -6px 20px -14px rgb(16 16 20 / 30%);
-}
-.dock-tabs {
-  display: flex; align-items: stretch; gap: 0;
-  padding: 0 28px; border-bottom: 1px solid transparent;
-}
-.dock.open .dock-tabs { border-bottom-color: var(--rule); }
-.dock-tabs button {
-  border: 0; border-radius: 0; background: transparent;
-  padding: 12px 14px; gap: 8px;
-  font-family: var(--mono); font-size: 11px; letter-spacing: .09em;
-  text-transform: uppercase; color: var(--graphite);
-  border-bottom: 2px solid transparent;
-}
-.dock-tabs button:hover { color: var(--ink); background: transparent; }
-.dock-tabs button.on { color: var(--ink); border-bottom-color: var(--ink); }
-.dock-tabs b {
-  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0;
-  color: var(--graphite); background: var(--paper);
-  border: 1px solid var(--rule); border-radius: 10px; padding: 1px 7px;
-}
-.dock-tabs button.on b { color: var(--ink); border-color: var(--rule-hard); }
-.dock-toggle { margin-left: auto; color: var(--graphite); }
-
-.dock-body {
-  max-height: 0; overflow: hidden; padding: 0 28px;
-  transition: max-height .18s ease;
-}
-.dock.open .dock-body {
-  max-height: 300px; overflow-y: auto; padding: 18px 28px 22px;
-}
-/* Room for the collapsed dock, so the last row of tiles is reachable. */
-.app.has-dock { padding-bottom: 72px; }
-
-.log-list {
-  list-style: none; margin: 0; padding: 0;
-  font-family: var(--mono); font-size: 12px;
-}
-.log-list li {
-  padding: 5px 0; border-bottom: 1px solid var(--rule);
-  display: flex; gap: 14px; align-items: baseline; color: var(--graphite);
-}
-.log-list li.call { color: var(--ink); }
-.log-list li.rejected { color: var(--red); }
-.log-list time { color: var(--rule-hard); flex: none; }
-
-/* ── selected, compacted for the dock ──────────────────────────────── */
-.dock .detail {
-  display: grid; grid-template-columns: auto 1fr; gap: 28px;
-  align-items: start; min-height: 0;
-}
-.dock .detail figure img { max-height: 74px; }
-.dock .detail-renders { gap: 14px; align-items: flex-end; }
-.dock .detail-body h3 { margin-bottom: 12px; }
-.dock .trail { margin-top: 12px; }
-.dock .nudge { margin-top: 12px; }
-.dock .proof { gap: 14px; }
-.dock .proof-lines { gap: 12px; }
-.dock .proof-text { font-size: 30px; }
-.dock .chips { margin-bottom: 14px; }
-.dock .proof-strip img { height: 46px; }
-
-@media (max-width: 720px) {
-  .dock-tabs, .dock.open .dock-body { padding-left: 16px; padding-right: 16px; }
-  .dock .detail { grid-template-columns: 1fr; gap: 16px; }
-  .dock .proof-text { font-size: 24px; }
-}
-
 /* ── reading a font ────────────────────────────────────────────────── */
 /* Measuring a face blocks the main thread, so the page cannot respond anyway —
    better to say so over the whole screen than to hide it in a corner. */
@@ -653,4 +576,67 @@ button svg { flex: none; }
 @keyframes sweep { 0% { transform: translateX(-110%) } 100% { transform: translateX(360%) } }
 @media (prefers-reduced-motion: reduce) {
   .busy-rule::after { animation: none; width: 100%; opacity: .5 }
+}
+
+/* ── views ─────────────────────────────────────────────────────────── */
+/* The grid runs to hundreds of tiles, so everything that reports on it gets
+   its own view rather than a place above or below wherever you are working. */
+.tabs {
+  display: flex; gap: 0; margin: 18px 0 0;
+  border-bottom: 1px solid var(--rule);
+}
+.tabs button {
+  border: 0; border-radius: 0; background: transparent; gap: 8px;
+  padding: 10px 14px; margin-bottom: -1px;
+  font-family: var(--mono); font-size: 11px; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--graphite);
+  border-bottom: 2px solid transparent;
+}
+.tabs button:first-child { padding-left: 0; }
+.tabs button:hover:not(:disabled) { color: var(--ink); background: transparent; }
+.tabs button.on { color: var(--ink); border-bottom-color: var(--ink); }
+.tabs b {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0; font-weight: 500;
+  color: var(--graphite); background: var(--paper);
+  border: 1px solid var(--rule); border-radius: 10px; padding: 1px 7px;
+}
+.tabs button.on b { color: var(--ink); border-color: var(--rule-hard); }
+
+.view { padding: 26px 0 8px; }
+.view-lead { margin: 0 0 18px; color: var(--graphite); max-width: 68ch; line-height: 1.6; }
+.view-lead code {
+  font-family: var(--mono); font-size: 12px;
+  background: var(--blue-wash); color: var(--blue); padding: 1px 6px; border-radius: 4px;
+}
+
+/* The pair you picked stays put while the grid scrolls under it. */
+.selected-bar {
+  position: sticky; top: 0; z-index: 15;
+  background: var(--paper); border-bottom: 1px solid var(--rule);
+  padding: 18px 0 20px; margin-bottom: 2px;
+}
+.selected-bar .detail {
+  display: grid; grid-template-columns: auto 1fr; gap: 30px;
+  align-items: start; min-height: 0;
+}
+.selected-bar .detail figure img { max-height: 76px; }
+.selected-bar .detail-renders { gap: 14px; align-items: flex-end; }
+.selected-bar .trail, .selected-bar .nudge { margin-top: 12px; }
+
+.tool-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
+.tool-list li {
+  display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+  padding: 11px 0; border-bottom: 1px solid var(--rule);
+}
+.tool-list code {
+  font-family: var(--mono); font-size: 12.5px; color: var(--ink);
+  min-width: 17ch; flex: none;
+}
+.tool-list span { color: var(--graphite); font-size: 13px; }
+
+@media (max-width: 720px) {
+  .tabs { overflow-x: auto; }
+  .tabs button { white-space: nowrap; }
+  .selected-bar { position: static; }
+  .selected-bar .detail { grid-template-columns: 1fr; gap: 16px; }
 }

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Activity } from './Activity'
 import { ActivityStrip } from './Activity'
 import { Confirm } from './Confirm'
-import { Dock } from './Dock'
+import { Tabs } from './Tabs'
 import { Wordmark } from './Wordmark'
 import { DownloadMenu } from './DownloadMenu'
 import { IconClose, IconContrast, IconReset, IconUpload } from './Icons'
@@ -47,6 +47,16 @@ const BUSY_MS = 30_000
 const ACTIVE_MS = 6_000
 
 const PANGRAM = 'Waltz, bad nymph, for quick jigs vex.'
+
+/** One line each, so the tools tab explains itself without the schemas. */
+const TOOL_BLURBS: Record<string, string> = {
+  list_pairs: 'Every pair with its value, state and shape class. Text only.',
+  survey_pairs: 'Up to 24 pairs on one contact sheet, with the white each traps.',
+  preview_pair: 'One pair, large, at a proposed value. Changes nothing.',
+  publish_specimen: 'Sets a line of the agent’s words as the proof.',
+  set_kern: 'Applies values. The only tool that writes.',
+  revert: 'Puts pairs back to what the font shipped.',
+}
 
 /**
  * Each changed pair sandwiched between control glyphs — `H` for caps, `n` for
@@ -105,7 +115,7 @@ export default function App() {
    */
   const [proofReady, setProofReady] = useState(false)
   const [log, setLog] = useState<LogLine[]>([])
-  const [dockOpen, setDockOpen] = useState(false)
+  const [tab, setTab] = useState('main')
   const [error, setError] = useState<string | null>(null)
 
   const fileInput = useRef<HTMLInputElement>(null)
@@ -143,10 +153,10 @@ export default function App() {
 
   // Keep the newest line in view, both on open and as calls arrive.
   useEffect(() => {
-    if (!dockOpen) return
+    if (tab !== 'log') return
     const el = logBody.current
     if (el) el.scrollTop = el.scrollHeight
-  }, [dockOpen, log])
+  }, [tab, log])
 
   useEffect(() => {
     void pick(SAMPLE)
@@ -342,17 +352,6 @@ export default function App() {
   )
 
   /** A value the human set by hand. Forced, because their eye outranks the rule. */
-  // Selecting a pair or seeing the first tool call opens the dock once; after
-  // that it stays wherever the reader left it.
-  const opened = useRef(false)
-  useEffect(() => {
-    if (opened.current) return
-    if (selected || callCount > 0) {
-      opened.current = true
-      setDockOpen(true)
-    }
-  }, [selected, callCount])
-
   const nudge = useCallback(
     (key: string, value: number) => {
       const state = pairsRef.current.get(key)
@@ -514,7 +513,7 @@ export default function App() {
   }
 
   return (
-    <div className="app has-dock">
+    <div className="app">
       <header className="head">
         <h1>
           <Wordmark loaded={loaded} pairs={pairs} />
@@ -620,16 +619,111 @@ export default function App() {
           everCalled={callCount > 0}
         />
       </section>
-      <div className="grid-wrap">
-        <PairGrid
-          loaded={loaded}
-          pairs={list}
-          activeKeys={activeKeys}
-          selectedKey={selected ?? ''}
-          onSelect={setSelected}
-          shade={shade}
-        />
-      </div>
+      <Tabs
+        tabs={[
+          { id: 'main', label: 'Main', badge: `${changed.length}/${list.length}` },
+          { id: 'proof', label: 'Proof', badge: changed.length, disabled: !showProof },
+          { id: 'tools', label: 'WebMCP tools', badge: registered.length },
+          { id: 'log', label: 'Tool calls', badge: callCount, disabled: !log.length },
+        ]}
+        active={tab}
+        onChange={setTab}
+      />
+
+      {tab === 'main' && (
+        <>
+          {detail && (
+            <div className="selected-bar">
+              <PairDetail
+                loaded={loaded}
+                pair={detail}
+                shade={shade}
+                onNudge={(value) => nudge(detail.key, value)}
+              />
+            </div>
+          )}
+          <PairGrid
+            loaded={loaded}
+            pairs={list}
+            activeKeys={activeKeys}
+            selectedKey={selected ?? ''}
+            onSelect={setSelected}
+            shade={shade}
+          />
+        </>
+      )}
+
+      {tab === 'proof' && showProof && (
+        <div className="view">
+          <div className="chips">
+            <button
+              className={proof === changedPairsLine ? 'on' : ''}
+              onClick={() => setProofText(null)}
+            >
+              Changed pairs
+            </button>
+            {agentLine && (
+              <button
+                className={proof === agentLine ? 'on' : ''}
+                onClick={() => setProofText(agentLine)}
+              >
+                Agent’s line
+              </button>
+            )}
+            <button
+              className={proof === contextLine ? 'on' : ''}
+              onClick={() => setProofText(contextLine)}
+              title={contextLine}
+            >
+              In context
+            </button>
+            <button
+              className={proof === PANGRAM ? 'on' : ''}
+              onClick={() => setProofText(PANGRAM)}
+              title={PANGRAM}
+            >
+              Pangram
+            </button>
+          </div>
+          <Specimen loaded={loaded} word={proof} pairs={pairs} shade={shade} />
+        </div>
+      )}
+
+      {tab === 'tools' && (
+        <div className="view">
+          <p className="view-lead">
+            Registered on <code>document.modelContext</code>. They appear when a font
+            is loaded and unregister when one is swapped, which is what fires{' '}
+            <code>toolchange</code>.
+          </p>
+          <ul className="tool-list">
+            {registered.map((name) => (
+              <li key={name}>
+                <code>{name}</code>
+                <span>{TOOL_BLURBS[name]}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {tab === 'log' && (
+        <div className="view">
+          <ol className="log-list" ref={logBody}>
+            {log.map((l) => (
+              <li
+                key={l.id}
+                className={`${l.rejected ? 'rejected' : ''} ${
+                  l.text.startsWith('→') ? 'call' : ''
+                }`}
+              >
+                <time>{new Date(l.at).toLocaleTimeString('en-GB')}</time>
+                {l.text}
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
 
       {busy && (
         <div className="busy-scrim" role="status" aria-live="polite">
@@ -650,93 +744,6 @@ export default function App() {
           onCancel={() => setConfirmingReset(false)}
         />
       )}
-
-      <Dock
-        open={dockOpen}
-        onOpenChange={setDockOpen}
-        tabs={[
-          ...(detail
-            ? [{
-                id: 'selected',
-                label: 'Selected',
-                badge: detail.key,
-                content: (
-                  <PairDetail
-                    loaded={loaded}
-                    pair={detail}
-                    shade={shade}
-                    onNudge={(value) => nudge(detail.key, value)}
-                  />
-                ),
-              }]
-            : []),
-          ...(showProof
-            ? [{
-                id: 'proof',
-                label: 'Proof',
-                badge: changed.length,
-                content: (
-                  <>
-                    <div className="chips">
-                      <button
-                        className={proof === changedPairsLine ? 'on' : ''}
-                        onClick={() => setProofText(null)}
-                      >
-                        Changed pairs
-                      </button>
-                      {agentLine && (
-                        <button
-                          className={proof === agentLine ? 'on' : ''}
-                          onClick={() => setProofText(agentLine)}
-                        >
-                          Agent’s line
-                        </button>
-                      )}
-                      <button
-                        className={proof === contextLine ? 'on' : ''}
-                        onClick={() => setProofText(contextLine)}
-                        title={contextLine}
-                      >
-                        In context
-                      </button>
-                      <button
-                        className={proof === PANGRAM ? 'on' : ''}
-                        onClick={() => setProofText(PANGRAM)}
-                        title={PANGRAM}
-                      >
-                        Pangram
-                      </button>
-                    </div>
-                    <Specimen loaded={loaded} word={proof} pairs={pairs} shade={shade} />
-                  </>
-                ),
-              }]
-            : []),
-          ...(log.length
-            ? [{
-                id: 'log',
-                label: 'Tool calls',
-                badge: callCount,
-                content: (
-                  <ol className="log-list" ref={logBody}>
-                    {log.map((l) => (
-                      <li
-                        key={l.id}
-                        className={`${l.rejected ? 'rejected' : ''} ${
-                          l.text.startsWith('→') ? 'call' : ''
-                        }`}
-                      >
-                        <time>{new Date(l.at).toLocaleTimeString('en-GB')}</time>
-                        {l.text}
-                      </li>
-                    ))}
-                  </ol>
-                ),
-              }]
-            : []),
-        ]}
-      />
-
     </div>
   )
 }
