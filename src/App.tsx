@@ -32,7 +32,7 @@ import {
 import { useWebMCPSupport } from './kern/useWebMCPSupport'
 import { WebMCPStatus } from './WebMCPStatus'
 import { buildFeatureFile, buildKernedFont, download } from './kern/export'
-import type { Applied, ExportOutcome, KernApi, Rejected } from './kern/useKernTools'
+import type { Applied, KernApi, Rejected } from './kern/useKernTools'
 import {
   checkRange,
   forgetPreviews,
@@ -117,10 +117,6 @@ export default function App() {
   const [key, setKey] = useState<string | null>(null)
   const [restored, setRestored] = useState<{ at: number; count: number } | null>(null)
   const [confirmingReset, setConfirmingReset] = useState(false)
-  /** An agent has asked to export and is waiting on the reader's answer. */
-  const [pendingExport, setPendingExport] = useState<{
-    resolve: (outcome: ExportOutcome) => void
-  } | null>(null)
   const [activity, setActivity] = useState<Activity | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [scope, setScope] = useState<ScopeId>('essential')
@@ -576,13 +572,13 @@ export default function App() {
         setAgentLine(text)
         setProofText(text)
       },
-      // Hands the question to the reader and waits for their answer. The
-      // promise settles when they press a button in the dialog below.
-      requestExport: () =>
-        new Promise<ExportOutcome>((resolve) => {
-          if (!loadedRef.current) throw new Error('No font is loaded.')
-          setPendingExport({ resolve })
-        }),
+      // `exportFont` is a hoisted declaration further down, and it reads the
+      // pairs through a ref, so calling it from here is always current.
+      exportFont: () => {
+        const written = exportFont()
+        if (!written) throw new Error('No font is loaded, so nothing was written.')
+        return written
+      },
     }),
     [loaded, key, applyKerns, highlight, log_],
   )
@@ -871,25 +867,6 @@ export default function App() {
             <p className="busy-detail">measuring the pairs it traps white in</p>
           </div>
         </div>
-      )}
-
-      {pendingExport && (
-        <Confirm
-          title="Export the kerned font?"
-          body={`The agent has finished and wants to save ${loaded.familyName} with ${changed.length} kerned pair(s) to your downloads. Your work stays on the page either way.`}
-          confirmLabel="Export the font"
-          onConfirm={() => {
-            const outcome = exportFont()
-            pendingExport.resolve(
-              outcome ? { approved: true, ...outcome } : { approved: false },
-            )
-            setPendingExport(null)
-          }}
-          onCancel={() => {
-            pendingExport.resolve({ approved: false })
-            setPendingExport(null)
-          }}
-        />
       )}
 
       {confirmingReset && (

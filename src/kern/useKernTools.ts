@@ -44,20 +44,14 @@ export interface KernApi {
   /** The agent's chosen proof text, shown on the page when it is done. */
   setSpecimen: (text: string, note?: string) => void
   /**
-   * Asks the reader whether to write the kerned font to disk, and waits.
+   * Writes the kerned font to the reader's disk.
    *
-   * Downloading on the agent's say-so alone put a file in the reader's folder
-   * every run, including the runs where they were still deciding. The agent
-   * proposes; the person at the keyboard agrees.
+   * No confirmation step, by design. A dialog that blocks the call hangs the
+   * agent on a human who may be away; one that does not block is just noise on
+   * the page. The guard belongs in the tool description instead: this runs only
+   * when the reader has actually asked for a file.
    */
-  requestExport: () => Promise<ExportOutcome>
-}
-
-export interface ExportOutcome {
-  approved: boolean
-  filename?: string
-  bytes?: number
-  pairs?: number
+  exportFont: () => { filename: string; bytes: number; pairs: number }
 }
 
 export interface Applied { key: string; from: number; to: number }
@@ -1183,9 +1177,10 @@ export function useKernTools(api: KernApi) {
         'Kern is a font-kerning workbench. Write the kerned font to the ' +
         'reader\u2019s disk as a .ttf, with the values you applied baked into real ' +
         'GPOS and kern tables. Call this once the work is done and the specimen ' +
-        'reads well. The reader is asked to confirm and may say no, which is a ' +
-        'normal outcome and not a failure to work around. Applying values alone ' +
-        'does not produce a file.',
+        'reads well AND the reader has asked for the file. Do not call it to ' +
+        'round off a run: exporting writes to their disk, and they may still be ' +
+        'deciding. Finishing without it is normal \u2014 say the font is ready and ' +
+        'let them ask. Applying values alone does not produce a file.',
       inputSchema: { type: 'object', properties: {} } as const,
       enabled: ready,
       execute: async () => {
@@ -1206,30 +1201,22 @@ export function useKernTools(api: KernApi) {
           }
         }
 
-        const { approved, filename, bytes, pairs = 0 } = await api.requestExport()
-        if (!approved) {
-          return text_(
-            `The reader declined the export, so no file was written. That is a ` +
-              `decision, not an error — do not ask again unless they bring it up. ` +
-              `Their work is safe on the page and they can export whenever they ` +
-              `like.`,
-          )
-        }
+        const { filename, bytes, pairs } = api.exportFont()
         if (pairs === 0) {
           return text_(
             `Exported ${filename}, but NOTHING WAS KERNED — every pair still ` +
-              `carries the value the font shipped with. The file is a copy of ` +
-              `the original. Apply values with set_kern first.`,
+              `carries the value the font shipped with, so the file is a copy of ` +
+              `the original.`,
           )
         }
         return text_(
           `${stamp(api, api.takeScopeChange())}\n\n` +
-            `Downloaded ${filename} \u2014 ${Math.round((bytes ?? 0) / 1024)} KB, ` +
+            `Downloaded ${filename} \u2014 ${Math.round(bytes / 1024)} KB, ` +
             `${pairs} kerned pair(s) written into the font's GPOS and kern ` +
             `tables. It will kern in any application that reads either table.\n\n` +
             `The file went to the browser's download folder under that name. A ` +
             `page cannot be told the absolute path it was saved to, so there is ` +
-            `none to report — do not go looking for one.`,
+            `none to report.`,
         )
       },
     },
