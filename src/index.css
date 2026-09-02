@@ -631,11 +631,3 @@ h1 { margin: 0; line-height: 0; flex: none; }
   border: 1px solid var(--rule-hard); border-radius: 7px;
   background: var(--card); color: var(--ink); cursor: pointer;
 }
-/* Shown only for the scope that costs real time, and phrased as what it will
-   cost rather than as a warning to click past. */
-.scope-note {
-  margin: 12px 0 0; padding: 9px 13px; font-size: 12.5px; line-height: 1.5;
-  color: var(--graphite); background: var(--blue-wash);
-  border-left: 2px solid var(--blue-line); border-radius: 0 5px 5px 0;
-}
-.scope-note b { color: var(--ink); }

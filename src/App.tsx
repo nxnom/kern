@@ -630,14 +630,6 @@ export default function App() {
         </p>
       )}
 
-      {scope === 'everything' && list.length > 200 && (
-        <p className="scope-note">
-          {list.length} pairs. A full survey takes an agent several minutes and
-          most of these will not need changing — <b>Essential</b> covers the ones
-          that do.
-        </p>
-      )}
-
       <div className={`now ${activity ? 'live' : ''}`}>
         <ActivityStrip
           activity={activity}
