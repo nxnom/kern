@@ -518,35 +518,59 @@ export default function App() {
         <h1>
           <Wordmark loaded={loaded} pairs={pairs} />
         </h1>
-        <div className="head-right">
-          <dl className="spec">
-            <dt>face</dt>
-            <dd>
-              {loaded.familyName}
-              {loaded?.styleName && <i> {loaded.styleName}</i>}
-              {loaded.source !== SAMPLE.label && (
-                <button
-                  className="unload"
-                  onClick={() => void pick(SAMPLE)}
-                  title="Use the sample font. Your kerning for this font is kept."
-                  aria-label="Use the sample font"
-                >
-                  <IconClose />
-                </button>
-              )}
-            </dd>
-            <dt>from</dt>
-            <dd className="from">{loaded.source}</dd>
-            <dt>em</dt>
-            <dd>{loaded.unitsPerEm}</dd>
-            <dt>shipped</dt>
-            <dd>
-              {kernedInFont}<i>/{list.length} kerned</i>
-            </dd>
-          </dl>
+
+        <p className="face" title={loaded.source}>
+          <b>{loaded.familyName}</b>
+          {loaded.styleName && <i> {loaded.styleName}</i>}
+          <span>{loaded.unitsPerEm} em</span>
+          <span>
+            {kernedInFont}/{list.length} shipped kerned
+          </span>
+          {loaded.source !== SAMPLE.label && (
+            <button
+              className="unload"
+              onClick={() => void pick(SAMPLE)}
+              title="Use the sample font. Your kerning for this font is kept."
+              aria-label="Use the sample font"
+            >
+              <IconClose />
+            </button>
+          )}
+        </p>
+
+        <div className="head-actions">
+          <Toggle on={shade} onChange={setShade} icon={<IconContrast />}>
+            <span className="btn-label">Negative space</span>
+          </Toggle>
+          {hasChanges && (
+            <button onClick={() => setConfirmingReset(true)} title="Discard all changes">
+              <IconReset />
+              <span className="btn-label">Reset</span>
+            </button>
+          )}
+          <DownloadMenu
+            disabled={!hasChanges}
+            options={[
+              {
+                label: 'Font (.ttf)',
+                hint: 'GPOS kerning, ready to install',
+                onSelect: exportFont,
+              },
+              {
+                label: 'Features (.fea)',
+                hint: 'Adobe syntax for fontmake or AFDKO',
+                onSelect: () =>
+                  download(
+                    buildFeatureFile(loaded, changed),
+                    `${loaded.familyName.replace(/\s+/g, '')}-kern.fea`,
+                    'text/plain',
+                  ),
+              },
+            ]}
+          />
           <button onClick={() => fileInput.current?.click()} title="Load a font file">
             <IconUpload />
-            <span className="btn-label">Load font</span>
+            <span className="btn-label">Load</span>
           </button>
           <input ref={fileInput} type="file" accept=".ttf,.otf" hidden onChange={onFile} />
         </div>
@@ -554,43 +578,6 @@ export default function App() {
 
       <WebMCPStatus support={webmcp} registered={registered} />
       {error && <div className="error">{error}</div>}
-
-      <section className="bar">
-        <div className="stats">
-          <span><b>{changed.length}</b> of {list.length} kerned</span>
-        </div>
-        <Toggle on={shade} onChange={setShade} icon={<IconContrast />}>
-          <span className="btn-label">Negative space</span>
-        </Toggle>
-        {hasChanges && (
-          <button onClick={() => setConfirmingReset(true)} title="Discard all changes">
-            <IconReset />
-            <span className="btn-label">Reset</span>
-          </button>
-        )}
-        <DownloadMenu
-          disabled={!hasChanges}
-          options={[
-            {
-              label: 'Font (.ttf)',
-              hint: 'GPOS kerning, ready to install',
-              onSelect: exportFont,
-            },
-            {
-              label: 'Features (.fea)',
-              hint: 'Adobe syntax for fontmake or AFDKO',
-              onSelect: () =>
-                download(
-                  buildFeatureFile(loaded, changed),
-                  `${loaded.familyName.replace(/\s+/g, '')}-kern.fea`,
-                  'text/plain',
-                ),
-            },
-          ]}
-        />
-      </section>
-
-
       {notice && (
         <p className="notice" role="status">
           {notice}
@@ -600,15 +587,7 @@ export default function App() {
         </p>
       )}
 
-      {restored && (
-        <p className="restored">
-          Restored <b>{restored.count}</b> pair{restored.count === 1 ? '' : 's'} from{' '}
-          {relativeTime(restored.at)}. Values are re-measured against this font, so
-          they may read differently now.
-        </p>
-      )}
-
-      <section className={`now ${activity ? 'live' : ''}`}>
+      <div className={`now ${activity ? 'live' : ''}`}>
         <ActivityStrip
           activity={activity}
           activeKeys={activeKeys}
@@ -618,7 +597,13 @@ export default function App() {
           calls={callCount}
           everCalled={callCount > 0}
         />
-      </section>
+        {restored && (
+          <span className="restored">
+            restored {restored.count} from {relativeTime(restored.at)}
+          </span>
+        )}
+      </div>
+
       <Tabs
         tabs={[
           { id: 'main', label: 'Main', badge: `${changed.length}/${list.length}` },
