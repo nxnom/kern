@@ -581,9 +581,12 @@ button svg { flex: none; }
 /* ── views ─────────────────────────────────────────────────────────── */
 /* The grid runs to hundreds of tiles, so everything that reports on it gets
    its own view rather than a place above or below wherever you are working. */
+/* Sticky: the grid runs to hundreds of tiles, so scrolling back to the top to
+   change view is most of the work of changing view. */
 .tabs {
   display: flex; gap: 0; margin: 18px 0 0;
-  border-bottom: 1px solid var(--rule);
+  position: sticky; top: 0; z-index: 20;
+  background: var(--paper); border-bottom: 1px solid var(--rule);
 }
 .tabs button {
   border: 0; border-radius: 0; background: transparent; gap: 8px;
@@ -611,7 +614,7 @@ button svg { flex: none; }
 
 /* The pair you picked stays put while the grid scrolls under it. */
 .selected-bar {
-  position: sticky; top: 0; z-index: 15;
+  position: sticky; top: 41px; z-index: 15;
   background: var(--paper); border-bottom: 1px solid var(--rule);
   padding: 18px 0 20px; margin-bottom: 2px;
 }
