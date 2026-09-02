@@ -1,5 +1,6 @@
 import { GHOST_INK, RULE, drawPair } from './kern/font'
 import type { LoadedFont } from './kern/font'
+import { IconClose } from './Icons'
 import { typicalRange } from './kern/pairs'
 import type { PairState } from './kern/state'
 
@@ -18,12 +19,14 @@ export function PairDetail({
   pair,
   shade,
   onNudge,
+  onClose,
 }: {
   loaded: LoadedFont
   pair: PairState
   shade: boolean
   /** Human edits go through the same write path the agent uses. */
   onNudge: (value: number) => void
+  onClose: () => void
 }) {
   const range = typicalRange(pair.left, pair.right, loaded.unitsPerEm)
   const changed = pair.kern !== pair.original
@@ -67,6 +70,9 @@ export function PairDetail({
       <div className="detail-body">
         <h3>
           {pair.key} <span className="muted">{range.pairClass}</span>
+          <button className="detail-close" onClick={onClose} aria-label="Close">
+            <IconClose />
+          </button>
         </h3>
 
         <div className="range">

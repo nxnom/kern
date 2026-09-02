@@ -638,6 +638,7 @@ export default function App() {
                 pair={detail}
                 shade={shade}
                 onNudge={(value) => nudge(detail.key, value)}
+                onClose={() => setSelected(null)}
               />
             </div>
           )}
