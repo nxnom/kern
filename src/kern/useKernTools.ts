@@ -1,7 +1,7 @@
 import { useWebMCPTool } from './useWebMCPTool'
 import type { LoadedFont } from './font'
 import type { PairMetrics } from './font'
-import { drawPair, drawSpecimen, nearUnits, renderPair, safeFloor } from './font'
+import { drawPair, drawSpecimen, measurePair, nearUnits, renderPair, safeFloor } from './font'
 import { SHEET_SIZES, drawSheet } from './sheet'
 import type { SheetSize } from './sheet'
 import { typicalRange } from './pairs'
@@ -109,6 +109,19 @@ function defaultCandidates(lf: LoadedFont, left: string, right: string): number[
   // other cell is judged against.
   if (lo <= 0 && max >= 0 && !out.includes(0)) out[2] = 0
   return [...new Set(out)].sort((a, b) => b - a).slice(0, 4)
+}
+
+/**
+ * What to call a pair's state when talking to the agent.
+ *
+ * The stored status is derived from the value alone, so a pair sent through
+ * `keep` — looked at and deliberately left — still read as "untouched" while
+ * the progress line counted it as reviewed. Two names for one thing, and the
+ * agent noticed. The page keeps its own labels; this one is for the tools.
+ */
+function statusLabel(p: PairState): string {
+  if (p.status === 'untouched' && p.reviewedAt) return 'reviewed-unchanged'
+  return p.status
 }
 
 /** Counts previews since the last write, so the nudge can escalate. */
@@ -359,7 +372,7 @@ export function useKernTools(api: KernApi) {
         const rows = shown
           .map(
             (p) =>
-              `${p.key}\t${p.kern}\t(was ${p.original})\t${p.status}\t` +
+              `${p.key}\t${p.kern}\t(was ${p.original})\t${statusLabel(p)}\t` +
               `${typicalRange(p.left, p.right, font!.unitsPerEm).pairClass}\t` +
               `${p.attempts.length} attempts`,
           )
@@ -600,6 +613,11 @@ export function useKernTools(api: KernApi) {
             wanted.map((v) => ({ left, right, kern: v })),
             wanted.length,
             'judge',
+            // No control letters here. Company helps when comparing DIFFERENT
+            // pairs; in a row of candidate values for the SAME pair the flanks
+            // are identical in every cell, so they only add width — enough that
+            // a four-value row no longer fitted and wrapped onto the next line.
+            false,
           )
           for (const v of wanted) notePreview(key, v)
           api.markReviewed([key])
@@ -836,6 +854,7 @@ export function useKernTools(api: KernApi) {
           rows.flatMap((r) => r.values.map((v) => ({ left: r.left, right: r.right, kern: v }))),
           columns,
           'judge',
+          false,
         )
 
         for (const r of rows) {
@@ -1023,10 +1042,25 @@ export function useKernTools(api: KernApi) {
         // what stops that warning from being ignored. `f)` traps a lot of white
         // around a join that is already closed, so its ratio invites exactly
         // the change that ruins it.
+        // Sighted FIRST, before any guard.
+        //
+        // A value that came back from preview_pair or preview_pairs has been
+        // looked at. The description promises those are accepted, and running
+        // the crash guard ahead of this check broke that promise: eight values
+        // the agent had just compared on a sheet were refused, and it had to
+        // resort to force. The render the agent saw outranks both the
+        // shape-class range and a measurement that disagrees with the picture.
+        const sighted = updates.filter((u) =>
+          previewed.get(`${u.left}${u.right}`)?.has(u.value),
+        )
+        const unseen = updates.filter((u) => !sighted.includes(u))
+
         const collides: Rejected[] = []
-        const safe = updates.filter((u) => {
+        const safe = unseen.filter((u) => {
           if (force) return true
-          const m = renderPair(font!, u.left, u.right, u.value).metrics
+          // measurePair, not renderPair: this needs the numbers, and renderPair
+          // encodes a PNG that is thrown away.
+          const m = measurePair(font!, u.left, u.right, u.value)
           // Only a real crash is refused: outlines that overlap, or that meet
           // across a third of the facing height. A serif touching at a point
           // is ordinary in a serif face and no reason to block the value.
@@ -1036,22 +1070,15 @@ export function useKernTools(api: KernApi) {
             value: u.value,
             reason:
               `at ${u.value} the outlines ${m.collides ? 'overlap' : 'meet'} across ` +
-              `${Math.round(m.contact * 100)}% of the facing height — a crash, not a ` +
-              `serif touching at a point. Try a value nearer ` +
-              `${safeFloor(font!, u.left, u.right)}, or force if the render shows ` +
-              `otherwise.`,
+              `${Math.round(m.contact * 100)}% of the facing height. Preview it: if ` +
+              `the render looks right, applying it again will be accepted without ` +
+              `force, because you will have seen it.`,
           })
           return false
         })
 
-        // A value that came back from preview_pair or preview_pairs has been
-        // seen. The shape-class range is a guess about pairs in general; the
-        // render is evidence about this one, so the render wins and the agent
-        // never has to ask for permission to use what it just looked at.
-        const sighted = safe.filter((u) => previewed.get(`${u.left}${u.right}`)?.has(u.value))
-        const unsighted = safe.filter((u) => !sighted.includes(u))
         const a = api.applyKerns(sighted, true)
-        const b = api.applyKerns(unsighted, Boolean(force))
+        const b = api.applyKerns(safe, Boolean(force))
         const applied = [...a.applied, ...b.applied]
         const rejected = [...a.rejected, ...b.rejected]
         rejected.push(...collides)
@@ -1119,8 +1146,10 @@ export function useKernTools(api: KernApi) {
           `${stamp(api, api.takeScopeChange())}\n\n` +
             `Downloaded ${filename} \u2014 ${Math.round(bytes / 1024)} KB, ` +
             `${pairs} kerned pair(s) written into the font's GPOS and kern ` +
-            `tables. The reader has the file; it will kern in any application ` +
-            `that reads either table.`,
+            `tables. It will kern in any application that reads either table.\n\n` +
+            `The file went to the browser's download folder under that name. A ` +
+            `page cannot be told the absolute path it was saved to, so there is ` +
+            `none to report — do not go looking for one.`,
         )
       },
     },
