@@ -270,7 +270,7 @@ export function useKernTools(api: KernApi) {
     {
       name: 'survey_pairs',
       description:
-        'Kern is a font-kerning workbench. Use these tools rather than screenshots or the DOM — the page cannot be kerned by CSS. Render up to 24 pairs onto a single labelled contact sheet and return it ' +
+        'Kern is a font-kerning workbench. Use these tools rather than screenshots or the DOM — the page cannot be kerned by CSS. Render up to 12 pairs onto a single labelled contact sheet and return it ' +
         'with a metrics table. This is the fast way to work: survey a batch, find ' +
         'the two or three that look wrong, then zoom in with preview_pair. Prefer ' +
         'this over calling preview_pair repeatedly.',
