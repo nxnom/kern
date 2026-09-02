@@ -168,7 +168,7 @@ button svg { flex: none; }
   display: flex; flex-direction: column; align-items: center; gap: 6px;
   transition: background .15s, box-shadow .15s;
 }
-.tile:hover { background: var(--blue-wash); }
+
 .tile-img { height: 62px; display: flex; align-items: center; }
 .tile-img img { max-height: 62px; width: auto; }
 .tile-meta {

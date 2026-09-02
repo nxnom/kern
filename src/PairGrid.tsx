@@ -54,8 +54,11 @@ function PairTile({
   const ref = useRef<HTMLButtonElement>(null)
   const [hovering, setHovering] = useState(false)
   const wasChanged = pair.kern !== pair.original
-  // Hovering a changed tile shows what it looked like before.
-  const value = hovering && wasChanged ? pair.original : pair.kern
+  // Hovering a changed tile shows what it looked like before — but not while
+  // it is selected. The pointer is still over the tile you just clicked, so
+  // hover-to-compare would replace the value you are editing with the old one
+  // and every arrow press would appear to do nothing.
+  const value = hovering && wasChanged && !selected ? pair.original : pair.kern
 
   // Redraw only when the value that affects the picture changes.
   const src = useMemo(
@@ -99,7 +102,11 @@ function PairTile({
         {/* Always the value, never a word: the number is the thing that moves
             when you hold an arrow key, so hiding it behind a label made the
             edit look like it had not happened. */}
-        <span className={`tile-delta ${hovering && wasChanged ? 'is-original' : ''}`}>
+        <span
+          className={`tile-delta ${
+            hovering && wasChanged && !selected ? 'is-original' : ''
+          }`}
+        >
           {value}
         </span>
       </span>
