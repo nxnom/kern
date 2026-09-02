@@ -32,7 +32,7 @@ import {
 import { useWebMCPSupport } from './kern/useWebMCPSupport'
 import { WebMCPStatus } from './WebMCPStatus'
 import { buildFeatureFile, buildKernedFont, download } from './kern/export'
-import type { Applied, KernApi, Rejected } from './kern/useKernTools'
+import type { Applied, ExportOutcome, KernApi, Rejected } from './kern/useKernTools'
 import {
   checkRange,
   forgetPreviews,
@@ -117,6 +117,10 @@ export default function App() {
   const [key, setKey] = useState<string | null>(null)
   const [restored, setRestored] = useState<{ at: number; count: number } | null>(null)
   const [confirmingReset, setConfirmingReset] = useState(false)
+  /** An agent has asked to export and is waiting on the reader's answer. */
+  const [pendingExport, setPendingExport] = useState<{
+    resolve: (outcome: ExportOutcome) => void
+  } | null>(null)
   const [activity, setActivity] = useState<Activity | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [scope, setScope] = useState<ScopeId>('essential')
@@ -572,20 +576,13 @@ export default function App() {
         setAgentLine(text)
         setProofText(text)
       },
-      exportFont: () => {
-        const lf = loadedRef.current
-        if (!lf) throw new Error('No font is loaded.')
-        // Read through the ref rather than the memoised `changed`, so a value
-        // applied moments ago is in the file.
-        const entries = [...pairsRef.current.values()]
-          .filter((p) => p.kern !== p.original)
-          .map((p) => ({ left: p.left, right: p.right, value: p.kern }))
-        const bytes = buildKernedFont(lf.buffer, lf, entries)
-        const filename = `${lf.familyName.replace(/\s+/g, '')}-Kerned.ttf`
-        download(bytes, filename, 'font/ttf')
-        log_(`exported ${filename} · ${entries.length} pairs`)
-        return { filename, bytes: bytes.byteLength, pairs: entries.length }
-      },
+      // Hands the question to the reader and waits for their answer. The
+      // promise settles when they press a button in the dialog below.
+      requestExport: () =>
+        new Promise<ExportOutcome>((resolve) => {
+          if (!loadedRef.current) throw new Error('No font is loaded.')
+          setPendingExport({ resolve })
+        }),
     }),
     [loaded, key, applyKerns, highlight, log_],
   )
@@ -610,16 +607,24 @@ export default function App() {
   // every time it called a tool.
   const detail = pairs.get(selected ?? '')
 
-  function exportFont() {
-    if (!loaded) return
+  /** Returns what was written, so the agent's request can report it back. */
+  function exportFont(): { filename: string; bytes: number; pairs: number } | null {
+    const lf = loadedRef.current
+    if (!lf) return null
     try {
-      download(
-        buildKernedFont(loaded.buffer, loaded, changed),
-        `${loaded.familyName.replace(/\s+/g, '')}-Kerned.ttf`,
-        'font/ttf',
-      )
+      // Read through the ref, not the memoised list: a value applied moments
+      // ago must be in the file.
+      const entries = [...pairsRef.current.values()]
+        .filter((p) => p.kern !== p.original)
+        .map((p) => ({ left: p.left, right: p.right, value: p.kern }))
+      const bytes = buildKernedFont(lf.buffer, lf, entries)
+      const filename = `${lf.familyName.replace(/\s+/g, '')}-Kerned.ttf`
+      download(bytes, filename, 'font/ttf')
+      log_(`exported ${filename} · ${entries.length} pairs`)
+      return { filename, bytes: bytes.byteLength, pairs: entries.length }
     } catch (e) {
       setError(`Export failed: ${String(e)}`)
+      return null
     }
   }
 
@@ -866,6 +871,25 @@ export default function App() {
             <p className="busy-detail">measuring the pairs it traps white in</p>
           </div>
         </div>
+      )}
+
+      {pendingExport && (
+        <Confirm
+          title="Export the kerned font?"
+          body={`The agent has finished and wants to save ${loaded.familyName} with ${changed.length} kerned pair(s) to your downloads. Your work stays on the page either way.`}
+          confirmLabel="Export the font"
+          onConfirm={() => {
+            const outcome = exportFont()
+            pendingExport.resolve(
+              outcome ? { approved: true, ...outcome } : { approved: false },
+            )
+            setPendingExport(null)
+          }}
+          onCancel={() => {
+            pendingExport.resolve({ approved: false })
+            setPendingExport(null)
+          }}
+        />
       )}
 
       {confirmingReset && (

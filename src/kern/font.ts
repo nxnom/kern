@@ -664,16 +664,33 @@ export function safeFloor(
   if (hit !== undefined) return hit
 
   const step = Math.round(lf.unitsPerEm / 100)
-  let value = from
-  for (let i = 0; i < 40; i++) {
-    const next = value - step
-    // measurePair, not renderPair: this walk needs the numbers, and renderPair
-    // also encodes a PNG that is thrown away. A survey calls this for every
-    // cell, so the sheet was paying for up to 1,440 discarded PNGs.
-    const { contact, collides } = measurePair(lf, left, right, next)
+  const STEPS = 40
+  // measurePair, not renderPair: this walk needs the numbers, and renderPair
+  // also encodes a PNG that is thrown away.
+  const crashes = (v: number) => {
+    const { contact, collides } = measurePair(lf, left, right, v)
     // Same definition of a crash the writer uses: not a serif graze.
-    if (collides || contact >= 0.3) break
-    value = next
+    return collides || contact >= 0.3
+  }
+
+  // Halve the interval rather than walk it. Tightening only ever brings the
+  // outlines closer, so the crash point is a single boundary and bisection
+  // finds it in about six measurements instead of up to forty — and a survey
+  // runs this for every cell on the sheet.
+  let value: number
+  if (crashes(from)) {
+    value = from
+  } else if (!crashes(from - STEPS * step)) {
+    value = from - STEPS * step
+  } else {
+    let safe = 0
+    let crashed = STEPS
+    while (crashed - safe > 1) {
+      const mid = (safe + crashed) >> 1
+      if (crashes(from - mid * step)) crashed = mid
+      else safe = mid
+    }
+    value = from - safe * step
   }
   floors.set(cacheKey, value)
   return value
