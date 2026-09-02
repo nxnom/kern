@@ -61,12 +61,22 @@ const READ_ONLY = { readOnlyHint: true }
 
 
 /**
- * Said once, on the first survey of a session. Repeating it on all seven sheets
- * of a run cost more than it taught.
+ * Said once, on the FIRST tool call of a session, whichever tool that is.
+ *
+ * WebMCP has no channel for page-level instructions — `registerTool` is the
+ * whole surface, with no equivalent of MCP's `prompts` primitive or a server's
+ * `instructions` field. So the doctrine has to ride along with something the
+ * agent already calls. Tying it to the first survey meant a run that opened
+ * with list_pairs got it late, and one that jumped straight to preview_pairs
+ * never got it at all. Every tool stamps its reply, so every tool delivers it.
+ *
+ * A dedicated `help` tool would be the obvious alternative, and the wrong one:
+ * nothing obliges an agent to call it, and the guidance an agent skips is
+ * exactly the guidance it needed.
  */
-let firstSurveyDone = false
+let guidanceGiven = false
 export function resetGuidance() {
-  firstSurveyDone = false
+  guidanceGiven = false
 }
 
 const WORKFLOW = [
@@ -204,7 +214,10 @@ function stopForFontChange(api: KernApi, swapped: string) {
  */
 function stamp(api: KernApi, rescoped?: string | null): string {
   const line = `font: ${api.font?.familyName ?? 'none'} (${api.fontId ?? '—'})`
-  return rescoped ? `${rescoped}\n\n${line}` : line
+  const head = rescoped ? `${rescoped}\n\n${line}` : line
+  if (guidanceGiven) return head
+  guidanceGiven = true
+  return `${WORKFLOW}\n\n${head}`
 }
 
 /**
@@ -510,8 +523,6 @@ export function useKernTools(api: KernApi) {
           )
         }
         const start = Math.max(0, offset ?? 0)
-        const firstSurvey = !firstSurveyDone
-        firstSurveyDone = true
         const size: SheetSize = detail === 'judge' ? 'judge' : 'screen'
         const cap = SHEET_SIZES[size].max
         const take = Math.min(cap, Math.max(1, limit ?? cap))
@@ -581,7 +592,6 @@ export function useKernTools(api: KernApi) {
                       .map((c) => `${c.left}${c.right}`)
                       .join(', ')} — tighten these only if the render says so.\n\n`
                   : '') +
-                (firstSurvey ? `${WORKFLOW}\n\n` : '') +
                 progressLine(api.getPairs()),
             },
           ],
