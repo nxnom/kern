@@ -591,12 +591,6 @@ export default function App() {
         />
       </section>
 
-      {busy && (
-        <div className="busy" role="status">
-          <span className="busy-rule" aria-hidden="true" />
-          {busy} · measuring the pairs it traps white in
-        </div>
-      )}
 
       {notice && (
         <p className="notice" role="status">
@@ -636,6 +630,16 @@ export default function App() {
           shade={shade}
         />
       </div>
+
+      {busy && (
+        <div className="busy-scrim" role="status" aria-live="polite">
+          <div className="busy">
+            <span className="busy-rule" aria-hidden="true" />
+            <p className="busy-title">{busy}</p>
+            <p className="busy-detail">measuring the pairs it traps white in</p>
+          </div>
+        </div>
+      )}
 
       {confirmingReset && (
         <Confirm
