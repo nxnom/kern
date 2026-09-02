@@ -564,7 +564,7 @@ button svg { flex: none; }
   font-family: var(--mono); font-size: 11.5px; padding: 4px 2px;
 }
 .nudge .link:hover { color: var(--ink); background: transparent; }
-.nudge .muted { margin-left: 4px; font-size: 11px; }
+
 
 /* A value the human set outranks one the agent proposed, and says so. Ink,
    not blue: blue is the agent's colour everywhere else on the page. */
@@ -576,3 +576,11 @@ button svg { flex: none; }
 /* When the two are equal the comparison is not saying anything, so the
    original recedes rather than disappearing and moving everything sideways. */
 .detail figure.same { opacity: .45; }
+
+/* The links appear and vanish as values change, so they get their own row —
+   on the same line they shunted the +1 / −1 buttons sideways mid-edit. */
+.nudge-back {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-top: 8px; min-height: 22px;
+}
+.nudge-back .muted { margin-left: 0; font-size: 11px; }

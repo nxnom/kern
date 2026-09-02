@@ -124,6 +124,9 @@ export function PairDetail({
           <button onClick={() => onNudge(pair.kern + 10)} title="Loosen by 10">
             +10
           </button>
+        </div>
+
+        <div className="nudge-back">
           {agentValue !== undefined && agentValue !== pair.kern && (
             <button
               className="link"
