@@ -2,7 +2,8 @@ import { useWebMCPTool } from './useWebMCPTool'
 import type { LoadedFont } from './font'
 import type { PairMetrics } from './font'
 import { drawPair, relativeWhite, renderPair, safeFloor } from './font'
-import { drawSheet } from './sheet'
+import { SHEET_SIZES, drawSheet } from './sheet'
+import type { SheetSize } from './sheet'
 import { typicalRange } from './pairs'
 import type { PairState, PairStatus } from './state'
 
@@ -331,7 +332,14 @@ export function useKernTools(api: KernApi) {
   )
 
   // ---- render_sheet: survey many pairs in one image -------------------
-  useWebMCPTool<{ pairs?: string[]; status?: 'all' | 'unreviewed' | 'untouched' | 'adjusted' | 'rejected'; offset?: number; limit?: number; columns?: number }>(
+  useWebMCPTool<{
+    pairs?: string[]
+    status?: 'all' | 'unreviewed' | 'untouched' | 'adjusted' | 'rejected'
+    detail?: 'screen' | 'judge'
+    offset?: number
+    limit?: number
+    columns?: number
+  }>(
     {
       name: 'survey_pairs',
       description:
@@ -356,12 +364,24 @@ export function useKernTools(api: KernApi) {
               'walk the list without going over ground twice.',
           },
           offset: { type: 'number', description: 'Skip this many, for paging.' },
-          limit: { type: 'number', description: 'How many to show. Default 9, max 12 — the renders are large so you can actually judge them.' },
+          detail: {
+            type: 'string',
+            enum: ['screen', 'judge'],
+            description:
+              'screen: 36 small pairs at a time, for walking the list and finding ' +
+              'what deserves a look. judge: 12 large ones, where a serif meeting ' +
+              'its neighbour is visible and a value can actually be decided. ' +
+              'Screen first, judge second. Defaults to screen.',
+          },
+          limit: {
+            type: 'number',
+            description: 'How many to show. Capped by detail: 36 screening, 12 judging.',
+          },
           columns: { type: 'number', description: 'Sheet columns. Default 4.' },
         },
       } as const,
       enabled: ready,
-      execute: async ({ pairs, status, offset, limit, columns }) => {
+      execute: async ({ pairs, status, offset, limit, columns, detail }) => {
         api.countCall('survey_pairs')
         const swapped = api.takeFontChange()
         if (swapped) return stopForFontChange(api, swapped)
@@ -383,7 +403,9 @@ export function useKernTools(api: KernApi) {
           )
         }
         const start = Math.max(0, offset ?? 0)
-        const take = Math.min(12, Math.max(1, limit ?? 9))
+        const size: SheetSize = detail === 'judge' ? 'judge' : 'screen'
+        const cap = SHEET_SIZES[size].max
+        const take = Math.min(cap, Math.max(1, limit ?? cap))
         chosen = chosen.slice(start, start + take)
 
         if (!chosen.length) return text_('No pairs match that filter.')
@@ -391,7 +413,9 @@ export function useKernTools(api: KernApi) {
         const sheet = drawSheet(
           font!,
           chosen.map((p) => ({ left: p.left, right: p.right, kern: p.kern })),
-          columns ?? 3,
+          columns ?? (size === 'screen' ? 6 : 3),
+          true,
+          size,
         )
         api.highlight(chosen.map((p) => p.key))
         api.log(`sheet · ${chosen.length} pairs (${chosen[0].key}…${chosen.at(-1)!.key})`)
@@ -439,11 +463,12 @@ export function useKernTools(api: KernApi) {
                 `likely-keep pairs can go straight into set_kern's "keep" list.\n\n` +
                 `HOW TO WORK THROUGH THIS WITHOUT IT TAKING ALL DAY:\n` +
                 `1. Screen with sheets, not previews. Walk the whole list with ` +
-                `status "unreviewed" before you change anything, so you know what ` +
-                `is there.\n` +
+                `status "unreviewed" and detail "screen" — 36 at a time — before ` +
+                `you change anything, so you know what is there.\n` +
                 `2. Shortlist every likely-change and inspect. Put the rest in ` +
                 `"keep" — that is how a pair counts as decided rather than ` +
-                `unreached.\n` +
+                `unreached. Re-render the shortlist with detail "judge" when you ` +
+                `need to see a serif meeting its neighbour.\n` +
                 `3. Compare the shortlist with preview_pairs — several pairs and ` +
                 `several values in ONE sheet. Previewing pairs one at a time is ` +
                 `what turns a four-minute job into nine.\n` +

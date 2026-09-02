@@ -18,12 +18,18 @@ export interface Sheet {
   columns: number
 }
 
-/* Bigger than it was. At 74px a contact point and a wedge look alike, and an
-   agent that cannot see the difference falls back on the numbers — which is
-   exactly the mistake the numbers cannot catch. */
-const GLYPH_PX = 132
-const CELL_W = 300
-const CELL_H = 230
+/*
+ * Two sizes, because there are two jobs. Screening asks "which of these two
+ * hundred is worth a look", and wants density. Judging asks "is this value
+ * right", and wants to show a serif meeting its neighbour. One compromise size
+ * served neither: too small to decide on, too few to get through the list.
+ */
+export const SHEET_SIZES = {
+  screen: { glyph: 76, cellW: 176, cellH: 140, max: 36 },
+  judge: { glyph: 132, cellW: 300, cellH: 230, max: 12 },
+} as const
+
+export type SheetSize = keyof typeof SHEET_SIZES
 const LABEL_H = 26
 
 /**
@@ -39,7 +45,9 @@ export function drawSheet(
   items: SheetItem[],
   columns = 4,
   shade = true,
+  size: SheetSize = 'judge',
 ): Sheet {
+  const { glyph: GLYPH_PX, cellW: CELL_W, cellH: CELL_H } = SHEET_SIZES[size]
   const cols = Math.max(1, Math.min(columns, items.length || 1))
   const rows = Math.ceil(items.length / cols)
   const width = cols * CELL_W
@@ -76,7 +84,7 @@ export function drawSheet(
 
     // Label, so the agent can name what it is looking at.
     ctx.fillStyle = '#8a857a'
-    ctx.font = '12px ui-monospace, SFMono-Regular, Menlo, monospace'
+    ctx.font = `${size === 'screen' ? 11 : 13}px ui-monospace, SFMono-Regular, Menlo, monospace`
     ctx.textAlign = 'center'
     ctx.fillText(
       `${item.left}${item.right}  ${item.kern > 0 ? '+' : ''}${item.kern}`,
