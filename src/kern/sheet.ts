@@ -1,5 +1,5 @@
 import type { LoadedFont, PairMetrics } from './font'
-import { GHOST_INK, drawGlyphInto, measurePair, paintGap } from './font'
+import { GHOST_INK, drawGlyphInto, measurePair } from './font'
 
 /**
  * The letter to stand a pair next to.
@@ -61,7 +61,6 @@ export function drawSheet(
   lf: LoadedFont,
   items: SheetItem[],
   columns = 4,
-  shade = true,
   size: SheetSize = 'judge',
   // On by default. Gating this behind the judging size hid it entirely: the
   // workflow tells the agent to screen with detail "screen", so the sheet that
@@ -112,7 +111,7 @@ export function drawSheet(
   ctx.fillStyle = '#ffffff'
   ctx.fillRect(0, 0, width, height)
 
-  const placed: { item: SheetItem; cellX: number; baselineY: number; splitX: number }[] = []
+  const placed: SheetItem[] = []
 
   items.forEach((item, i) => {
     const cx = (i % cols) * CELL_W
@@ -157,36 +156,16 @@ export function drawSheet(
     ctx.lineWidth = 1
     ctx.strokeRect(cx + 0.5, cy + 0.5, CELL_W - 1, CELL_H - 1)
 
-    placed.push({
-      item,
-      cellX: cx,
-      baselineY,
-      splitX: pairX + lAdv * scale,
-    })
+    placed.push(item)
   })
 
-  // One read of the whole sheet, rather than one per cell.
-  const image = ctx.getImageData(0, 0, width, height)
-  const cells: SheetCell[] = placed.map((p) => ({
-    ...p.item,
-    // Measured at a fixed scale, not from these cell pixels. A 76px cell
-    // cannot resolve a 20-unit gap, and pretending it could is what made the
-    // sheet disagree with the close-up.
-    metrics: measurePair(lf, p.item.left, p.item.right, p.item.kern),
+  // Measured at a fixed scale, never from these cell pixels. A 76px cell
+  // cannot resolve a 20-unit gap, and pretending it could is what made the
+  // sheet disagree with the close-up.
+  const cells: SheetCell[] = placed.map((item) => ({
+    ...item,
+    metrics: measurePair(lf, item.left, item.right, item.kern),
   }))
-
-  // Shading overwrites the pixels we just measured, so it comes last.
-  if (shade) {
-    for (const p of placed) {
-      paintGap(
-        ctx, image, width,
-        p.cellX, p.cellX + CELL_W,
-        Math.max(0, Math.floor(p.baselineY - lf.capHeight * scale)),
-        Math.ceil(p.baselineY),
-        p.splitX,
-      )
-    }
-  }
 
   const dataUrl = canvas.toDataURL('image/png')
   return {

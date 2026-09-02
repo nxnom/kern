@@ -429,7 +429,6 @@ export function useKernTools(api: KernApi) {
           font!,
           chosen.map((p) => ({ left: p.left, right: p.right, kern: p.kern })),
           columns ?? (size === 'screen' ? 6 : 3),
-          true,
           size,
         )
         api.highlight(chosen.map((p) => p.key))
@@ -550,9 +549,7 @@ export function useKernTools(api: KernApi) {
             font!,
             wanted.map((v) => ({ left, right, kern: v })),
             wanted.length,
-            true,
             'judge',
-            true,
           )
           for (const v of wanted) notePreview(key, v)
           api.markReviewed([key])
@@ -781,9 +778,7 @@ export function useKernTools(api: KernApi) {
           font!,
           rows.flatMap((r) => r.values.map((v) => ({ left: r.left, right: r.right, kern: v }))),
           columns,
-          true,
           'judge',
-          true,
         )
 
         for (const r of rows) {
