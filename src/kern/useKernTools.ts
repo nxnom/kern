@@ -1,7 +1,7 @@
 import { useWebMCPTool } from './useWebMCPTool'
 import type { LoadedFont } from './font'
 import type { PairMetrics } from './font'
-import { drawPair, relativeWhite, renderPair } from './font'
+import { drawPair, relativeWhite, renderPair, safeFloor } from './font'
 import { drawSheet } from './sheet'
 import { typicalRange } from './pairs'
 import type { PairState, PairStatus } from './state'
@@ -21,6 +21,8 @@ export interface KernApi {
   fontId: string | null
   /** Surfaces a refusal to the human as well as to the agent. */
   notify: (message: string) => void
+  /** Records that the agent looked at these pairs and decided about them. */
+  markReviewed: (keys: string[]) => void
   /** Read through a ref so tools never close over stale state. */
   getPairs: () => Map<string, PairState>
   /** Applies values, returning what stuck and what did not. */
@@ -97,14 +99,33 @@ function reading(m: PairMetrics, rel: number): string {
   return 'unremarkable by area, which does not mean settled'
 }
 
-/** Appended to read tools so progress and the next step are always in view. */
+/**
+ * Where the survey has got to.
+ *
+ * Reviewed, changed and not-yet-reached are three different things. Reporting
+ * only the first two let a run stop at sixty of two hundred and sixty-one and
+ * describe itself as complete.
+ */
 function progressLine(pairs: Map<string, PairState>): string {
   const all = [...pairs.values()]
-  const done = all.filter((p) => p.kern !== p.original).length
-  return done === 0
-    ? `Nothing has been applied yet — all ${all.length} pairs are still at the font's ` +
-        `original values. Rendering changes nothing; call set_kern to apply.`
-    : `${done} of ${all.length} pairs changed so far.`
+  const changed = all.filter((p) => p.kern !== p.original)
+  const reviewed = all.filter((p) => p.reviewedAt)
+  const left = all.length - reviewed.length
+
+  if (!reviewed.length) {
+    return (
+      `None of the ${all.length} pairs has been reviewed yet. Nothing is applied; ` +
+      `rendering changes nothing, set_kern does.`
+    )
+  }
+  return (
+    `PROGRESS: ${reviewed.length} of ${all.length} reviewed · ` +
+    `${changed.length} changed · ${reviewed.length - changed.length} left as they were · ` +
+    `${left} NOT YET REACHED.` +
+    (left > 0
+      ? ` You are not finished. Call survey_pairs with status "unreviewed" for the next sheet.`
+      : ` Every pair has been decided.`)
+  )
 }
 
 /**
@@ -183,7 +204,7 @@ export function useKernTools(api: KernApi) {
   const ready = font !== null
 
   // ---- list_pairs: cheap planning, no image ---------------------------
-  useWebMCPTool<{ status?: 'all' | 'untouched' | 'adjusted' | 'rejected' }>(
+  useWebMCPTool<{ status?: 'all' | 'unreviewed' | 'untouched' | 'adjusted' | 'rejected' }>(
     {
       name: 'list_pairs',
       description:
@@ -199,7 +220,7 @@ export function useKernTools(api: KernApi) {
         properties: {
           status: {
             type: 'string',
-            enum: ['all', 'untouched', 'adjusted', 'rejected'],
+            enum: ['all', 'unreviewed', 'untouched', 'adjusted', 'rejected'],
             description: 'Filter by status. Defaults to all.',
           },
         },
@@ -209,9 +230,13 @@ export function useKernTools(api: KernApi) {
         api.countCall('list_pairs')
         const swapped = api.takeFontChange()
         if (swapped) return stopForFontChange(api, swapped)
-        const wanted = (status ?? 'all') as PairStatus | 'all'
-        const shown = [...api.getPairs().values()].filter(
-          (p) => wanted === 'all' || p.status === wanted,
+        const wanted = (status ?? 'all') as PairStatus | 'all' | 'unreviewed'
+        const shown = [...api.getPairs().values()].filter((p) =>
+          wanted === 'all'
+            ? true
+            : wanted === 'unreviewed'
+              ? !p.reviewedAt
+              : p.status === wanted,
         )
         const rows = shown
           .map(
@@ -234,7 +259,7 @@ export function useKernTools(api: KernApi) {
   )
 
   // ---- render_sheet: survey many pairs in one image -------------------
-  useWebMCPTool<{ pairs?: string[]; status?: 'all' | 'untouched' | 'adjusted' | 'rejected'; offset?: number; limit?: number; columns?: number }>(
+  useWebMCPTool<{ pairs?: string[]; status?: 'all' | 'unreviewed' | 'untouched' | 'adjusted' | 'rejected'; offset?: number; limit?: number; columns?: number }>(
     {
       name: 'survey_pairs',
       description:
@@ -253,8 +278,10 @@ export function useKernTools(api: KernApi) {
           },
           status: {
             type: 'string',
-            enum: ['all', 'untouched', 'adjusted', 'rejected'],
-            description: 'Which pairs to pull when `pairs` is omitted.',
+            enum: ['all', 'unreviewed', 'untouched', 'adjusted', 'rejected'],
+            description:
+              'Which pairs to pull when `pairs` is omitted. Use "unreviewed" to ' +
+              'walk the list without going over ground twice.',
           },
           offset: { type: 'number', description: 'Skip this many, for paging.' },
           limit: { type: 'number', description: 'How many to show. Default 9, max 12 — the renders are large so you can actually judge them.' },
@@ -273,9 +300,13 @@ export function useKernTools(api: KernApi) {
             .map((k) => all.get(k))
             .filter((p): p is PairState => Boolean(p))
         } else {
-          const wanted = (status ?? 'all') as PairStatus | 'all'
-          chosen = [...all.values()].filter(
-            (p) => wanted === 'all' || p.status === wanted,
+          const wanted = (status ?? 'all') as PairStatus | 'all' | 'unreviewed' | 'unreviewed'
+          chosen = [...all.values()].filter((p) =>
+            wanted === 'all'
+              ? true
+              : wanted === 'unreviewed'
+                ? !p.reviewedAt
+                : p.status === wanted,
           )
         }
         const start = Math.max(0, offset ?? 0)
@@ -328,6 +359,19 @@ export function useKernTools(api: KernApi) {
                 `A control like HH cannot speak for an overhang like T or V.\n\n` +
                 `Never apply one value across a shape class. Preview every pair ` +
                 `you intend to change, or change only the ones you previewed.\n\n` +
+                `HOW TO WORK THROUGH THIS WITHOUT IT TAKING ALL DAY:\n` +
+                `1. Screen with sheets, not previews. Walk the whole list with ` +
+                `status "unreviewed" before you change anything, so you know what ` +
+                `is there.\n` +
+                `2. On each sheet, name the two or three worth a closer look. ` +
+                `Everything else on that sheet goes in set_kern's "keep" list — ` +
+                `that is how a pair counts as decided rather than unreached.\n` +
+                `3. Preview shortlisted pairs with "values": [-40,-60,-80] to see ` +
+                `candidates side by side. One call, not three.\n` +
+                `4. Apply in batches with "keep" alongside, then move on.\n` +
+                `Being later in the list does not mean a pair is fine. The order ` +
+                `is by trapped white, which is exactly the measure that misses ` +
+                `wedges like Vo and Tr.\n\n` +
                 `pair\tkern\tratio\tgap\tnotes\n${table}\n\n` +
                 (worst.length
                   ? `Worst first: ${worst
@@ -344,7 +388,12 @@ export function useKernTools(api: KernApi) {
   )
 
   // ---- render_pair: zoom in on one -----------------------------------
-  useWebMCPTool<{ left: string; right: string; kern?: number }>(
+  useWebMCPTool<{
+    left: string
+    right: string
+    kern?: number
+    values?: number[]
+  }>(
     {
       name: 'preview_pair',
       description:
@@ -363,11 +412,18 @@ export function useKernTools(api: KernApi) {
             type: 'number',
             description: 'Value to preview in font units. Omit for the current value.',
           },
+          values: {
+            type: 'array',
+            items: { type: 'number' },
+            description:
+              'Up to four values to see side by side, e.g. [-40,-60,-80]. One call ' +
+              'instead of three — use this rather than previewing one value at a time.',
+          },
         },
         required: ['left', 'right'],
       } as const,
       enabled: ready,
-      execute: async ({ left, right, kern }) => {
+      execute: async ({ left, right, kern, values }) => {
         api.countCall('preview_pair')
         const swapped = api.takeFontChange()
         if (swapped) return stopForFontChange(api, swapped)
@@ -380,7 +436,44 @@ export function useKernTools(api: KernApi) {
         const range = typicalRange(left, right, font!.unitsPerEm)
 
         previewsSinceApply += 1
+
+        // Several candidates in one sheet: previewing them one at a time was
+        // three round trips to answer one question.
+        if (values?.length) {
+          const wanted = values.slice(0, 4)
+          const sheet = drawSheet(
+            font!,
+            wanted.map((v) => ({ left, right, kern: v })),
+            wanted.length,
+          )
+          api.markReviewed([key])
+          api.highlight([key])
+          api.log(`${key} · previewing ${wanted.join(', ')}`)
+          return {
+            content: [
+              { type: 'image' as const, data: sheet.base64, mimeType: 'image/png' },
+              {
+                type: 'text' as const,
+                text: [
+                  stamp(api),
+                  '',
+                  `${key} at ${wanted.join(', ')} — left to right.`,
+                  `tightest safe value: ${safeFloor(font!, left, right)}`,
+                  ...sheet.cells.map(
+                    (c) =>
+                      `${c.kern}\tgap ${c.metrics.minGap}–${c.metrics.maxGap}` +
+                      `${c.metrics.collides ? '\tCOLLIDES' : ''}`,
+                  ),
+                  '',
+                  'PREVIEW ONLY. Apply the one you chose with set_kern.',
+                ].join('\n'),
+              },
+            ],
+          }
+        }
+
         const { render, metrics } = renderPair(font!, left, right, value)
+        api.markReviewed([key])
         api.highlight([key])
         api.log(`${key} · preview ${value} · white ${metrics.opticalArea}`)
 
@@ -393,6 +486,8 @@ export function useKernTools(api: KernApi) {
                 stamp(api),
                 '',
                 `pair: ${key}`,
+                `tightest safe value: ${safeFloor(font!, left, right)} — past this ` +
+                  `the outlines touch and set_kern will refuse`,
                 previewsSinceApply >= 3
                   ? `STOP PREVIEWING. You have previewed ${previewsSinceApply} values ` +
                     `without applying any. Nothing you have done so far has changed the ` +
@@ -563,7 +658,11 @@ export function useKernTools(api: KernApi) {
   )
 
   // ---- set_kern: the only writer --------------------------------------
-  useWebMCPTool<{ pairs: { pair: string; kern: number }[]; force?: boolean }>(
+  useWebMCPTool<{
+    pairs: { pair: string; kern: number }[]
+    keep?: string[]
+    force?: boolean
+  }>(
     {
       name: 'set_kern',
       description:
@@ -586,6 +685,15 @@ export function useKernTools(api: KernApi) {
               required: ['pair', 'kern'],
             },
           },
+          keep: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'Pairs you looked at and are deliberately leaving as they are, e.g. ' +
+              '["HI","nn"]. Marks them reviewed so the survey can tell them apart ' +
+              'from pairs nobody has reached yet. Costs nothing — send it with ' +
+              'every batch.',
+          },
           force: {
             type: 'boolean',
             description:
@@ -593,10 +701,9 @@ export function useKernTools(api: KernApi) {
               'clearly justifies it.',
           },
         },
-        required: ['pairs'],
       } as const,
       enabled: ready,
-      execute: async ({ pairs, force }) => {
+      execute: async ({ pairs, keep, force }) => {
         api.countCall('set_kern')
         const swapped = api.takeFontChange()
         if (swapped) return stopForFontChange(api, swapped)
@@ -648,10 +755,13 @@ export function useKernTools(api: KernApi) {
         rejected.push(...collides)
         api.highlight(updates.map((u) => `${u.left}${u.right}`))
 
+        if (keep?.length) api.markReviewed(keep)
+
         const lines = [
           stamp(api),
           '',
           `applied ${applied.length} of ${updates.length}`,
+          keep?.length ? `left ${keep.length} reviewed and unchanged` : '',
           ...applied.map((a) => `  ${a.key}: ${a.from} → ${a.to}`),
         ]
         if (rejected.length) {

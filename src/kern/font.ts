@@ -550,3 +550,27 @@ export function quickWhite(lf: LoadedFont, left: string, right: string): number 
     1 / scale,
   ).opticalArea
 }
+
+/**
+ * How far this pair can tighten before the outlines touch.
+ *
+ * Without it the only way to find the limit is to propose a value and be
+ * refused — so an agent either guesses timidly or gets rejected repeatedly.
+ * Measured, not modelled: the gap is walked down until it closes.
+ */
+export function safeFloor(
+  lf: LoadedFont,
+  left: string,
+  right: string,
+  from = 0,
+): number {
+  const step = Math.round(lf.unitsPerEm / 100)
+  let value = from
+  for (let i = 0; i < 40; i++) {
+    const next = value - step
+    const { minGap, collides } = renderPair(lf, left, right, next).metrics
+    if (collides || minGap <= 8) return value
+    value = next
+  }
+  return value
+}

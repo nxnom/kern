@@ -39,6 +39,14 @@ export interface PairState {
   attempts: Attempt[]
   note?: string
   touchedAt?: number
+  /**
+   * When the agent last said it had looked at this pair and decided.
+   *
+   * Without it, "not reached yet" and "looked at and left alone" are the same
+   * state — which is how a survey stopped at 60 of 261 and reported itself
+   * finished.
+   */
+  reviewedAt?: number
 }
 
 export function initialPairs(

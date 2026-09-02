@@ -373,6 +373,7 @@ export default function App() {
           note: undefined,
           attempts,
           touchedAt: Date.now(),
+          reviewedAt: Date.now(),
         })
       }
 
@@ -491,6 +492,15 @@ export default function App() {
       },
       getPairs: () => scopedRef.current,
       applyKerns,
+      markReviewed: (keys: string[]) => {
+        const next = new Map(pairsRef.current)
+        for (const key of keys) {
+          const cur = next.get(key)
+          if (cur) next.set(key, { ...cur, reviewedAt: Date.now() })
+        }
+        pairsRef.current = next
+        setPairs(next)
+      },
       highlight,
       log: log_,
       countCall: (tool: string) => {
@@ -659,7 +669,11 @@ export default function App() {
 
       <Tabs
         tabs={[
-          { id: 'main', label: 'Main', badge: `${changed.length}/${list.length}` },
+          {
+            id: 'main',
+            label: 'Main',
+            badge: `${list.filter((p) => p.reviewedAt).length}/${list.length}`,
+          },
           { id: 'proof', label: 'Proof', badge: changed.length, disabled: !showProof },
           { id: 'tools', label: 'WebMCP tools', badge: registered.length },
           { id: 'log', label: 'Activity', badge: log.length, disabled: !log.length },
