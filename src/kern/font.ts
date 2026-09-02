@@ -498,3 +498,48 @@ export function installFontFace(buffer: ArrayBuffer): () => void {
     document.fonts.delete(face)
   }
 }
+
+/**
+ * Trapped white for one pair, measured as cheaply as possible.
+ *
+ * Building the pair list means measuring a few thousand candidates, so this
+ * skips the device-pixel scaling and reuses a single canvas. Accuracy at 40px
+ * is plenty for deciding whether a gap is worth a designer's attention.
+ */
+let gauge: HTMLCanvasElement | null = null
+
+export function quickWhite(lf: LoadedFont, left: string, right: string): number | null {
+  const SIZE = 40
+  const PAD = 12
+  const scale = SIZE / lf.unitsPerEm
+  const lGlyph = lf.font.charToGlyph(left)
+  const rGlyph = lf.font.charToGlyph(right)
+  if (!lGlyph || !rGlyph) return null
+
+  const lAdvance = lGlyph.advanceWidth ?? 0
+  const rAdvance = rGlyph.advanceWidth ?? 0
+  const width = Math.max(1, Math.ceil((lAdvance + rAdvance) * scale) + PAD * 2)
+  const height = Math.ceil(SIZE * 1.3)
+  const baselineY = Math.round(SIZE * 1.02)
+
+  gauge ??= document.createElement('canvas')
+  gauge.width = width
+  gauge.height = height
+  const ctx = gauge.getContext('2d', { willReadFrequently: true })
+  if (!ctx) return null
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, width, height)
+  drawGlyphInto(ctx, lGlyph, PAD, baselineY, SIZE, '#000000')
+  drawGlyphInto(ctx, rGlyph, PAD + lAdvance * scale, baselineY, SIZE, '#000000')
+
+  return measureBand(
+    ctx.getImageData(0, 0, width, height),
+    width,
+    0,
+    width,
+    Math.max(0, Math.floor(baselineY - lf.capHeight * scale)),
+    baselineY,
+    PAD + lAdvance * scale,
+    1 / scale,
+  ).opticalArea
+}

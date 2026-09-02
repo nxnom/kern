@@ -1,3 +1,6 @@
+import type { LoadedFont } from './font'
+import { controlWhite, quickWhite } from './font'
+
 /**
  * The pairs that actually need kerning, and how far a correction may
  * reasonably go.
@@ -89,3 +92,81 @@ export const PRIORITY_PAIRS: readonly [string, string][] = [
 export const SPECIMEN_WORDS = [
   'AVATAR', 'Toy Yacht', 'Waffle', 'LTV', 'HAMBURGER', 'Type', 'Wavy',
 ]
+
+/**
+ * Build the pair list from the font itself.
+ *
+ * A hardcoded list of fifty-one is a demo. A real face needs hundreds, and
+ * which ones depends on the shapes it actually draws — so generate every
+ * candidate the font can set, measure the white each one traps, and keep the
+ * ones that are genuinely out of step with a control pair.
+ *
+ * Measuring is what makes this honest: it reports the pairs that need work in
+ * *this* face, not the pairs that usually need work in general.
+ */
+const LEFT_CHARS =
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+const RIGHT_CHARS =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,;:!?')]}-"
+
+/**
+ * Classes where a correction is plausible at all. `other` is deliberately out:
+ * including it puts every letter combination through the measurement, which is
+ * four thousand of them and about a second and a half of blocked main thread
+ * on every font load — for pairs whose shapes give no reason to expect trouble.
+ */
+const WORTH_TESTING = new Set<PairClass>([
+  'diagonal-diagonal',
+  'overhang-round',
+  'overhang-diagonal',
+  'arm-punctuation',
+  'hook-bracket',
+])
+
+/** Ratio above which a gap is worth a designer's attention. */
+const NOTEWORTHY = 1.18
+/** As many as a person can survey without the grid becoming a wall. */
+const MAX_PAIRS = 240
+
+export interface GeneratedPair {
+  left: string
+  right: string
+  ratio: number
+}
+
+export function buildPairList(lf: LoadedFont): GeneratedPair[] {
+  const control = controlWhite(lf)
+  const found: GeneratedPair[] = []
+
+  for (const left of LEFT_CHARS) {
+    if (!hasGlyph(lf, left)) continue
+    for (const right of RIGHT_CHARS) {
+      if (!hasGlyph(lf, right)) continue
+      if (!WORTH_TESTING.has(classifyPair(left, right))) continue
+
+      const area = quickWhite(lf, left, right)
+      if (area === null) continue
+      const reference = /[A-Z0-9]/.test(left) ? control.caps : control.lower
+      if (!reference) continue
+      const ratio = area / reference
+      if (ratio >= NOTEWORTHY) found.push({ left, right, ratio })
+    }
+  }
+
+  // The classics go in whatever they measure: they are the pairs a type
+  // designer will look for first, and their absence would read as an oversight.
+  for (const [left, right] of PRIORITY_PAIRS) {
+    if (found.some((p) => p.left === left && p.right === right)) continue
+    if (!hasGlyph(lf, left) || !hasGlyph(lf, right)) continue
+    const area = quickWhite(lf, left, right)
+    const reference = /[A-Z0-9]/.test(left) ? control.caps : control.lower
+    if (area === null || !reference) continue
+    found.push({ left, right, ratio: area / reference })
+  }
+
+  return found.sort((a, b) => b.ratio - a.ratio).slice(0, MAX_PAIRS)
+}
+
+function hasGlyph(lf: LoadedFont, ch: string): boolean {
+  return lf.font.charToGlyphIndex(ch) > 0
+}

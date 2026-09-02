@@ -1,6 +1,6 @@
 import type { LoadedFont } from './font'
 import { existingKern } from './font'
-import { PRIORITY_PAIRS } from './pairs'
+import { buildPairList } from './pairs'
 
 /**
  * Derived from the value, never from who set it. Storing "the human changed
@@ -37,7 +37,7 @@ export interface PairState {
 
 export function initialPairs(lf: LoadedFont): Map<string, PairState> {
   const map = new Map<string, PairState>()
-  for (const [left, right] of PRIORITY_PAIRS) {
+  for (const { left, right } of buildPairList(lf)) {
     const original = existingKern(lf, left, right)
     map.set(`${left}${right}`, {
       key: `${left}${right}`,
