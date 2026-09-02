@@ -508,9 +508,19 @@ button svg { flex: none; }
 
 /* First paint, before the font is parsed. Quiet on purpose: an empty grid and
    a WebMCP banner arriving separately reads as a fault, not as loading. */
-.app.booting { padding-top: 44px; }
-.app.booting h1 { margin-bottom: 18px; }
+/* Centred, and CSS only — the markup is identical to the version that works.
+   Parsing the font takes a moment, and text pinned to the top-left reads as a
+   half-drawn page rather than as loading. */
+.app.booting {
+  min-height: 100vh; min-height: 100dvh;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 14px;
+  padding: 24px; text-align: center;
+}
+.app.booting h1 { margin: 0; line-height: 1; }
+.app.booting .wordmark-fallback { font-size: 38px; }
 .app.booting .muted { font-family: var(--mono); font-size: 12.5px; }
+.app.booting .error { margin: 0; max-width: 52ch; text-align: left; }
 
 /* ── crash ─────────────────────────────────────────────────────────── */
 .crashed { max-width: 720px; }
