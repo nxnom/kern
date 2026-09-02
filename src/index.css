@@ -491,3 +491,17 @@ button svg { flex: none; }
   max-width: 26ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   color: var(--graphite);
 }
+
+/* A refusal the agent was given, said out loud to the human as well —
+   otherwise the page simply stops responding to a run with no explanation. */
+.notice {
+  display: flex; align-items: center; gap: 12px;
+  margin: 14px 0 0; padding: 10px 14px; font-size: 12.5px;
+  color: var(--red); background: var(--red-wash);
+  border-left: 2px solid var(--red); border-radius: 0 5px 5px 0;
+}
+.notice button {
+  margin-left: auto; padding: 2px; border: 0; background: transparent;
+  color: var(--red);
+}
+.notice button:hover { background: transparent; opacity: .7; }

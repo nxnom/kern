@@ -85,6 +85,8 @@ export default function App() {
   const [restored, setRestored] = useState<{ at: number; count: number } | null>(null)
   const [confirmingReset, setConfirmingReset] = useState(false)
   const [activity, setActivity] = useState<Activity | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+  const noticeTimer = useRef<number | undefined>(undefined)
   /**
    * Proof claims the work is done, so it should not appear mid-run. It latches
    * on once the agent has either published a specimen or stopped calling
@@ -305,6 +307,13 @@ export default function App() {
     () => ({
       font: loaded,
       getFont: () => loadedRef.current,
+      fontId: key,
+      notify: (message: string) => {
+        setNotice(message)
+        log_(message, true)
+        window.clearTimeout(noticeTimer.current)
+        noticeTimer.current = window.setTimeout(() => setNotice(null), 12_000)
+      },
       takeFontChange: () => {
         if (seenEpoch.current === fontEpoch.current) return null
         seenEpoch.current = fontEpoch.current
@@ -332,7 +341,7 @@ export default function App() {
         setProofText(text)
       },
     }),
-    [loaded, applyKerns, highlight, log_],
+    [loaded, key, applyKerns, highlight, log_],
   )
   useKernTools(api)
   const registered = registeredToolNames(loaded !== null)
@@ -440,6 +449,15 @@ export default function App() {
           ]}
         />
       </section>
+
+      {notice && (
+        <p className="notice" role="status">
+          {notice}
+          <button onClick={() => setNotice(null)} aria-label="Dismiss">
+            <IconClose />
+          </button>
+        </p>
+      )}
 
       {restored && (
         <p className="restored">

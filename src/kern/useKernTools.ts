@@ -15,6 +15,11 @@ export interface KernApi {
    * a change of typeface unnoticed.
    */
   takeFontChange: () => string | null
+  /** Short fingerprint of the loaded font's bytes — the same one sessions are
+   *  filed under, so the agent and the page name the face identically. */
+  fontId: string | null
+  /** Surfaces a refusal to the human as well as to the agent. */
+  notify: (message: string) => void
   /** Read through a ref so tools never close over stale state. */
   getPairs: () => Map<string, PairState>
   /** Applies values, returning what stuck and what did not. */
@@ -41,6 +46,15 @@ const READ_ONLY = { readOnlyHint: true }
 let previewsSinceApply = 0
 export function resetPreviewCount() {
   previewsSinceApply = 0
+}
+
+/**
+ * Stamped on every response so the agent always knows which face it is holding
+ * — and can tell, across a pause or a fresh chat, whether the page still has
+ * the one it planned against.
+ */
+function stamp(api: KernApi): string {
+  return `font: ${api.font?.familyName ?? 'none'} (${api.fontId ?? '—'})`
 }
 
 /** Plain-language reading of the control ratio. */
@@ -105,11 +119,13 @@ export function useKernTools(api: KernApi) {
         api.countCall('list_pairs')
         const swapped = api.takeFontChange()
         if (swapped) {
-          return text_(
+          const message =
             `Stop: the human loaded a different font. The page now has ` +
-              `"${swapped}", and every value and measurement you were working ` +
-              `from belongs to the previous face. Start again with survey_pairs.`,
-          )
+            `"${swapped}" (${api.fontId ?? '—'}), and every value and measurement ` +
+            `you were working from belongs to the previous face. ` +
+            `Start again with survey_pairs.`
+          api.notify(`Font changed to ${swapped} — agent told to start over`)
+          return text_(message)
         }
         const wanted = (status ?? 'all') as PairStatus | 'all'
         const shown = [...api.getPairs().values()].filter(
@@ -124,6 +140,7 @@ export function useKernTools(api: KernApi) {
           )
         api.highlight(shown.map((p) => p.key))
         return text_(
+          `${stamp(api)}\n\n` +
           `pair\tkern\toriginal\tstatus\tclass\tattempts\n${rows.join('\n')}\n\n` +
             `${rows.length} pairs. em = ${font!.unitsPerEm}.\n${progressLine(api.getPairs())}`,
         )
@@ -165,11 +182,13 @@ export function useKernTools(api: KernApi) {
         api.countCall('survey_pairs')
         const swapped = api.takeFontChange()
         if (swapped) {
-          return text_(
+          const message =
             `Stop: the human loaded a different font. The page now has ` +
-              `"${swapped}", and every value and measurement you were working ` +
-              `from belongs to the previous face. Start again with survey_pairs.`,
-          )
+            `"${swapped}" (${api.fontId ?? '—'}), and every value and measurement ` +
+            `you were working from belongs to the previous face. ` +
+            `Start again with survey_pairs.`
+          api.notify(`Font changed to ${swapped} — agent told to start over`)
+          return text_(message)
         }
         const all = api.getPairs()
         let chosen: PairState[]
@@ -219,6 +238,7 @@ export function useKernTools(api: KernApi) {
             {
               type: 'text' as const,
               text:
+                `${stamp(api)}\n\n` +
                 `${sheet.cells.length} pairs, ${sheet.columns} columns, ` +
                 `reading left to right.\n\n` +
                 `The ratio is this pair's trapped white divided by a control ` +
@@ -268,11 +288,13 @@ export function useKernTools(api: KernApi) {
         api.countCall('preview_pair')
         const swapped = api.takeFontChange()
         if (swapped) {
-          return text_(
+          const message =
             `Stop: the human loaded a different font. The page now has ` +
-              `"${swapped}", and every value and measurement you were working ` +
-              `from belongs to the previous face. Start again with survey_pairs.`,
-          )
+            `"${swapped}" (${api.fontId ?? '—'}), and every value and measurement ` +
+            `you were working from belongs to the previous face. ` +
+            `Start again with survey_pairs.`
+          api.notify(`Font changed to ${swapped} — agent told to start over`)
+          return text_(message)
         }
         if ([...left].length !== 1 || [...right].length !== 1) {
           throw new Error('left and right must each be exactly one character.')
@@ -293,6 +315,8 @@ export function useKernTools(api: KernApi) {
             {
               type: 'text' as const,
               text: [
+                stamp(api),
+                '',
                 `pair: ${key}`,
                 previewsSinceApply >= 3
                   ? `STOP PREVIEWING. You have previewed ${previewsSinceApply} values ` +
@@ -355,11 +379,13 @@ export function useKernTools(api: KernApi) {
         api.countCall('publish_specimen')
         const swapped = api.takeFontChange()
         if (swapped) {
-          return text_(
+          const message =
             `Stop: the human loaded a different font. The page now has ` +
-              `"${swapped}", and every value and measurement you were working ` +
-              `from belongs to the previous face. Start again with survey_pairs.`,
-          )
+            `"${swapped}" (${api.fontId ?? '—'}), and every value and measurement ` +
+            `you were working from belongs to the previous face. ` +
+            `Start again with survey_pairs.`
+          api.notify(`Font changed to ${swapped} — agent told to start over`)
+          return text_(message)
         }
         const line = text.slice(0, 60)
         const chars = [...line]
@@ -453,11 +479,13 @@ export function useKernTools(api: KernApi) {
         api.countCall('set_kern')
         const swapped = api.takeFontChange()
         if (swapped) {
-          return text_(
+          const message =
             `Stop: the human loaded a different font. The page now has ` +
-              `"${swapped}", and every value and measurement you were working ` +
-              `from belongs to the previous face. Start again with survey_pairs.`,
-          )
+            `"${swapped}" (${api.fontId ?? '—'}), and every value and measurement ` +
+            `you were working from belongs to the previous face. ` +
+            `Start again with survey_pairs.`
+          api.notify(`Font changed to ${swapped} — agent told to start over`)
+          return text_(message)
         }
         // A call already in flight when the swap happened still holds the old
         // font, which the epoch check cannot see.
@@ -478,6 +506,8 @@ export function useKernTools(api: KernApi) {
         api.highlight(updates.map((u) => `${u.left}${u.right}`))
 
         const lines = [
+          stamp(api),
+          '',
           `applied ${applied.length} of ${updates.length}`,
           ...applied.map((a) => `  ${a.key}: ${a.from} → ${a.to}`),
         ]
