@@ -7,11 +7,13 @@ interface Props {
   loaded: LoadedFont
   pairs: PairState[]
   activeKeys: string[]
+  /** The pair the reader clicked, which drives the Selected band. */
+  selectedKey: string
   onSelect: (key: string) => void
   shade: boolean
 }
 
-export function PairGrid({ loaded, pairs, activeKeys, onSelect, shade }: Props) {
+export function PairGrid({ loaded, pairs, activeKeys, selectedKey, onSelect, shade }: Props) {
   const active = new Set(activeKeys)
   const lead = activeKeys[0]
   return (
@@ -23,6 +25,7 @@ export function PairGrid({ loaded, pairs, activeKeys, onSelect, shade }: Props) 
           pair={p}
           active={active.has(p.key)}
           lead={p.key === lead}
+          selected={p.key === selectedKey}
           onSelect={onSelect}
           shade={shade}
         />
@@ -36,6 +39,7 @@ function PairTile({
   pair,
   active,
   lead,
+  selected,
   onSelect,
   shade,
 }: {
@@ -43,6 +47,7 @@ function PairTile({
   pair: PairState
   active: boolean
   lead: boolean
+  selected: boolean
   onSelect: (key: string) => void
   shade: boolean
 }) {
@@ -82,7 +87,8 @@ function PairTile({
   return (
     <button
       ref={ref}
-      className={`tile ${pair.status} ${active ? 'active' : ''} ${lead ? 'lead' : ''}`}
+      className={`tile ${pair.status} ${selected ? 'selected' : ''} ${active ? 'active' : ''}`}
+      aria-pressed={selected}
       onClick={() => onSelect(pair.key)}
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
