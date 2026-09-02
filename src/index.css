@@ -567,34 +567,41 @@ button svg { flex: none; }
 /* ── masthead ──────────────────────────────────────────────────────── */
 /* One row. The face, what it shipped and every control that acts on it — as
    five stacked blocks this was half the screen before a single tile. */
+/* One line, always: the actions wrapping to a row of their own left a band of
+   empty page between the name and the controls that act on it. */
 .head {
-  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
-  padding-bottom: 14px; border-bottom: 1px solid var(--rule-hard);
+  display: flex; align-items: center; gap: 18px;
+  padding-bottom: 12px; border-bottom: 1px solid var(--rule-hard);
 }
 h1 { margin: 0; line-height: 0; flex: none; }
 .wordmark { display: block; height: 30px; width: auto; }
 .wordmark-fallback { font-family: Georgia, serif; font-size: 28px; line-height: 1; }
 
+/* The name only. Units per em and what the face shipped are reference facts,
+   not identity — they sit on the status line and in the tooltip. */
 .face {
-  margin: 0; min-width: 0; display: flex; align-items: baseline; gap: 12px;
-  flex-wrap: wrap; font-family: var(--mono); font-size: 11.5px; color: var(--graphite);
+  margin: 0; min-width: 0; display: flex; align-items: baseline; gap: 7px;
+  font-family: var(--mono); font-size: 13px; color: var(--graphite);
+  overflow: hidden; white-space: nowrap;
 }
+.face b { font-weight: 600; }
 .face b { color: var(--ink); font-size: 13px; font-weight: 600; }
 .face i { font-style: normal; }
-.face span::before { content: '· '; color: var(--rule-hard); }
+
 .face .unload {
   padding: 1px; border: 0; background: transparent; color: var(--rule-hard);
 }
 .face .unload:hover { color: var(--ink); background: transparent; }
 
-.head-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.head-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; flex: none; }
 
 /* ── the line that says what is happening ──────────────────────────── */
 .now {
   display: flex; align-items: baseline; gap: 16px; min-height: 34px;
   padding: 9px 0 0; font-size: 12.5px;
 }
-.now .restored {
-  margin-left: auto; flex: none;
-  font-family: var(--mono); font-size: 11px; color: var(--graphite);
+.now .facts {
+  margin-left: auto; flex: none; display: flex; gap: 10px;
+  font-family: var(--mono); font-size: 11px; color: var(--rule-hard);
 }
+.now .facts b { color: var(--graphite); font-weight: 400; }

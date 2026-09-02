@@ -519,13 +519,12 @@ export default function App() {
           <Wordmark loaded={loaded} pairs={pairs} />
         </h1>
 
-        <p className="face" title={loaded.source}>
+        <p
+          className="face"
+          title={`${loaded.source} · ${loaded.unitsPerEm} units per em`}
+        >
           <b>{loaded.familyName}</b>
           {loaded.styleName && <i> {loaded.styleName}</i>}
-          <span>{loaded.unitsPerEm} em</span>
-          <span>
-            {kernedInFont}/{list.length} shipped kerned
-          </span>
           {loaded.source !== SAMPLE.label && (
             <button
               className="unload"
@@ -597,11 +596,10 @@ export default function App() {
           calls={callCount}
           everCalled={callCount > 0}
         />
-        {restored && (
-          <span className="restored">
-            restored {restored.count} from {relativeTime(restored.at)}
-          </span>
-        )}
+        <span className="facts">
+          {restored && <b>restored {restored.count} from {relativeTime(restored.at)}</b>}
+          {loaded.unitsPerEm} units/em · {kernedInFont} of {list.length} shipped kerned
+        </span>
       </div>
 
       <Tabs
