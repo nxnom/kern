@@ -45,8 +45,6 @@ const BUSY_MS = 30_000
  * lie about where the agent's attention is.
  */
 const ACTIVE_MS = 6_000
-/** Human edits closer together than this count as one adjustment. */
-const COALESCE_MS = 1_200
 
 const PANGRAM = 'Waltz, bad nymph, for quick jigs vex.'
 
@@ -276,15 +274,12 @@ export default function App() {
           continue
         }
         applied.push({ key, from: cur.kern, to: u.value })
-        // A burst of nudges is one decision, not forty. Collapse consecutive
-        // human edits to the same pair into a single entry, so the trail keeps
-        // showing reasoning rather than every keystroke on the way there.
+        // The trail is a record of reasoning, and hand edits have none to
+        // show — only where they ended up. So consecutive human edits collapse
+        // into a single entry that keeps updating, however far apart they are.
+        // The agent's attempts still each get their own entry.
         const last = cur.attempts.at(-1)
-        const coalesce =
-          by === 'human' &&
-          last?.by === 'human' &&
-          !last.rejected &&
-          Date.now() - last.at < COALESCE_MS
+        const coalesce = by === 'human' && last?.by === 'human' && !last.rejected
         if (coalesce) coalesced.add(key)
         const attempt = { value: u.value, rejected: false, at: Date.now(), by }
         next.set(key, {
