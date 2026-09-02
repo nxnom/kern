@@ -100,14 +100,30 @@ function defaultCandidates(lf: LoadedFont, left: string, right: string): number[
   const { min, max } = typicalRange(left, right, lf.unitsPerEm)
   // Never propose past a collision, and never lead with the floor: it is a
   // limit, and offering it as a candidate invites the over-tightening it is
-  // supposed to prevent. Values like -10 or -20 used to need a second pass.
+  // supposed to prevent.
   const lo = Math.max(min, floor)
-  const step = (max - lo) / 3
+
+  // Spend the four slots where the pair actually lives. `AT` sits in a class
+  // running -120..+40, and leading with +40 spent a slot on a direction the
+  // pair does not want. Offer the positive end only where the class leans that
+  // way — brackets after an f, straight-sided pairs — and otherwise start at 0.
+  const top = max > 0 && max >= Math.abs(min) ? max : Math.min(max, 0)
+
+  const step = (top - lo) / 3
   const round5 = (n: number) => Math.round(n / 5) * 5
-  const out = [max, max - step, max - 2 * step, lo].map(round5)
-  // Keep zero on the sheet when it is a legal value: it is the reference every
-  // other cell is judged against.
-  if (lo <= 0 && max >= 0 && !out.includes(0)) out[2] = 0
+  const out = [top, top - step, top - 2 * step, lo].map(round5)
+
+  // Keep zero on the sheet when it is legal — it is the reference every other
+  // cell is judged against — but put it in place of the value NEAREST zero, not
+  // a fixed slot. Overwriting slot 2 threw away -65 from AT's spread and left
+  // nothing between -15 and -120, which is exactly the range the pair wanted.
+  if (lo <= 0 && top >= 0 && !out.includes(0)) {
+    let nearest = 0
+    for (let i = 1; i < out.length; i++) {
+      if (Math.abs(out[i]) < Math.abs(out[nearest])) nearest = i
+    }
+    out[nearest] = 0
+  }
   return [...new Set(out)].sort((a, b) => b - a).slice(0, 4)
 }
 
@@ -186,6 +202,8 @@ function stamp(api: KernApi, rescoped?: string | null): string {
  * A graze is fine. A crash is not.
  */
 const CRASH_CONTACT = 0.3
+/** Below this, contact is a serif tip rather than anything to worry about. */
+const SERIF_GRAZE = 0.08
 
 /**
  * What the geometry can honestly say: whether tightening this pair is safe.
@@ -210,10 +228,21 @@ function risk(lf: LoadedFont, m: PairMetrics): { risk: Risk; why: string } {
       why: `outlines meet across ${Math.round(m.contact * 100)}% of the height ${where}`,
     }
   }
-  if (m.contact > 0) {
+  // A couple of per cent is a serif tip meeting its neighbour, which is
+  // ordinary in a serif face. Calling that "touching" read as a warning and
+  // talked the agent out of kerning `AT` at all.
+  if (m.contact >= SERIF_GRAZE) {
     return {
       risk: 'touching',
-      why: `touching ${Math.round(m.contact * 100)}% ${where} — a serif tip, probably, but look`,
+      why: `touching ${Math.round(m.contact * 100)}% ${where} — look before tightening`,
+    }
+  }
+  if (m.contact > 0) {
+    return {
+      risk: m.minGap < near * 2 ? 'tight' : 'clear',
+      why:
+        `serif tips graze ${Math.round(m.contact * 100)}% ${where} — normal in a ` +
+        `serif face, and not a reason to leave the pair alone`,
     }
   }
   // The tier that was missing. Outlines that do not intersect can still be far
