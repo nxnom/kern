@@ -103,16 +103,6 @@ export interface PairMetrics {
   contact: number
   /** Where the tightest part sits, as a fraction of cap height from the top. */
   contactAt: number
-  /**
-   * How TALL the contact actually is, in font units.
-   *
-   * `contact` alone is a fraction of the facing height, and for a small mark
-   * the facing height is small: a period sitting near a T's stem reported
-   * touching over 100% of it, which read as a crash and was a few units of a
-   * legitimately tight tuck. A crash has to be a long run of contact in
-   * absolute terms as well as a proportional one.
-   */
-  contactUnits: number
   /** True when the outlines actually overlap. */
   collides: boolean
 }
@@ -452,7 +442,6 @@ export function measureBand(
     minGap: Number.isFinite(minGapPx) ? Math.round(minGapPx * toUnits) : 0,
     maxGap: Math.round(maxGapPx * toUnits),
     contact: rows > 0 ? contactRows / rows : 0,
-    contactUnits: Math.round(contactRows * toUnits),
     contactAt: (minAtY - Math.max(0, yTop)) / bandHeight,
     collides,
   }
@@ -663,19 +652,6 @@ export function quickWhite(lf: LoadedFont, left: string, right: string): number 
  * refused — so an agent either guesses timidly or gets rejected repeatedly.
  * Measured, not modelled: the gap is walked down until it closes.
  */
-/**
- * A crash, as opposed to two shapes legitimately sitting close.
- *
- * Needs BOTH a high proportion of the facing height AND a long run of it in
- * absolute terms. Proportion alone condemned `T.` and `r,`: a small mark has a
- * short facing height, so a couple of units of nearness read as 100% contact
- * and the tool called a correct, tight tuck a collision.
- */
-export function isCrash(lf: LoadedFont, m: PairMetrics): boolean {
-  if (m.collides) return true
-  return m.contact >= 0.3 && m.contactUnits >= lf.capHeight * 0.25
-}
-
 const floors = new Map<string, number>()
 export function safeFloor(
   lf: LoadedFont,
@@ -691,8 +667,11 @@ export function safeFloor(
   const STEPS = 40
   // measurePair, not renderPair: this walk needs the numbers, and renderPair
   // also encodes a PNG that is thrown away.
-  // Same definition of a crash the writer and the survey use.
-  const crashes = (v: number) => isCrash(lf, measurePair(lf, left, right, v))
+  const crashes = (v: number) => {
+    const { contact, collides } = measurePair(lf, left, right, v)
+    // Same definition of a crash the writer uses: not a serif graze.
+    return collides || contact >= 0.3
+  }
 
   // Halve the interval rather than walk it. Tightening only ever brings the
   // outlines closer, so the crash point is a single boundary and bisection
