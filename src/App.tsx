@@ -258,11 +258,23 @@ export default function App() {
     setActiveKeys([])
   }
 
-  // Appended, not prepended: the log reads top to bottom like a transcript.
-  const log_ = useCallback((text: string, rejected = false) => {
-    setLog((prev) =>
-      [...prev, { id: logId.current++, at: Date.now(), text, rejected }].slice(-250),
-    )
+  /**
+   * Appended, not prepended: the log reads top to bottom like a transcript.
+   * `replaceKey` rewrites the last line when it belongs to the same pair, so a
+   * run of nudges stays one entry that keeps up rather than fifty.
+   */
+  const log_ = useCallback((text: string, rejected = false, replaceKey?: string) => {
+    // Both allocated before the updater: React may run one more than once, and
+    // an id handed out twice would give two lines the same key.
+    const at = Date.now()
+    const id = logId.current++
+    setLog((prev) => {
+      const last = prev.at(-1)
+      if (replaceKey && last?.text.startsWith(`${replaceKey} ·`)) {
+        return [...prev.slice(0, -1), { ...last, at, text, rejected }]
+      }
+      return [...prev, { id, at, text, rejected }].slice(-250)
+    })
   }, [])
 
   const highlight = useCallback((keys: string[]) => {
@@ -292,6 +304,7 @@ export default function App() {
       const applied: Applied[] = []
       const rejected: Rejected[] = []
       const coalesced = new Set<string>()
+      const burstStart = new Map<string, number>()
       const next = new Map(current)
 
       for (const u of updates) {
@@ -323,7 +336,15 @@ export default function App() {
         const last = cur.attempts.at(-1)
         const coalesce = by === 'human' && last?.by === 'human' && !last.rejected
         if (coalesce) coalesced.add(key)
-        const attempt = { value: u.value, rejected: false, at: Date.now(), by }
+        if (coalesce) burstStart.set(key, last?.from ?? cur.kern)
+        const attempt = {
+          value: u.value,
+          rejected: false,
+          at: Date.now(),
+          by,
+          // Keep the start of the run so the log can say 0 → −80, not 0 → −10.
+          from: coalesce ? (last?.from ?? cur.kern) : cur.kern,
+        }
         const attempts = coalesce
           ? [...cur.attempts.slice(0, -1), attempt]
           : [...cur.attempts, attempt]
@@ -341,9 +362,14 @@ export default function App() {
       setPairs(next)
 
       for (const a of applied) {
-        // A coalesced nudge already has a line in the log; leave it alone.
-        if (coalesced.has(a.key)) continue
-        log_(`${a.key} · ${a.from} → ${a.to}${by === 'human' ? ' (you)' : ''}`)
+        // A run of nudges keeps one line, rewritten to where it has got to —
+        // skipping it left the log showing the first value for ever.
+        const from = burstStart.get(a.key) ?? a.from
+        log_(
+          `${a.key} · ${from} → ${a.to}${by === 'human' ? ' (you)' : ''}`,
+          false,
+          coalesced.has(a.key) ? a.key : undefined,
+        )
       }
       for (const r of rejected) log_(`${r.key} · rejected: ${r.reason}`, true)
       return { applied, rejected }

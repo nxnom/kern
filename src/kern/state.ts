@@ -19,6 +19,12 @@ export interface Attempt {
   at: number
   /** Who set it. The trail is only useful if it says whose decision it was. */
   by?: 'agent' | 'human'
+  /**
+   * Where a run of hand edits began. Consecutive nudges collapse into one
+   * attempt, so without this the record would say where the burst started and
+   * never where it ended, or vice versa.
+   */
+  from?: number
 }
 
 export interface PairState {
