@@ -386,8 +386,6 @@ export default function App() {
   activityRef.current = activity
 
   const list = useMemo(() => [...pairs.values()], [pairs])
-  // How much kerning the font arrived with — the honest starting point.
-  const kernedInFont = list.filter((p) => p.original !== 0).length
 
   const changed = useMemo(
     () =>
@@ -596,10 +594,11 @@ export default function App() {
           calls={callCount}
           everCalled={callCount > 0}
         />
-        <span className="facts">
-          {restored && <b>restored {restored.count} from {relativeTime(restored.at)}</b>}
-          {loaded.unitsPerEm} units/em · {kernedInFont} of {list.length} shipped kerned
-        </span>
+        {restored && (
+          <span className="facts">
+            restored {restored.count} from {relativeTime(restored.at)}
+          </span>
+        )}
       </div>
 
       <Tabs

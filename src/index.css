@@ -596,12 +596,13 @@ h1 { margin: 0; line-height: 0; flex: none; }
 .head-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; flex: none; }
 
 /* ── the line that says what is happening ──────────────────────────── */
+/* The prompt is a bordered box, so it needs air above and below or it reads as
+   though it is welded to the rules either side of it. */
 .now {
   display: flex; align-items: baseline; gap: 16px; min-height: 34px;
-  padding: 9px 0 0; font-size: 12.5px;
+  padding: 16px 0 18px; font-size: 12.5px;
 }
 .now .facts {
-  margin-left: auto; flex: none; display: flex; gap: 10px;
-  font-family: var(--mono); font-size: 11px; color: var(--rule-hard);
+  margin-left: auto; flex: none;
+  font-family: var(--mono); font-size: 11px; color: var(--graphite);
 }
-.now .facts b { color: var(--graphite); font-weight: 400; }
