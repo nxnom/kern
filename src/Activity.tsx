@@ -41,6 +41,7 @@ export function ActivityStrip({
   changed,
   total,
   calls,
+  everCalled,
 }: {
   activity: Activity | null
   activeKeys: string[]
@@ -48,6 +49,8 @@ export function ActivityStrip({
   changed: number
   total: number
   calls: number
+  /** Once an agent has called anything, the prompt has served its purpose. */
+  everCalled: boolean
 }) {
   if (activity) {
     return (
@@ -77,6 +80,19 @@ export function ActivityStrip({
               Export the font, or ask the agent to carry on.
             </>
           )}
+        </span>
+      </span>
+    )
+  }
+
+  // The agent has been here but applied nothing: say so rather than handing
+  // back a prompt that has already been used.
+  if (everCalled) {
+    return (
+      <span className="idle">
+        <span className="muted">
+          Agent is idle after {calls} tool call{calls === 1 ? '' : 's'}. Nothing has
+          been applied yet.
         </span>
       </span>
     )

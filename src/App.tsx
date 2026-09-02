@@ -34,6 +34,12 @@ const SAMPLE = {
 }
 /** How long tiles stay lit after the agent touches them. */
 const ACTIVE_MS = 2600
+/**
+ * How long after a tool call the agent still counts as working. It pauses to
+ * read a contact sheet, so a short window kept dropping it back to idle in the
+ * middle of a run.
+ */
+const BUSY_MS = 30_000
 
 const PANGRAM = 'Waltz, bad nymph, for quick jigs vex.'
 
@@ -304,7 +310,7 @@ export default function App() {
         // recently"; the strip falls back to a summary after a quiet spell.
         setActivity({ tool, at: Date.now() })
         window.clearTimeout(busyTimer.current)
-        busyTimer.current = window.setTimeout(() => setActivity(null), 6000)
+        busyTimer.current = window.setTimeout(() => setActivity(null), BUSY_MS)
       },
       // Publishing selects it too — the agent chose it, so show it.
       setSpecimen: (text: string) => {
@@ -437,6 +443,7 @@ export default function App() {
           changed={changed.length}
           total={list.length}
           calls={callCount}
+          everCalled={callCount > 0}
         />
       </section>
 
