@@ -2,13 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Activity } from './Activity'
 import { ActivityStrip } from './Activity'
 import { Confirm } from './Confirm'
+import { Dock } from './Dock'
 import { Wordmark } from './Wordmark'
 import { DownloadMenu } from './DownloadMenu'
-import { IconChevron, IconClose, IconContrast, IconReset, IconUpload } from './Icons'
+import { IconClose, IconContrast, IconReset, IconUpload } from './Icons'
 import { Toggle } from './Toggle'
 import { PairDetail } from './PairDetail'
 import { PairGrid } from './PairGrid'
-import { Section } from './Section'
 import { Specimen } from './Specimen'
 import type { LoadedFont } from './kern/font'
 import { installFontFace, loadFontFromBuffer, loadFontFromUrl } from './kern/font'
@@ -105,7 +105,7 @@ export default function App() {
    */
   const [proofReady, setProofReady] = useState(false)
   const [log, setLog] = useState<LogLine[]>([])
-  const [logOpen, setLogOpen] = useState(false)
+  const [dockOpen, setDockOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const fileInput = useRef<HTMLInputElement>(null)
@@ -143,10 +143,10 @@ export default function App() {
 
   // Keep the newest line in view, both on open and as calls arrive.
   useEffect(() => {
-    if (!logOpen) return
+    if (!dockOpen) return
     const el = logBody.current
     if (el) el.scrollTop = el.scrollHeight
-  }, [logOpen, log])
+  }, [dockOpen, log])
 
   useEffect(() => {
     void pick(SAMPLE)
@@ -342,6 +342,17 @@ export default function App() {
   )
 
   /** A value the human set by hand. Forced, because their eye outranks the rule. */
+  // Selecting a pair or seeing the first tool call opens the dock once; after
+  // that it stays wherever the reader left it.
+  const opened = useRef(false)
+  useEffect(() => {
+    if (opened.current) return
+    if (selected || callCount > 0) {
+      opened.current = true
+      setDockOpen(true)
+    }
+  }, [selected, callCount])
+
   const nudge = useCallback(
     (key: string, value: number) => {
       const state = pairsRef.current.get(key)
@@ -503,7 +514,7 @@ export default function App() {
   }
 
   return (
-    <div className={`app ${log.length > 0 ? "has-drawer" : ""}`}>
+    <div className="app has-dock">
       <header className="head">
         <h1>
           <Wordmark loaded={loaded} pairs={pairs} />
@@ -615,81 +626,7 @@ export default function App() {
           everCalled={callCount > 0}
         />
       </section>
-
-      {/* Always present once a pair is selected: hiding it for untouched pairs
-          made the page jump every time you clicked around the grid. */}
-      {detail && (
-        <Section
-          className="sticky"
-          label="Selected"
-          meta={
-            detail.attempts.length > 0 ? (
-              <>
-                {detail.key} · {detail.attempts.length} attempt
-                {detail.attempts.length === 1 ? '' : 's'}
-              </>
-            ) : (
-              <>{detail.key} · untouched</>
-            )
-          }
-        >
-          <PairDetail
-            loaded={loaded}
-            pair={detail}
-            shade={shade}
-            onNudge={(value) => nudge(detail.key, value)}
-          />
-        </Section>
-      )}
-
-      {showProof && (
-        <Section label="Proof" meta={<>set the line you want to judge</>}>
-          <div className="specimen-head">
-            <div className="chips">
-              <button
-                className={proof === changedPairsLine ? 'on' : ''}
-                onClick={() => setProofText(null)}
-              >
-                Changed pairs
-              </button>
-              {agentLine && (
-                <button
-                  className={proof === agentLine ? 'on' : ''}
-                  onClick={() => setProofText(agentLine)}
-                >
-                  Agent’s line
-                </button>
-              )}
-              <button
-                className={proof === contextLine ? 'on' : ''}
-                onClick={() => setProofText(contextLine)}
-                title={contextLine}
-              >
-                In context
-              </button>
-              <button
-                className={proof === PANGRAM ? 'on' : ''}
-                onClick={() => setProofText(PANGRAM)}
-                title={PANGRAM}
-              >
-                Pangram
-              </button>
-            </div>
-          </div>
-          <Specimen
-            loaded={loaded}
-            word={proof}
-            pairs={pairs}
-            shade={shade}
-          />
-        </Section>
-      )}
-
-      {/* Nothing to show before the first tool call, so stay out of the way. */}
-      <Section
-        label="Survey"
-        meta={<>{list.length} pairs worth attention in this face</>}
-      >
+      <div className="grid-wrap">
         <PairGrid
           loaded={loaded}
           pairs={list}
@@ -698,42 +635,103 @@ export default function App() {
           onSelect={setSelected}
           shade={shade}
         />
-      </Section>
+      </div>
 
       {confirmingReset && (
         <Confirm
           title="Reset this font"
-          body={`This discards all ${changed.length} kerning changes and the saved session for ${loaded?.familyName ?? 'this font'}. It cannot be undone.`}
+          body={`This discards all ${changed.length} kerning changes and the saved session for ${loaded.familyName}. It cannot be undone.`}
           confirmLabel="Discard changes"
           onConfirm={resetSession}
           onCancel={() => setConfirmingReset(false)}
         />
       )}
 
-      {log.length > 0 && (
-        <aside className={`drawer ${logOpen ? 'open' : ''}`}>
-          <button className="drawer-handle" onClick={() => setLogOpen((v) => !v)}>
-            <span>Tool calls</span>
-            <b>{callCount}</b>
-            <span className="chev">
-              <IconChevron up={!logOpen} />
-            </span>
-          </button>
-          <ol className="drawer-body" ref={logBody}>
-            {log.map((l) => (
-              <li
-                key={l.id}
-                className={`${l.rejected ? 'rejected' : ''} ${
-                  l.text.startsWith('→') ? 'call' : ''
-                }`}
-              >
-                <time>{new Date(l.at).toLocaleTimeString('en-GB')}</time>
-                {l.text}
-              </li>
-            ))}
-          </ol>
-        </aside>
-      )}
+      <Dock
+        open={dockOpen}
+        onOpenChange={setDockOpen}
+        tabs={[
+          ...(detail
+            ? [{
+                id: 'selected',
+                label: 'Selected',
+                badge: detail.key,
+                content: (
+                  <PairDetail
+                    loaded={loaded}
+                    pair={detail}
+                    shade={shade}
+                    onNudge={(value) => nudge(detail.key, value)}
+                  />
+                ),
+              }]
+            : []),
+          ...(showProof
+            ? [{
+                id: 'proof',
+                label: 'Proof',
+                badge: changed.length,
+                content: (
+                  <>
+                    <div className="chips">
+                      <button
+                        className={proof === changedPairsLine ? 'on' : ''}
+                        onClick={() => setProofText(null)}
+                      >
+                        Changed pairs
+                      </button>
+                      {agentLine && (
+                        <button
+                          className={proof === agentLine ? 'on' : ''}
+                          onClick={() => setProofText(agentLine)}
+                        >
+                          Agent’s line
+                        </button>
+                      )}
+                      <button
+                        className={proof === contextLine ? 'on' : ''}
+                        onClick={() => setProofText(contextLine)}
+                        title={contextLine}
+                      >
+                        In context
+                      </button>
+                      <button
+                        className={proof === PANGRAM ? 'on' : ''}
+                        onClick={() => setProofText(PANGRAM)}
+                        title={PANGRAM}
+                      >
+                        Pangram
+                      </button>
+                    </div>
+                    <Specimen loaded={loaded} word={proof} pairs={pairs} shade={shade} />
+                  </>
+                ),
+              }]
+            : []),
+          ...(log.length
+            ? [{
+                id: 'log',
+                label: 'Tool calls',
+                badge: callCount,
+                content: (
+                  <ol className="log-list" ref={logBody}>
+                    {log.map((l) => (
+                      <li
+                        key={l.id}
+                        className={`${l.rejected ? 'rejected' : ''} ${
+                          l.text.startsWith('→') ? 'call' : ''
+                        }`}
+                      >
+                        <time>{new Date(l.at).toLocaleTimeString('en-GB')}</time>
+                        {l.text}
+                      </li>
+                    ))}
+                  </ol>
+                ),
+              }]
+            : []),
+        ]}
+      />
 
     </div>
   )

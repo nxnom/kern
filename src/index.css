@@ -379,41 +379,6 @@ button svg { flex: none; }
   background: var(--red-wash); color: var(--red);
 }
 
-/* ── log drawer ────────────────────────────────────────────────────── */
-.drawer {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
-  background: var(--card); border-top: 1px solid var(--rule-hard);
-}
-.drawer-handle {
-  width: 100%; display: flex; align-items: center; gap: 10px;
-  padding: 13px 28px; border: 0; border-radius: 0; background: var(--card);
-  font-family: var(--mono); font-size: 11px; text-transform: uppercase;
-  letter-spacing: .09em; color: var(--graphite); cursor: pointer;
-}
-.drawer-handle:hover { background: var(--blue-wash); }
-.drawer-handle b {
-  color: var(--ink); background: #f6f7f9; border: 1px solid var(--rule);
-  padding: 1px 8px; border-radius: 10px; font-size: 11px; letter-spacing: 0;
-}
-.drawer-handle .chev {
-  margin-left: auto; color: var(--graphite);
-  width: 26px; height: 26px; display: grid; place-items: center;
-  border: 1px solid var(--rule); border-radius: 5px;
-}
-.drawer-body {
-  list-style: none; margin: 0; padding: 0 28px;
-  max-height: 0; overflow: hidden; transition: max-height .2s ease;
-  font-family: var(--mono); font-size: 12px;
-}
-.drawer.open .drawer-body { max-height: 260px; overflow-y: auto; padding-bottom: 16px; }
-.drawer-body li {
-  padding: 5px 0; border-bottom: 1px solid var(--rule);
-  display: flex; gap: 14px; align-items: baseline; color: var(--graphite);
-}
-.drawer-body li.call { color: var(--ink); }
-.drawer-body li.rejected { color: var(--red); }
-.drawer-body time { color: var(--rule-hard); flex: none; }
-
 /* ── narrow ────────────────────────────────────────────────────────── */
 @media (max-width: 720px) {
   .app { padding: 26px 16px 44px; }
@@ -436,30 +401,6 @@ button svg { flex: none; }
     animation-duration: .01ms !important; animation-iteration-count: 1 !important;
     transition-duration: .01ms !important;
   }
-}
-
-/* ── bands: label in the margin, work on the right ──────────────────── */
-.band {
-  display: grid; grid-template-columns: 128px 1fr; gap: 32px;
-  padding: 26px 0; border-top: 1px solid var(--rule);
-}
-.band:first-of-type { border-top-color: var(--rule-hard); }
-.band-label { position: sticky; top: 22px; align-self: start; }
-.band-label h2 {
-  margin: 0; font-family: var(--mono); font-size: 11px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: .12em; color: var(--ink);
-}
-.band-label p {
-  margin: 6px 0 0; font-size: 11.5px; line-height: 1.45; color: var(--graphite);
-}
-.band-body { min-width: 0; }
-
-@media (max-width: 720px) {
-  .band {
-    grid-template-columns: 1fr; gap: 14px; padding: 20px 0;
-  }
-  .band-label { position: static; }
-  .band-label p { margin-top: 3px; }
 }
 
 /* ── restored notice ───────────────────────────────────────────────── */
@@ -602,15 +543,83 @@ button svg { flex: none; }
 }
 @keyframes sweep { 0% { transform: translateX(-110%) } 100% { transform: translateX(360%) } }
 
-/* The selected pair follows you down a long grid: clicking a tile near the
-   bottom and then scrolling back up to see what happened is no way to work. */
-.band.sticky {
-  position: sticky; top: 0; z-index: 15;
-  background: var(--paper); border-bottom: 1px solid var(--rule);
-  box-shadow: 0 8px 16px -12px rgb(16 16 20 / 22%);
+
+/* ── the grid is the page ──────────────────────────────────────────── */
+.grid-wrap { margin-top: 8px; }
+
+/* ── dock ──────────────────────────────────────────────────────────── */
+/*
+  Everything that reports on the grid lives here: the pair you picked, the
+  proof, the tool log. As three bands above and below a grid of hundreds of
+  tiles, reading one meant losing your place in the others.
+*/
+.dock {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  background: var(--card); border-top: 1px solid var(--rule-hard);
+  box-shadow: 0 -6px 20px -14px rgb(16 16 20 / 30%);
 }
-.band.sticky .detail { min-height: 0; }
-.band.sticky .detail figure img { max-height: 76px; }
-.band.sticky .detail-renders { gap: 14px; }
-.band.sticky .trail { margin-top: 12px; }
-@media (max-width: 720px) { .band.sticky { position: static; } }
+.dock-tabs {
+  display: flex; align-items: stretch; gap: 0;
+  padding: 0 28px; border-bottom: 1px solid transparent;
+}
+.dock.open .dock-tabs { border-bottom-color: var(--rule); }
+.dock-tabs button {
+  border: 0; border-radius: 0; background: transparent;
+  padding: 12px 14px; gap: 8px;
+  font-family: var(--mono); font-size: 11px; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--graphite);
+  border-bottom: 2px solid transparent;
+}
+.dock-tabs button:hover { color: var(--ink); background: transparent; }
+.dock-tabs button.on { color: var(--ink); border-bottom-color: var(--ink); }
+.dock-tabs b {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0;
+  color: var(--graphite); background: var(--paper);
+  border: 1px solid var(--rule); border-radius: 10px; padding: 1px 7px;
+}
+.dock-tabs button.on b { color: var(--ink); border-color: var(--rule-hard); }
+.dock-toggle { margin-left: auto; color: var(--graphite); }
+
+.dock-body {
+  max-height: 0; overflow: hidden; padding: 0 28px;
+  transition: max-height .18s ease;
+}
+.dock.open .dock-body {
+  max-height: 300px; overflow-y: auto; padding: 18px 28px 22px;
+}
+/* Room for the collapsed dock, so the last row of tiles is reachable. */
+.app.has-dock { padding-bottom: 72px; }
+
+.log-list {
+  list-style: none; margin: 0; padding: 0;
+  font-family: var(--mono); font-size: 12px;
+}
+.log-list li {
+  padding: 5px 0; border-bottom: 1px solid var(--rule);
+  display: flex; gap: 14px; align-items: baseline; color: var(--graphite);
+}
+.log-list li.call { color: var(--ink); }
+.log-list li.rejected { color: var(--red); }
+.log-list time { color: var(--rule-hard); flex: none; }
+
+/* ── selected, compacted for the dock ──────────────────────────────── */
+.dock .detail {
+  display: grid; grid-template-columns: auto 1fr; gap: 28px;
+  align-items: start; min-height: 0;
+}
+.dock .detail figure img { max-height: 74px; }
+.dock .detail-renders { gap: 14px; align-items: flex-end; }
+.dock .detail-body h3 { margin-bottom: 12px; }
+.dock .trail { margin-top: 12px; }
+.dock .nudge { margin-top: 12px; }
+.dock .proof { gap: 14px; }
+.dock .proof-lines { gap: 12px; }
+.dock .proof-text { font-size: 30px; }
+.dock .chips { margin-bottom: 14px; }
+.dock .proof-strip img { height: 46px; }
+
+@media (max-width: 720px) {
+  .dock-tabs, .dock.open .dock-body { padding-left: 16px; padding-right: 16px; }
+  .dock .detail { grid-template-columns: 1fr; gap: 16px; }
+  .dock .proof-text { font-size: 24px; }
+}
