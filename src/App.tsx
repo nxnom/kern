@@ -163,15 +163,28 @@ export default function App() {
   /** Which keys the chosen scope covers, read when a tool asks for the pairs. */
   const inScopeRef = useRef<Set<string>>(new Set())
 
-  // Escape gives the selection up. Clicking away does not: the grid is the
-  // whole page, and losing your place because you clicked a toolbar button
-  // costs more than an armed selection does.
+  // Escape gives the selection up, and so does clicking empty space.
+  //
+  // Only genuinely empty space, though. A blanket click-away handler drops the
+  // selection when you reach for a toolbar button or the panel's own controls,
+  // which costs more than an armed selection does — so anything interactive,
+  // any tile, and the detail panel itself all leave it alone.
+  const KEEPS_SELECTION =
+    '.tile, .selected-bar, button, input, select, textarea, a, label, [role="tab"]'
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setSelected(null)
     }
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target as HTMLElement | null
+      if (!target?.closest(KEEPS_SELECTION)) setSelected(null)
+    }
     document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('pointerdown', onPointerDown)
+    }
   }, [])
 
   // Keep the newest line in view, both on open and as calls arrive.

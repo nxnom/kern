@@ -13,7 +13,10 @@ import { controlWhite, quickWhite } from './font'
 export type PairClass =
   | 'diagonal-diagonal'   // AV AW VA WA
   | 'overhang-round'      // To Ta Yo Ye
-  | 'overhang-diagonal'   // TA YA LT
+  | 'overhang-diagonal'   // TA YA
+  | 'diagonal-overhang'   // AT LT LV — the overhanging cap arrives second
+  | 'round-diagonal'      // ov ow oy av aw ay
+  | 'diagonal-round'      // va wa ya vo wo yo
   | 'round-straight'      // ol nb
   | 'arm-punctuation'     // r. F, P.
   | 'hook-bracket'        // f) f]
@@ -22,7 +25,9 @@ export type PairClass =
 
 const OVERHANG = new Set(['T', 'Y', 'V', 'W', 'F', 'P'])
 const DIAGONAL = new Set(['A', 'V', 'W', 'X', 'Y', 'K', 'Z', 'v', 'w', 'x', 'y'])
-const ROUND = new Set(['o', 'c', 'e', 'a', 'd', 'g', 'q', 'u', 's', 'O', 'C', 'G', 'Q'])
+// `r` sits here for spacing purposes: the gap under a T's arm before an r is
+// the same shape as before an a or a u, which is why `Tr` belonged nowhere.
+const ROUND = new Set(['o', 'c', 'e', 'a', 'd', 'g', 'q', 'u', 's', 'r', 'O', 'C', 'G', 'Q'])
 const STRAIGHT = new Set(['H', 'I', 'M', 'N', 'E', 'B', 'D', 'L', 'h', 'i', 'l', 'm', 'n', 'b', 'k'])
 const PUNCT = new Set(['.', ',', ';', ':', "'", '"', '-'])
 const ARM = new Set(['r', 'F', 'P', 'T', 'V', 'W', 'Y'])
@@ -35,6 +40,17 @@ export function classifyPair(left: string, right: string): PairClass {
   if (DIAGONAL.has(left) && DIAGONAL.has(right)) return 'diagonal-diagonal'
   if (OVERHANG.has(left) && ROUND.has(right)) return 'overhang-round'
   if (OVERHANG.has(left) && DIAGONAL.has(right)) return 'overhang-diagonal'
+  // The mirror of the rule above, which was missing entirely: `TA` classified
+  // and `AT` did not, so `AT`, `LT`, `LV`, `LY` and `LW` all fell through to
+  // the catch-all and were handed a range that let them open when they should
+  // only ever tighten.
+  if ((DIAGONAL.has(left) || STRAIGHT.has(left)) && OVERHANG.has(right)) {
+    return 'diagonal-overhang'
+  }
+  // Twelve of the most classic lowercase pairs — ov, av, va, yo and the rest —
+  // had no rule of their own either.
+  if (ROUND.has(left) && DIAGONAL.has(right)) return 'round-diagonal'
+  if (DIAGONAL.has(left) && ROUND.has(right)) return 'diagonal-round'
   if (ROUND.has(left) && STRAIGHT.has(right)) return 'round-straight'
   if (STRAIGHT.has(left) && STRAIGHT.has(right)) return 'straight-straight'
   return 'other'
@@ -46,20 +62,20 @@ export function classifyPair(left: string, right: string): PairClass {
  * they are guard rails, not gospel, which is why the tool lets you override.
  */
 const RANGES: Record<PairClass, [number, number]> = {
-  'diagonal-diagonal': [-0.12, -0.02],
-  'overhang-round': [-0.11, -0.03],
-  'overhang-diagonal': [-0.14, -0.04],
-  'arm-punctuation': [-0.18, -0.04],
+  'diagonal-diagonal': [-0.12, 0.01],
+  'overhang-round': [-0.11, 0.01],
+  'overhang-diagonal': [-0.15, 0.01],
+  'diagonal-overhang': [-0.15, 0.01],
+  'round-diagonal': [-0.06, 0.02],
+  'diagonal-round': [-0.06, 0.02],
+  'arm-punctuation': [-0.18, 0.01],
   // Barely negative on purpose. The f's upper terminal reaches right and the
   // bracket climbs high, so the clearance that matters is up top while the
-  // eye-catching white sits lower down. An agent judging the white area
-  // tightened `f)` to -60 and `f]` to -40, both well inside the old -0.10
-  // floor, and drove the terminal into both marks. These pairs usually want
-  // opening, if anything.
+  // eye-catching white sits lower down. These pairs usually want opening.
   'hook-bracket': [-0.02, 0.06],
-  'round-straight': [-0.03, 0.01],
+  'round-straight': [-0.03, 0.02],
   'straight-straight': [-0.02, 0.02],
-  other: [-0.12, 0.04],
+  other: [-0.15, 0.04],
 }
 
 /** Typical range for this pair, in font units. */
