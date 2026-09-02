@@ -78,7 +78,7 @@ button, select {
   display: inline-flex; align-items: center; gap: 6px; line-height: 1;
   transition: border-color .15s, background .15s, color .15s;
 }
-button:hover:not(:disabled) { border-color: var(--ink); }
+button:hover:not(:disabled):not(.tile) { border-color: var(--ink); }
 button:disabled { opacity: .35; cursor: not-allowed; }
 button svg { flex: none; }
 
