@@ -87,6 +87,16 @@ export interface PairMetrics {
   minGap: number
   /** Widest horizontal gap. Far above minGap means a wedge, not an even gap. */
   maxGap: number
+  /**
+   * How much of the facing height is at or near contact, 0–1.
+   *
+   * A bare minimum gap cannot tell a serif tip grazing its neighbour from two
+   * outlines genuinely crashing: both report zero. A tip touches over a few
+   * per cent of the height; a crash touches over a third.
+   */
+  contact: number
+  /** Where the tightest part sits, as a fraction of cap height from the top. */
+  contactAt: number
   /** True when the outlines actually overlap. */
   collides: boolean
 }
@@ -326,6 +336,10 @@ export function measureBand(
   let minGapPx = Number.POSITIVE_INFINITY
   let maxGapPx = 0
   let collides = false
+  let rows = 0
+  let contactRows = 0
+  let minAtY = 0
+  const NEAR_CONTACT_PX = 3
 
   for (let y = Math.max(0, yTop); y <= yBottom; y++) {
     let leftEdge = -1
@@ -341,15 +355,23 @@ export function measureBand(
 
     const gap = rightEdge - leftEdge
     if (gap < 0) collides = true
+    rows += 1
     areaPx += Math.max(0, gap)
-    if (gap < minGapPx) minGapPx = gap
+    if (gap <= NEAR_CONTACT_PX) contactRows += 1
+    if (gap < minGapPx) {
+      minGapPx = gap
+      minAtY = y
+    }
     if (gap > maxGapPx) maxGapPx = gap
   }
 
+  const bandHeight = Math.max(1, yBottom - Math.max(0, yTop))
   return {
     opticalArea: Math.round(areaPx * toUnits * toUnits),
     minGap: Number.isFinite(minGapPx) ? Math.round(minGapPx * toUnits) : 0,
     maxGap: Math.round(maxGapPx * toUnits),
+    contact: rows > 0 ? contactRows / rows : 0,
+    contactAt: (minAtY - Math.max(0, yTop)) / bandHeight,
     collides,
   }
 }

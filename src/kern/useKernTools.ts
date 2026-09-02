@@ -85,24 +85,46 @@ function stamp(api: KernApi, rescoped?: string | null): string {
 /** Below this the outlines are effectively touching, in font units at 1000/em. */
 const COLLISION_FLOOR = 8
 
+/** A recommendation, and labelled as one. Every pair gets exactly one. */
+type Call = 'likely-change' | 'inspect' | 'likely-keep'
+
 /**
- * What the numbers suggest — never what to do.
+ * Sort every pair into one of three, so none is skipped for being unremarkable.
  *
- * These read as verdicts once, and an agent applied one value per shape class
- * to seventy-six pairs after previewing three. Area alone cannot tell a wedge
- * from an even gap, or a wide surround from a tight contact point, so the
- * label now says which of those it is looking at and leaves the call open.
+ * Told to "name two or three per sheet", an agent named two or three and moved
+ * on — leaving `LV` at 1.91x unexamined. Classifying all of them means the work
+ * left is countable, and the guidance can say finish the list rather than pick
+ * from it.
+ *
+ * Contact matters more than the minimum gap here: a serif tip grazing its
+ * neighbour reports zero over a few per cent of the height, and two outlines
+ * genuinely crashing report zero over a third. Treating those alike made an
+ * agent refuse to kern `LV` at all.
  */
-function reading(m: PairMetrics, rel: number): string {
-  if (m.collides) return 'COLLIDING — do not tighten'
-  // A gap several times wider at one end than the other is a wedge: it reads
-  // loose to a person however little area it holds.
+function classify(m: PairMetrics, rel: number): { call: Call; why: string } {
   const wedge = m.minGap > 0 ? m.maxGap / m.minGap : Infinity
-  if (m.minGap <= 12) return 'already touching at its narrowest — tightening will collide'
-  if (wedge >= 3) return `wedge-shaped gap (${m.minGap}–${m.maxGap}) — look before deciding`
-  if (rel >= 1.4) return 'wide, and evenly so — look'
-  if (rel >= 1.15) return 'slightly wide'
-  return 'unremarkable by area, which does not mean settled'
+  const crash = m.contact >= 0.3
+  const graze = m.contact > 0 && m.contact < 0.12
+  const where = m.contactAt < 0.35 ? 'up top' : m.contactAt > 0.7 ? 'at the foot' : 'mid-height'
+
+  if (m.collides || crash) {
+    return {
+      call: 'likely-keep',
+      why: `outlines meet across ${Math.round(m.contact * 100)}% of the height ${where} — a real crash`,
+    }
+  }
+  if (rel >= 1.5 || wedge >= 4) {
+    return {
+      call: 'likely-change',
+      why: graze
+        ? `${rel.toFixed(2)}x with a wedge; the zero gap is a serif grazing ${where}, not a crash`
+        : `${rel.toFixed(2)}x, gap ${m.minGap}–${m.maxGap}`,
+    }
+  }
+  if (rel >= 1.12 || wedge >= 2.5 || graze) {
+    return { call: 'inspect', why: `${rel.toFixed(2)}x, gap ${m.minGap}–${m.maxGap}` }
+  }
+  return { call: 'likely-keep', why: `${rel.toFixed(2)}x, evenly spaced by measure` }
 }
 
 /**
@@ -216,10 +238,11 @@ export function useKernTools(api: KernApi) {
       description:
         'Kern is a font-kerning workbench. These tools operate on the font file ' +
         'loaded in the app, not on the web page’s own CSS. List the pairs with ' +
-        'their current value, status and shape class. The list is generated from ' +
-        'this face — every pair in it traps more white than a control pair does — ' +
-        'and it is ordered worst first, so the top of the list is where the work ' +
-        'is. Text only and cheap: use it to plan which batch to look at next.',
+        'their current value, status and shape class. The list is the classic ' +
+        'families every face needs kerned — which are here whatever they measure — ' +
+        'followed by whatever else this face traps unusual white in, worst first. ' +
+        'Being late in it means little: the ordering is by area, which is the ' +
+        'measure that misses wedges. Text only and cheap: use it to plan.',
       annotations: READ_ONLY,
       inputSchema: {
         type: 'object',
@@ -335,17 +358,14 @@ export function useKernTools(api: KernApi) {
           c,
           rel: relativeWhite(font!, c.left, c.metrics.opticalArea),
         }))
-        const table = rows
+        const judged = rows.map((r) => ({ ...r, ...classify(r.c.metrics, r.rel) }))
+        const table = judged
           .map(
-            ({ c, rel }) =>
-              `${c.left}${c.right}\t${c.kern}\t${rel.toFixed(2)}x` +
-              `\t${c.metrics.minGap}–${c.metrics.maxGap}\t${reading(c.metrics, rel)}`,
+            ({ c, call, why }) =>
+              `${c.left}${c.right}\t${c.kern}\t${call}\t${why}`,
           )
           .join('\n')
-        const worst = [...rows]
-          .sort((a, b) => b.rel - a.rel)
-          .slice(0, 5)
-          .filter(({ rel }) => rel > 1.35)
+        const open = judged.filter((j) => j.call !== 'likely-keep')
 
         return {
           content: [
@@ -367,25 +387,28 @@ export function useKernTools(api: KernApi) {
                 `A control like HH cannot speak for an overhang like T or V.\n\n` +
                 `Never apply one value across a shape class. Preview every pair ` +
                 `you intend to change, or change only the ones you previewed.\n\n` +
+                `The call column is a recommendation from the geometry, not a ` +
+                `decision. Resolve EVERY likely-change and inspect on this sheet ` +
+                `before moving on — do not pick a favourite two or three. ` +
+                `likely-keep pairs can go straight into set_kern's "keep" list.\n\n` +
                 `HOW TO WORK THROUGH THIS WITHOUT IT TAKING ALL DAY:\n` +
                 `1. Screen with sheets, not previews. Walk the whole list with ` +
                 `status "unreviewed" before you change anything, so you know what ` +
                 `is there.\n` +
-                `2. On each sheet, name the two or three worth a closer look. ` +
-                `Everything else on that sheet goes in set_kern's "keep" list — ` +
-                `that is how a pair counts as decided rather than unreached.\n` +
+                `2. Shortlist every likely-change and inspect. Put the rest in ` +
+                `"keep" — that is how a pair counts as decided rather than ` +
+                `unreached.\n` +
                 `3. Preview shortlisted pairs with "values": [-40,-60,-80] to see ` +
                 `candidates side by side. One call, not three.\n` +
                 `4. Apply in batches with "keep" alongside, then move on.\n` +
                 `Being later in the list does not mean a pair is fine. The order ` +
                 `is by trapped white, which is exactly the measure that misses ` +
                 `wedges like Vo and Tr.\n\n` +
-                `pair\tkern\tratio\tgap\tnotes\n${table}\n\n` +
-                (worst.length
-                  ? `Worst first: ${worst
-                      .map(({ c, rel }) => `${c.left}${c.right} (${rel.toFixed(2)}x)`)
-                      .join(', ')}. Start there.\n\n`
-                  : `Nothing here is far from the control.\n\n`) +
+                `pair\tkern\tcall\twhy\n${table}\n\n` +
+                (open.length
+                  ? `${open.length} of ${judged.length} on this sheet need ` +
+                    `resolving: ${open.map(({ c }) => `${c.left}${c.right}`).join(', ')}\n\n`
+                  : `Nothing on this sheet needs a closer look.\n\n`) +
                 progressLine(api.getPairs()),
             },
           ],
@@ -449,7 +472,10 @@ export function useKernTools(api: KernApi) {
         // Several candidates in one sheet: previewing them one at a time was
         // three round trips to answer one question.
         if (values?.length) {
-          const wanted = values.slice(0, 4)
+          const floor = safeFloor(font!, left, right)
+          // Include the boundary unasked: it is the value most likely to be
+          // wanted next, and finding it cost a second call every time.
+          const wanted = [...new Set([...values.slice(0, 4), floor])].sort((a, b) => b - a)
           const sheet = drawSheet(
             font!,
             wanted.map((v) => ({ left, right, kern: v })),
@@ -467,10 +493,11 @@ export function useKernTools(api: KernApi) {
                   stamp(api, rescoped),
                   '',
                   `${key} at ${wanted.join(', ')} — left to right.`,
-                  `tightest safe value: ${safeFloor(font!, left, right)}`,
+                  `${floor} is the tightest safe value and is included above.`,
                   ...sheet.cells.map(
                     (c) =>
                       `${c.kern}\tgap ${c.metrics.minGap}–${c.metrics.maxGap}` +
+                      `\ttouching over ${Math.round(c.metrics.contact * 100)}% of the height` +
                       `${c.metrics.collides ? '\tCOLLIDES' : ''}`,
                   ),
                   '',
