@@ -101,7 +101,11 @@ type Call = 'likely-change' | 'inspect' | 'likely-keep'
  * genuinely crashing report zero over a third. Treating those alike made an
  * agent refuse to kern `LV` at all.
  */
-function classify(m: PairMetrics, rel: number): { call: Call; why: string } {
+function classify(
+  m: PairMetrics,
+  rel: number,
+  essential: boolean,
+): { call: Call; why: string } {
   const wedge = m.minGap > 0 ? m.maxGap / m.minGap : Infinity
   const crash = m.contact >= 0.3
   const graze = m.contact > 0 && m.contact < 0.12
@@ -123,6 +127,15 @@ function classify(m: PairMetrics, rel: number): { call: Call; why: string } {
   }
   if (rel >= 1.12 || wedge >= 2.5 || graze) {
     return { call: 'inspect', why: `${rel.toFixed(2)}x, gap ${m.minGap}–${m.maxGap}` }
+  }
+  // The classic families are never dismissed on measurement alone. `To`, `Tr`
+  // and `ov` sit near the control and still read loose, because their white is
+  // triangular — which is the one thing area cannot see.
+  if (essential) {
+    return {
+      call: 'inspect',
+      why: `${rel.toFixed(2)}x, but this family is judged by eye, not by area`,
+    }
   }
   return { call: 'likely-keep', why: `${rel.toFixed(2)}x, evenly spaced by measure` }
 }
@@ -358,7 +371,10 @@ export function useKernTools(api: KernApi) {
           c,
           rel: relativeWhite(font!, c.left, c.metrics.opticalArea),
         }))
-        const judged = rows.map((r) => ({ ...r, ...classify(r.c.metrics, r.rel) }))
+        const judged = rows.map((r, i) => ({
+          ...r,
+          ...classify(r.c.metrics, r.rel, chosen[i]?.essential ?? false),
+        }))
         const table = judged
           .map(
             ({ c, call, why }) =>

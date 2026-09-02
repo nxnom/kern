@@ -31,6 +31,8 @@ export interface PairState {
   key: string
   left: string
   right: string
+  /** One of the classic families, where measured area is known to mislead. */
+  essential: boolean
   /** The font's own value, kept so we can show the change. */
   original: number
   kern: number
@@ -54,12 +56,13 @@ export function initialPairs(
   generated = buildPairList(lf),
 ): Map<string, PairState> {
   const map = new Map<string, PairState>()
-  for (const { left, right } of generated) {
+  for (const { left, right, essential } of generated) {
     const original = existingKern(lf, left, right)
     map.set(`${left}${right}`, {
       key: `${left}${right}`,
       left,
       right,
+      essential,
       original,
       kern: original,
       status: 'untouched',
