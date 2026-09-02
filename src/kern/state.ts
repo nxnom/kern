@@ -41,9 +41,12 @@ export interface PairState {
   touchedAt?: number
 }
 
-export function initialPairs(lf: LoadedFont): Map<string, PairState> {
+export function initialPairs(
+  lf: LoadedFont,
+  generated = buildPairList(lf),
+): Map<string, PairState> {
   const map = new Map<string, PairState>()
-  for (const { left, right } of buildPairList(lf)) {
+  for (const { left, right } of generated) {
     const original = existingKern(lf, left, right)
     map.set(`${left}${right}`, {
       key: `${left}${right}`,

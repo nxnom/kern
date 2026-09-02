@@ -125,8 +125,22 @@ const WORTH_TESTING = new Set<PairClass>([
 
 /** Ratio above which a gap is worth a designer's attention. */
 const NOTEWORTHY = 1.18
-/** As many as a person can survey without the grid becoming a wall. */
-const MAX_PAIRS = 240
+/**
+ * How much work to take on.
+ *
+ * A face turns up hundreds of candidates, and an agent asked to survey all of
+ * them takes several minutes. The list is ordered worst first, so a smaller
+ * scope is not a lesser one — it is the same work, stopped sooner.
+ */
+export const SCOPES = {
+  essential: { label: 'Essential', count: 48, note: 'the worst offenders, a minute of work' },
+  standard: { label: 'Standard', count: 120, note: 'a thorough pass, several minutes' },
+  everything: { label: 'Everything', count: 400, note: 'every candidate this face turns up — long' },
+} as const
+
+export type ScopeId = keyof typeof SCOPES
+
+const MAX_PAIRS = SCOPES.everything.count
 
 export interface GeneratedPair {
   left: string

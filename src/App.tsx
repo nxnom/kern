@@ -13,6 +13,8 @@ import { Specimen } from './Specimen'
 import type { LoadedFont } from './kern/font'
 import { installFontFace, loadFontFromBuffer, loadFontFromUrl } from './kern/font'
 import type { PairState } from './kern/state'
+import { SCOPES, buildPairList } from './kern/pairs'
+import type { ScopeId } from './kern/pairs'
 import { initialPairs, pairKey, statusFor } from './kern/state'
 import {
   clearSession,
@@ -104,6 +106,9 @@ export default function App() {
   const [confirmingReset, setConfirmingReset] = useState(false)
   const [activity, setActivity] = useState<Activity | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [scope, setScope] = useState<ScopeId>('essential')
+  /** Every candidate the face turned up, so changing scope costs no measuring. */
+  const generated = useRef<ReturnType<typeof buildPairList>>([])
   /** Set while a font is being read and its pairs measured. */
   const [busy, setBusy] = useState<string | null>(null)
   const noticeTimer = useRef<number | undefined>(undefined)
@@ -200,7 +205,8 @@ export default function App() {
     // had already finished has no stale plan to warn it about.
     if (loadedRef.current && activityRef.current) fontEpoch.current += 1
     setActivity(null)
-    const fresh = initialPairs(lf)
+    generated.current = buildPairList(lf)
+    const fresh = initialPairs(lf, generated.current.slice(0, SCOPES[scope].count))
     const id = await fontKey(lf.buffer)
     const saved = loadSession(id)
 
@@ -242,6 +248,20 @@ export default function App() {
     }, 600)
     return () => window.clearTimeout(timer)
   }, [pairs, agentLine, loaded, key])
+
+  /** Widen or narrow the work without re-reading the font. */
+  function changeScope(next: ScopeId) {
+    setScope(next)
+    if (!loaded) return
+    const fresh = initialPairs(loaded, generated.current.slice(0, SCOPES[next].count))
+    // Keep every value already set; only the extent of the list changes.
+    for (const [key, p] of pairsRef.current) {
+      const target = fresh.get(key)
+      if (target) fresh.set(key, { ...target, ...p })
+    }
+    pairsRef.current = fresh
+    setPairs(fresh)
+  }
 
   function resetSession() {
     setConfirmingReset(false)
@@ -562,6 +582,19 @@ export default function App() {
         </p>
 
         <div className="head-actions">
+          <label className="scope">
+            <select
+              value={scope}
+              onChange={(e) => changeScope(e.target.value as ScopeId)}
+              title="How much of this face to work through"
+            >
+              {(Object.keys(SCOPES) as ScopeId[]).map((id) => (
+                <option key={id} value={id}>
+                  {SCOPES[id].label} · {Math.min(SCOPES[id].count, generated.current.length)} pairs
+                </option>
+              ))}
+            </select>
+          </label>
           <Toggle on={shade} onChange={setShade} icon={<IconContrast />}>
             <span className="btn-label">Negative space</span>
           </Toggle>
@@ -607,6 +640,14 @@ export default function App() {
           <button onClick={() => setNotice(null)} aria-label="Dismiss">
             <IconClose />
           </button>
+        </p>
+      )}
+
+      {scope === 'everything' && list.length > 200 && (
+        <p className="scope-note">
+          {list.length} pairs. A full survey takes an agent several minutes and
+          most of these will not need changing — <b>Essential</b> covers the ones
+          that do.
         </p>
       )}
 
