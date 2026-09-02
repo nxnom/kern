@@ -73,12 +73,18 @@ const READ_ONLY = { readOnlyHint: true }
 /**
  * Said once, on the FIRST tool call of a session, whichever tool that is.
  *
- * WebMCP has no channel for page-level instructions — `registerTool` is the
- * whole surface, with no equivalent of MCP's `prompts` primitive or a server's
- * `instructions` field. So the doctrine has to ride along with something the
- * agent already calls. Tying it to the first survey meant a run that opened
- * with list_pairs got it late, and one that jumped straight to preview_pairs
- * never got it at all. Every tool stamps its reply, so every tool delivers it.
+ * WebMCP gives a page no way to say anything except through a tool.
+ * `ModelContext` has four members — registerTool, getTools, executeTool and
+ * ontoolchange — and none of its seven dictionaries carries page-level context.
+ * MCP one layer down does have somewhere to put this: its initialize response
+ * returns an `instructions` field, described there as optional instructions for
+ * the client. A WebMCP page cannot populate it.
+ *
+ * So the doctrine rides along with something the agent already calls. Tying it
+ * to the first survey meant a run that opened with list_pairs got it late, and
+ * one that jumped straight to preview_pairs never got it at all. Every tool
+ * stamps its reply, so every tool delivers it — moving it here took a full run
+ * from about 4m17s to 2m34s.
  *
  * A dedicated `help` tool would be the obvious alternative, and the wrong one:
  * nothing obliges an agent to call it, and the guidance an agent skips is

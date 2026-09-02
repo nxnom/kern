@@ -127,3 +127,39 @@ bundle runs; once `@mcp-b/global` has executed you can no longer tell.
 The tool list shown in the UI is **what this page registered**, not what
 `getTools()` returns. They answer different questions, and a polyfilled runtime
 can report an empty list while the registrations are fine.
+
+## What WebMCP cannot say
+
+A page can only speak to an agent through a tool. `ModelContext` has four
+members — `registerTool`, `getTools`, `executeTool`, `ontoolchange` — and none
+of the seven dictionaries in the spec carries page-level context. There is no
+way to describe the workbench as a whole, only to describe eight tools one at a
+time.
+
+MCP, one layer beneath, already has the field for this. Its initialize response
+returns `instructions`, which the specification calls optional instructions for
+the client — a session-level channel whose entire purpose is telling a client
+how to use a server. A WebMCP page has no way to populate it. MCP also
+negotiates a `prompts` capability; WebMCP exposes no equivalent.
+
+This is not a rejected idea so much as an unwritten one: the spec's section on
+declarative WebMCP is marked as entirely a TODO.
+
+What it cost here is in `useKernTools.ts`. Kerning has a workflow — screen
+broadly, compare candidates, apply in batches, proof in words — and it is far
+too long for a tool description and far too important to leave out. Three
+options existed, and two are traps:
+
+- **A `help` tool.** Nothing obliges an agent to call it, and the guidance an
+  agent skips is exactly the guidance it needed.
+- **Repeat it in every description.** Eight copies of the same twelve lines,
+  paid for on every tool listing.
+- **Send it once, with the first answer.** Every tool stamps its reply through
+  `stamp()`, so whichever tool an agent reaches for first carries the workflow,
+  and no later one repeats it.
+
+The third is what `guidanceGiven` does. It is a workaround, and the measurement
+says it matters: while the workflow was tied to the first *survey*, runs that
+opened with `list_pairs` received it late and runs that went straight to
+`preview_pairs` never received it at all. Attaching it to the first call of any
+tool took a full pass over 51 pairs from roughly 4m17s to 2m34s.
