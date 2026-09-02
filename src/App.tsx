@@ -529,7 +529,10 @@ export default function App() {
     }
   }
 
-  const detail = pairs.get(activeKeys[0] ?? selected ?? '')
+  // Only a click selects. The agent's attention shows as a ring on the tiles;
+  // letting it drive this panel meant it replaced whatever you were looking at
+  // every time it called a tool.
+  const detail = pairs.get(selected ?? '')
 
   function exportFont() {
     if (!loaded) return
