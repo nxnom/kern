@@ -326,6 +326,15 @@ export default function App() {
       notify: (message: string) => {
         setNotice(message)
         log_(message, true)
+        // The run is over, so it must stop counting as live. Otherwise the
+        // refused call itself keeps the agent "working" for another thirty
+        // seconds, and the next font swap re-arms the guard on what is really
+        // a fresh start.
+        window.clearTimeout(busyTimer.current)
+        window.clearTimeout(activeTimer.current)
+        setActivity(null)
+        activityRef.current = null
+        setActiveKeys([])
         window.clearTimeout(noticeTimer.current)
         noticeTimer.current = window.setTimeout(() => setNotice(null), 12_000)
       },
