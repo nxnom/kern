@@ -140,6 +140,21 @@ function statusLabel(p: PairState): string {
   return p.status
 }
 
+/**
+ * Which way a shape class usually goes.
+ *
+ * Read straight off the calibrated range, so it is a statement about the class
+ * rather than an opinion about the pair. Agents arrive assuming kerning means
+ * tightening, and for `f)` \u2014 whose range runs -20..+60 \u2014 that assumption
+ * kept landing on 0 when the pair wanted opening.
+ */
+function classLeaning(lf: LoadedFont, left: string, right: string): string {
+  const { min, max } = typicalRange(left, right, lf.unitsPerEm)
+  if (max > 0 && Math.abs(max) > Math.abs(min)) return 'class usually OPENS'
+  if (max <= 0) return ''
+  return ''
+}
+
 /** Counts previews since the last write, so the nudge can escalate. */
 let previewsSinceApply = 0
 
@@ -520,9 +535,11 @@ export function useKernTools(api: KernApi) {
         const table = sheet.cells
           .map((c) => {
             const r = risk(font!, c.metrics)
+            const lean = classLeaning(font!, c.left, c.right)
             return (
               `${c.left}${c.right}\t${c.kern}\t` +
-              `${safeFloor(font!, c.left, c.right)}\t${r.risk}\t${r.why}`
+              `${safeFloor(font!, c.left, c.right)}\t${r.risk}\t` +
+              `${[lean, r.why].filter(Boolean).join(' — ')}`
             )
           })
           .join('\n')
@@ -914,7 +931,10 @@ export function useKernTools(api: KernApi) {
                 `${rows.length} pairs, ${columns} values each, one row per pair.`,
                 ...rows.map(
                   (r) =>
-                    `${r.left}${r.right}: ${r.values.join(', ')} · floor ${r.floor}`,
+                    `${r.left}${r.right}: ${r.values.join(', ')} · floor ${r.floor}` +
+                    (classLeaning(font!, r.left, r.right)
+                      ? ` · ${classLeaning(font!, r.left, r.right)}`
+                      : ''),
                 ),
                 '',
                 `pair\tvalue\tgap\tcontact`,
@@ -922,6 +942,11 @@ export function useKernTools(api: KernApi) {
                 '',
                 'PREVIEW ONLY. Apply what you chose with set_kern — these values ' +
                   'will not be argued with.',
+                '',
+                'This tool changes nothing and does not depend on its own earlier ' +
+                  'calls. If you have more groups to compare, send them all now ' +
+                  'rather than one after another — waiting for each in turn is ' +
+                  'most of the time a run takes.',
               ].join('\n'),
             },
           ],
