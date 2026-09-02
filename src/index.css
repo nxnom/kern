@@ -113,7 +113,10 @@ button svg { flex: none; }
 .now .reason { color: var(--red); font-size: 12px; }
 .idle { display: flex; align-items: baseline; gap: 10px; min-width: 0; flex: 1; }
 .idle b { color: var(--ink); }
-.idle > .muted { flex: none; }
+/* Shrinkable, not fixed. `flex: none` kept this at its full content width, so
+   a long sentence overflowed the row and ran underneath the facts on the
+   right instead of wrapping. `0 1 auto` still refuses to stretch. */
+.idle > .muted { flex: 0 1 auto; min-width: 0; }
 
 .copy-prompt {
   font-family: var(--mono); font-size: 12px; line-height: 1.5;
@@ -609,7 +612,7 @@ h1 { margin: 0; line-height: 0; flex: none; }
   padding: 16px 0 18px; font-size: 12.5px;
 }
 .now .facts {
-  margin-left: auto; flex: none;
+  margin-left: auto; flex: none; white-space: nowrap; align-self: baseline;
   font-family: var(--mono); font-size: 11px; color: var(--graphite);
 }
 
