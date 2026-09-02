@@ -590,8 +590,9 @@ export function safeFloor(
   let value = from
   for (let i = 0; i < 40; i++) {
     const next = value - step
-    const { minGap, collides } = renderPair(lf, left, right, next).metrics
-    if (collides || minGap <= 8) return value
+    const { contact, collides } = renderPair(lf, left, right, next).metrics
+    // Same definition of safe the writer uses: a crash, not a serif graze.
+    if (collides || contact >= 0.3) return value
     value = next
   }
   return value

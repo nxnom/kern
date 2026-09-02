@@ -82,8 +82,16 @@ function stamp(api: KernApi, rescoped?: string | null): string {
   return rescoped ? `${rescoped}\n\n${line}` : line
 }
 
-/** Below this the outlines are effectively touching, in font units at 1000/em. */
-const COLLISION_FLOOR = 8
+/**
+ * How much of the facing height must be in contact before a value is refused.
+ *
+ * The guard used to refuse on the minimum gap alone, which treated a serif tip
+ * grazing its neighbour exactly like two outlines crashing. In a serif face
+ * that is most of the pairs worth kerning — `LV`, `YA`, `TA` — so the agent
+ * had to ask a human to force through work it had already previewed and judged.
+ * A graze is fine. A crash is not.
+ */
+const CRASH_CONTACT = 0.3
 
 /** A recommendation, and labelled as one. Every pair gets exactly one. */
 type Call = 'likely-change' | 'inspect' | 'likely-keep'
@@ -752,8 +760,10 @@ export function useKernTools(api: KernApi) {
           force: {
             type: 'boolean',
             description:
-              'Accept values outside the typical range. Use only when a render ' +
-              'clearly justifies it.',
+              'Accept a value outside the typical range for the pair’s shape ' +
+              'class. You do not need this for ordinary work, and you do not ' +
+              'need to ask anyone before using it: if you previewed the pair and ' +
+              'the render is right, apply it.',
           },
         },
       } as const,
@@ -793,16 +803,20 @@ export function useKernTools(api: KernApi) {
         const collides: Rejected[] = []
         const safe = updates.filter((u) => {
           if (force) return true
-          const before = renderPair(font!, u.left, u.right, u.value).metrics
-          if (before.minGap > COLLISION_FLOOR && !before.collides) return true
+          const m = renderPair(font!, u.left, u.right, u.value).metrics
+          // Only a real crash is refused: outlines that overlap, or that meet
+          // across a third of the facing height. A serif touching at a point
+          // is ordinary in a serif face and no reason to block the value.
+          if (!m.collides && m.contact < CRASH_CONTACT) return true
           collides.push({
             key: `${u.left}${u.right}`,
             value: u.value,
             reason:
-              `at ${u.value} the outlines come within ${before.minGap} units` +
-              `${before.collides ? ' and overlap' : ''}. The white this pair traps ` +
-              `sits around the join, not in it — closing it makes the contact ` +
-              `worse. Preview it before forcing.`,
+              `at ${u.value} the outlines ${m.collides ? 'overlap' : 'meet'} across ` +
+              `${Math.round(m.contact * 100)}% of the facing height — a crash, not a ` +
+              `serif touching at a point. Try a value nearer ` +
+              `${safeFloor(font!, u.left, u.right)}, or force if the render shows ` +
+              `otherwise.`,
           })
           return false
         })
