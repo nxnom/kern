@@ -24,7 +24,17 @@ export interface WebMCPToolOptions<TInput> {
   name: string
   description: string
   inputSchema?: object
-  annotations?: { readOnlyHint?: boolean }
+  /**
+   * The MCP tool hints. All four reach the client; an earlier version of this
+   * interface declared only `readOnlyHint`, which made the other three look
+   * like platform limitations when they were a typo in this file.
+   */
+  annotations?: {
+    readOnlyHint?: boolean
+    idempotentHint?: boolean
+    openWorldHint?: boolean
+    destructiveHint?: boolean
+  }
   /** When false the tool is not registered, and is unregistered if it was. */
   enabled?: boolean
   execute: (input: TInput) => Promise<ToolResult> | ToolResult

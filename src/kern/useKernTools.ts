@@ -58,7 +58,16 @@ export interface Applied { key: string; from: number; to: number }
 export interface Rejected { key: string; value: number; reason: string }
 
 const text_ = (s: string) => ({ content: [{ type: 'text' as const, text: s }] })
-const READ_ONLY = { readOnlyHint: true }
+/**
+ * Reads: safe to repeat, safe to run together, and touching nothing outside
+ * this page. Said in annotations as well as in prose, so a client that reasons
+ * about concurrency structurally has something to act on.
+ */
+const READ_ONLY = {
+  readOnlyHint: true,
+  idempotentHint: true,
+  openWorldHint: false,
+}
 
 
 /**
