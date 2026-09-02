@@ -82,7 +82,8 @@ export default function App() {
   const [loaded, setLoaded] = useState<LoadedFont | null>(null)
   const [pairs, setPairs] = useState<Map<string, PairState>>(new Map())
   const [activeKeys, setActiveKeys] = useState<string[]>([])
-  const [selected, setSelected] = useState('AV')
+  /** Nothing is selected until you pick something. */
+  const [selected, setSelected] = useState<string | null>(null)
   const [shade, setShade] = useState(true)
   /** null means "the pairs the agent changed", rebuilt as it works. */
   const [proofText, setProofText] = useState<string | null>(null)
@@ -126,6 +127,26 @@ export default function App() {
   // and so registering them does not depend on every keystroke of state.
   const pairsRef = useRef(pairs)
   pairsRef.current = pairs
+
+  // Clicking away, or Escape, gives the selection up: the arrow keys act on
+  // whatever is selected, so leaving one armed after you have moved on is a
+  // way to change a value you are not looking at.
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      const el = e.target as Element | null
+      if (el?.closest?.('.tile, .detail')) return
+      setSelected(null)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelected(null)
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [])
 
   // Keep the newest line in view, both on open and as calls arrive.
   useEffect(() => {
@@ -325,6 +346,7 @@ export default function App() {
       if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
       const el = document.activeElement
       if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return
+      if (!selected) return
       const state = pairsRef.current.get(selected)
       if (!state) return
       e.preventDefault()
@@ -429,7 +451,7 @@ export default function App() {
     }
   }
 
-  const detail = pairs.get(activeKeys[0] ?? selected)
+  const detail = pairs.get(activeKeys[0] ?? selected ?? '')
 
   function exportFont() {
     if (!loaded) return
@@ -578,7 +600,7 @@ export default function App() {
           loaded={loaded}
           pairs={list}
           activeKeys={activeKeys}
-          selectedKey={selected}
+          selectedKey={selected ?? ''}
           onSelect={setSelected}
           shade={shade}
         />
