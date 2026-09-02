@@ -13,7 +13,7 @@ import { Specimen } from './Specimen'
 import type { LoadedFont } from './kern/font'
 import { installFontFace, loadFontFromBuffer, loadFontFromUrl } from './kern/font'
 import type { PairState } from './kern/state'
-import { initialPairs, pairKey } from './kern/state'
+import { initialPairs, pairKey, statusFor } from './kern/state'
 import {
   clearSession,
   fontKey,
@@ -294,14 +294,15 @@ export default function App() {
         const coalesce = by === 'human' && last?.by === 'human' && !last.rejected
         if (coalesce) coalesced.add(key)
         const attempt = { value: u.value, rejected: false, at: Date.now(), by }
+        const attempts = coalesce
+          ? [...cur.attempts.slice(0, -1), attempt]
+          : [...cur.attempts, attempt]
         next.set(key, {
           ...cur,
           kern: u.value,
-          status: by === 'human' ? 'overridden' : 'adjusted',
+          status: statusFor(u.value, cur.original, attempts),
           note: undefined,
-          attempts: coalesce
-            ? [...cur.attempts.slice(0, -1), attempt]
-            : [...cur.attempts, attempt],
+          attempts,
           touchedAt: Date.now(),
         })
       }

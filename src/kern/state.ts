@@ -2,12 +2,16 @@ import type { LoadedFont } from './font'
 import { existingKern } from './font'
 import { PRIORITY_PAIRS } from './pairs'
 
+/**
+ * Derived from the value, never from who set it. Storing "the human changed
+ * this" meant a reload — which only knows the numbers — turned a grey tile
+ * green, and a value nudged back to the original stayed marked as changed.
+ * Who set it lives on the attempts, where it survives a reload intact.
+ */
 export type PairStatus =
-  | 'untouched'   // still at the font's original value
-  | 'examining'   // the agent is looking at it right now
-  | 'adjusted'    // the agent changed it
-  | 'rejected'    // the agent's last proposal was out of range
-  | 'overridden'  // the human changed it by hand
+  | 'untouched'  // sits at the value the font shipped
+  | 'adjusted'   // differs from the font
+  | 'rejected'   // the last proposal was refused as out of range
 
 export interface Attempt {
   value: number
@@ -50,4 +54,14 @@ export function initialPairs(lf: LoadedFont): Map<string, PairState> {
 
 export function pairKey(left: string, right: string) {
   return `${left}${right}`
+}
+
+/** One rule for what a pair's state is, used by every path that sets it. */
+export function statusFor(
+  kern: number,
+  original: number,
+  attempts: Attempt[],
+): PairStatus {
+  if (kern !== original) return 'adjusted'
+  return attempts.at(-1)?.rejected ? 'rejected' : 'untouched'
 }

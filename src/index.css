@@ -566,11 +566,9 @@ button svg { flex: none; }
 .nudge .link:hover { color: var(--ink); background: transparent; }
 
 
-/* A value the human set outranks one the agent proposed, and says so. Ink,
-   not blue: blue is the agent's colour everywhere else on the page. */
+/* Who set a value shows in the trail, not on the tile: the tile says what the
+   pair is, which is the same question however it got there. */
 .trail li.mine { border-color: var(--ink); color: var(--ink); }
-.tile.overridden { background: #eceef1; }
-.tile.overridden .tile-delta { color: var(--ink); }
 .trail li.earlier { border-style: dashed; color: var(--rule-hard); }
 
 /* When the two are equal the comparison is not saying anything, so the
