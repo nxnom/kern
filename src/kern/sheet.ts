@@ -33,6 +33,13 @@ export interface Sheet {
   base64: string
   cells: SheetCell[]
   columns: number
+  /**
+   * Set when the sheet could not be as wide as asked.
+   *
+   * Quietly rendering five columns after being asked for six is the worst of
+   * both: the caller's instruction is ignored and it never finds out.
+   */
+  narrowedFrom?: number
 }
 
 /*
@@ -99,6 +106,7 @@ export function drawSheet(
     1,
     Math.min(columns, items.length || 1, Math.floor(MAX_SHEET_W / CELL_W) || 1),
   )
+  const asked = Math.max(1, Math.min(columns, items.length || 1))
   const rows = Math.ceil(items.length / cols)
   const width = cols * CELL_W
   const height = rows * CELL_H
@@ -173,5 +181,6 @@ export function drawSheet(
     base64: dataUrl.slice(dataUrl.indexOf(',') + 1),
     cells,
     columns: cols,
+    narrowedFrom: cols < asked ? asked : undefined,
   }
 }

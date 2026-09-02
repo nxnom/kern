@@ -559,6 +559,20 @@ export default function App() {
         setAgentLine(text)
         setProofText(text)
       },
+      exportFont: () => {
+        const lf = loadedRef.current
+        if (!lf) throw new Error('No font is loaded.')
+        // Read through the ref rather than the memoised `changed`, so a value
+        // applied moments ago is in the file.
+        const entries = [...pairsRef.current.values()]
+          .filter((p) => p.kern !== p.original)
+          .map((p) => ({ left: p.left, right: p.right, value: p.kern }))
+        const bytes = buildKernedFont(lf.buffer, lf, entries)
+        const filename = `${lf.familyName.replace(/\s+/g, '')}-Kerned.ttf`
+        download(bytes, filename, 'font/ttf')
+        log_(`exported ${filename} · ${entries.length} pairs`)
+        return { filename, bytes: bytes.byteLength, pairs: entries.length }
+      },
     }),
     [loaded, key, applyKerns, highlight, log_],
   )

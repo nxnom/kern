@@ -43,6 +43,14 @@ export interface KernApi {
   countCall: (tool: string) => void
   /** The agent's chosen proof text, shown on the page when it is done. */
   setSpecimen: (text: string, note?: string) => void
+  /**
+   * Writes the kerned font to the reader's disk.
+   *
+   * Without this the agent could do the entire job and still not hand over the
+   * result: the export lived only behind a button on the page, so every run
+   * ended with "the workbench is open" rather than a file.
+   */
+  exportFont: () => { filename: string; bytes: number; pairs: number }
 }
 
 export interface Applied { key: string; from: number; to: number }
@@ -89,8 +97,17 @@ const WORKFLOW = [
  */
 function defaultCandidates(lf: LoadedFont, left: string, right: string): number[] {
   const floor = safeFloor(lf, left, right)
-  const { max } = typicalRange(left, right, lf.unitsPerEm)
-  const out = [max > 0 ? max : 0, 0, Math.round(floor / 2), floor]
+  const { min, max } = typicalRange(left, right, lf.unitsPerEm)
+  // Never propose past a collision, and never lead with the floor: it is a
+  // limit, and offering it as a candidate invites the over-tightening it is
+  // supposed to prevent. Values like -10 or -20 used to need a second pass.
+  const lo = Math.max(min, floor)
+  const step = (max - lo) / 3
+  const round5 = (n: number) => Math.round(n / 5) * 5
+  const out = [max, max - step, max - 2 * step, lo].map(round5)
+  // Keep zero on the sheet when it is a legal value: it is the reference every
+  // other cell is judged against.
+  if (lo <= 0 && max >= 0 && !out.includes(0)) out[2] = 0
   return [...new Set(out)].sort((a, b) => b - a).slice(0, 4)
 }
 
@@ -288,6 +305,7 @@ export function registeredToolNames(ready: boolean): string[] {
         'publish_specimen',
         'set_kern',
         'revert',
+        'export_font',
       ]
     : []
 }
@@ -449,6 +467,10 @@ export function useKernTools(api: KernApi) {
           chosen.map((p) => ({ left: p.left, right: p.right, kern: p.kern })),
           columns ?? (size === 'screen' ? 6 : 3),
           size,
+          // Screening is triage — "which of these deserves a look" — and the
+          // flanking letters cost a column of density to answer a question
+          // triage does not ask. Deciding is where company matters.
+          size === 'judge',
         )
         api.highlight(chosen.map((p) => p.key))
         api.log(`sheet · ${chosen.length} pairs (${chosen[0].key}…${chosen.at(-1)!.key})`)
@@ -475,7 +497,13 @@ export function useKernTools(api: KernApi) {
               text:
                 `${stamp(api, rescoped)}\n\n` +
                 `${sheet.cells.length} pairs, ${sheet.columns} columns, ` +
-                `reading left to right.\n\n` +
+                `reading left to right.\n` +
+                (sheet.narrowedFrom
+                  ? `(You asked for ${sheet.narrowedFrom} columns; ${sheet.columns} ` +
+                    `is the most that fits before the image is scaled down and ` +
+                    `detail is lost.)\n`
+                  : '') +
+                `\n` +
                 `Each cell stands the pair between grey control letters. Judge the black pair; the grey is company, ` +
                 `not part of the pair — a pair can look settled alone and wrong ` +
                 `with a neighbour on each side.\n\n` +
@@ -793,7 +821,12 @@ export function useKernTools(api: KernApi) {
             ? p.values.slice(0, columns)
             : defaultCandidates(font!, left, right)
           ).slice(0, columns)
-          // Pad so every row starts in the same column.
+          // Pad so every row starts in the same column — but with values not
+          // already shown. Repeating the last one spent a cell saying nothing.
+          for (const v of defaultCandidates(font!, left, right)) {
+            if (values.length >= columns) break
+            if (!values.includes(v)) values.push(v)
+          }
           while (values.length < columns) values.push(values[values.length - 1])
           return { left, right, floor, values }
         })
@@ -1039,6 +1072,56 @@ export function useKernTools(api: KernApi) {
           lines.push('Revise the rejected pairs and call set_kern again.')
         }
         return text_(lines.join('\n'))
+      },
+    },
+    [ready, font],
+  )
+
+  // ---- export_font: hands over the finished file -----------------------
+  useWebMCPTool<Record<string, never>>(
+    {
+      name: 'export_font',
+      description:
+        'Kern is a font-kerning workbench. Write the kerned font to the ' +
+        'reader\u2019s disk as a .ttf, with the values you applied baked into real ' +
+        'GPOS and kern tables. Call this once the work is done and the specimen ' +
+        'reads well \u2014 a run that ends without it leaves the reader with nothing ' +
+        'to install. Applying values alone does not produce a file.',
+      inputSchema: { type: 'object', properties: {} } as const,
+      enabled: ready,
+      execute: async () => {
+        api.countCall('export_font')
+        const swapped = api.takeFontChange()
+        if (swapped) return stopForFontChange(api, swapped)
+        if (api.getFont() !== font) {
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text:
+                  `STOP. Nothing was exported: this call was made against ` +
+                  `"${font!.familyName}" but the page now has a different font.`,
+              },
+            ],
+            isError: true,
+          }
+        }
+
+        const { filename, bytes, pairs } = api.exportFont()
+        if (pairs === 0) {
+          return text_(
+            `Exported ${filename}, but NOTHING WAS KERNED — every pair still ` +
+              `carries the value the font shipped with. The file is a copy of ` +
+              `the original. Apply values with set_kern first.`,
+          )
+        }
+        return text_(
+          `${stamp(api, api.takeScopeChange())}\n\n` +
+            `Downloaded ${filename} \u2014 ${Math.round(bytes / 1024)} KB, ` +
+            `${pairs} kerned pair(s) written into the font's GPOS and kern ` +
+            `tables. The reader has the file; it will kern in any application ` +
+            `that reads either table.`,
+        )
       },
     },
     [ready, font],
