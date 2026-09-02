@@ -52,6 +52,26 @@ const READ_ONLY = { readOnlyHint: true }
 
 /** Counts previews since the last write, so the nudge can escalate. */
 let previewsSinceApply = 0
+
+/**
+ * Values the agent has actually looked at, per pair.
+ *
+ * A value that has been previewed and judged should not then be refused for
+ * sitting outside a shape class's usual range — the range is a guess about
+ * pairs in general, and the render is evidence about this one. Refusing after
+ * previewing cost a second call and, worse, taught the agent to ask permission.
+ */
+const previewed = new Map<string, Set<number>>()
+
+function notePreview(key: string, value: number) {
+  const seen = previewed.get(key) ?? new Set<number>()
+  seen.add(value)
+  previewed.set(key, seen)
+}
+
+export function forgetPreviews() {
+  previewed.clear()
+}
 export function resetPreviewCount() {
   previewsSinceApply = 0
 }
@@ -241,6 +261,7 @@ export function registeredToolNames(ready: boolean): string[] {
         'list_pairs',
         'survey_pairs',
         'preview_pair',
+        'preview_pairs',
         'publish_specimen',
         'set_kern',
         'revert',
@@ -382,11 +403,12 @@ export function useKernTools(api: KernApi) {
         const judged = rows.map((r, i) => ({
           ...r,
           ...classify(r.c.metrics, r.rel, chosen[i]?.essential ?? false),
+          range: typicalRange(r.c.left, r.c.right, font!.unitsPerEm),
         }))
         const table = judged
           .map(
-            ({ c, call, why }) =>
-              `${c.left}${c.right}\t${c.kern}\t${call}\t${why}`,
+            ({ c, call, why, range }) =>
+              `${c.left}${c.right}\t${c.kern}\t${range.min}..${range.max}\t${call}\t${why}`,
           )
           .join('\n')
         const open = judged.filter((j) => j.call !== 'likely-keep')
@@ -422,13 +444,17 @@ export function useKernTools(api: KernApi) {
                 `2. Shortlist every likely-change and inspect. Put the rest in ` +
                 `"keep" — that is how a pair counts as decided rather than ` +
                 `unreached.\n` +
-                `3. Preview shortlisted pairs with "values": [-40,-60,-80] to see ` +
-                `candidates side by side. One call, not three.\n` +
+                `3. Compare the shortlist with preview_pairs — several pairs and ` +
+                `several values in ONE sheet. Previewing pairs one at a time is ` +
+                `what turns a four-minute job into nine.\n` +
                 `4. Apply in batches with "keep" alongside, then move on.\n` +
                 `Being later in the list does not mean a pair is fine. The order ` +
                 `is by trapped white, which is exactly the measure that misses ` +
                 `wedges like Vo and Tr.\n\n` +
-                `pair\tkern\tcall\twhy\n${table}\n\n` +
+                `pair\tkern\trange\tcall\twhy\n${table}\n\n` +
+                `The range column is what set_kern accepts without argument. A ` +
+                `value outside it is fine if you previewed it — previewing is ` +
+                `what makes it evidence rather than a guess.\n\n` +
                 (open.length
                   ? `${open.length} of ${judged.length} on this sheet need ` +
                     `resolving: ${open.map(({ c }) => `${c.left}${c.right}`).join(', ')}\n\n`
@@ -505,6 +531,7 @@ export function useKernTools(api: KernApi) {
             wanted.map((v) => ({ left, right, kern: v })),
             wanted.length,
           )
+          for (const v of wanted) notePreview(key, v)
           api.markReviewed([key])
           api.highlight([key])
           api.log(`${key} · previewing ${wanted.join(', ')}`)
@@ -533,6 +560,7 @@ export function useKernTools(api: KernApi) {
         }
 
         const { render, metrics } = renderPair(font!, left, right, value)
+        notePreview(key, value)
         api.markReviewed([key])
         api.highlight([key])
         api.log(`${key} · preview ${value} · white ${metrics.opticalArea}`)
@@ -656,6 +684,121 @@ export function useKernTools(api: KernApi) {
                 '',
                 'Uneven optical white across a line is what a reader notices.',
                 progressLine(api.getPairs()),
+              ].join('\n'),
+            },
+          ],
+        }
+      },
+    },
+    [ready, font],
+  )
+
+  // ---- preview_pairs: many pairs, many values, one call ---------------
+  useWebMCPTool<{
+    pairs: { pair: string; values: number[] }[]
+  }>(
+    {
+      name: 'preview_pairs',
+      description:
+        'Kern is a font-kerning workbench. Compare several pairs at several ' +
+        'candidate values in ONE sheet — one row per pair, one column per value, ' +
+        'each cell labelled. Use this instead of calling preview_pair over and ' +
+        'over: a run that previewed twenty-six pairs one at a time took nine ' +
+        'minutes, and most of it was waiting. Everything shown here counts as ' +
+        'previewed, so set_kern will accept these values without arguing about ' +
+        'the shape-class range.',
+      annotations: READ_ONLY,
+      inputSchema: {
+        type: 'object',
+        properties: {
+          pairs: {
+            type: 'array',
+            description: 'Up to 8 pairs, each with up to 4 values.',
+            items: {
+              type: 'object',
+              properties: {
+                pair: { type: 'string', description: 'Two characters, e.g. "AV"' },
+                values: {
+                  type: 'array',
+                  items: { type: 'number' },
+                  description:
+                    'Values to compare. Omit to get 0, a moderate value and the ' +
+                    'tightest safe one.',
+                },
+              },
+              required: ['pair'],
+            },
+          },
+        },
+        required: ['pairs'],
+      } as const,
+      enabled: ready,
+      execute: async ({ pairs }) => {
+        api.countCall('preview_pairs')
+        const swapped = api.takeFontChange()
+        if (swapped) return stopForFontChange(api, swapped)
+        const rescoped = api.takeScopeChange()
+
+        const wanted = pairs.slice(0, 8).filter((p) => [...p.pair].length === 2)
+        if (!wanted.length) throw new Error('Give at least one two-character pair.')
+
+        const columns = Math.max(
+          ...wanted.map((p) => Math.min(4, p.values?.length || 3)),
+        )
+        const rows = wanted.map((p) => {
+          const [left, right] = [...p.pair]
+          const floor = safeFloor(font!, left, right)
+          const values = (p.values?.length
+            ? p.values.slice(0, columns)
+            : [0, Math.round(floor / 2), floor]
+          ).slice(0, columns)
+          // Pad so every row starts in the same column.
+          while (values.length < columns) values.push(values[values.length - 1])
+          return { left, right, floor, values }
+        })
+
+        const sheet = drawSheet(
+          font!,
+          rows.flatMap((r) => r.values.map((v) => ({ left: r.left, right: r.right, kern: v }))),
+          columns,
+        )
+
+        for (const r of rows) {
+          const key = `${r.left}${r.right}`
+          for (const v of r.values) notePreview(key, v)
+        }
+        api.markReviewed(rows.map((r) => `${r.left}${r.right}`))
+        api.highlight(rows.map((r) => `${r.left}${r.right}`))
+        api.log(`preview · ${rows.length} pairs × ${columns} values`)
+
+        const table = sheet.cells
+          .map(
+            (c) =>
+              `${c.left}${c.right}\t${c.kern}\tgap ${c.metrics.minGap}–${c.metrics.maxGap}` +
+              `\ttouching ${Math.round(c.metrics.contact * 100)}%` +
+              `${c.metrics.collides ? '\tCOLLIDES' : ''}`,
+          )
+          .join('\n')
+
+        return {
+          content: [
+            { type: 'image' as const, data: sheet.base64, mimeType: 'image/png' },
+            {
+              type: 'text' as const,
+              text: [
+                stamp(api, rescoped),
+                '',
+                `${rows.length} pairs, ${columns} values each, one row per pair.`,
+                ...rows.map(
+                  (r) =>
+                    `${r.left}${r.right}: ${r.values.join(', ')} · tightest safe ${r.floor}`,
+                ),
+                '',
+                `pair\tvalue\tgap\tcontact`,
+                table,
+                '',
+                'PREVIEW ONLY. Apply what you chose with set_kern — these values ' +
+                  'will not be argued with.',
               ].join('\n'),
             },
           ],

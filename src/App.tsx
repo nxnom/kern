@@ -52,6 +52,7 @@ const PANGRAM = 'Waltz, bad nymph, for quick jigs vex.'
 
 /** One line each, so the tools tab explains itself without the schemas. */
 const TOOL_BLURBS: Record<string, string> = {
+  preview_pairs: 'Several pairs at several values, one sheet, one call.',
   list_pairs: 'Every pair with its value, state and shape class. Text only.',
   survey_pairs: 'Up to 24 pairs on one contact sheet, with the white each traps.',
   preview_pair: 'One pair, large, at a proposed value. Changes nothing.',
