@@ -59,15 +59,15 @@ export interface Rejected { key: string; value: number; reason: string }
 
 const text_ = (s: string) => ({ content: [{ type: 'text' as const, text: s }] })
 /**
- * Reads: safe to repeat, safe to run together, and touching nothing outside
- * this page. Said in annotations as well as in prose, so a client that reasons
- * about concurrency structurally has something to act on.
+ * The only annotation these tools need.
+ *
+ * WebMCP defines exactly two — `readOnlyHint` and `untrustedContentHint` — and
+ * `idempotentHint`/`openWorldHint` are MCP server hints that the browser API
+ * does not carry. Everything a client should know about running these
+ * concurrently is therefore said in the description, because there is nowhere
+ * structural to put it.
  */
-const READ_ONLY = {
-  readOnlyHint: true,
-  idempotentHint: true,
-  openWorldHint: false,
-}
+const READ_ONLY = { readOnlyHint: true }
 
 
 /**

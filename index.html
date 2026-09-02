@@ -14,12 +14,6 @@
     <link rel="apple-touch-icon" href="/icon.svg" />
   </head>
   <body>
-    <script>
-      // Recorded before the bundle loads, so we can tell a browser that ships
-      // WebMCP natively from one where @mcp-b/global installed the polyfill.
-      window.__KERN_NATIVE_WEBMCP__ =
-        typeof document !== 'undefined' && 'modelContext' in document
-    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

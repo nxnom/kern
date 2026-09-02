@@ -9,8 +9,9 @@ import { useEffect } from 'react'
  * AbortController per registration, aborted on unmount or when `enabled` goes
  * false, which is what fires `toolchange` for the agent.
  *
- * `@mcp-b/global` is still what puts `document.modelContext` there in browsers
- * that lack it; it defers to the native implementation when one exists.
+ * There is no polyfill behind this. `document.modelContext` is either provided
+ * by the browser or it is not, and when it is not the page stays a manual
+ * kerning workbench rather than pretending an agent could reach it.
  */
 export interface ToolResult {
   content: (
@@ -25,16 +26,11 @@ export interface WebMCPToolOptions<TInput> {
   description: string
   inputSchema?: object
   /**
-   * The MCP tool hints. All four reach the client; an earlier version of this
-   * interface declared only `readOnlyHint`, which made the other three look
-   * like platform limitations when they were a typo in this file.
+   * The two hints WebMCP defines. MCP's server-side set is larger —
+   * `idempotentHint`, `openWorldHint`, `destructiveHint` — but the browser API
+   * carries only these, so the rest would be silently dropped.
    */
-  annotations?: {
-    readOnlyHint?: boolean
-    idempotentHint?: boolean
-    openWorldHint?: boolean
-    destructiveHint?: boolean
-  }
+  annotations?: { readOnlyHint?: boolean; untrustedContentHint?: boolean }
   /** When false the tool is not registered, and is unregistered if it was. */
   enabled?: boolean
   execute: (input: TInput) => Promise<ToolResult> | ToolResult

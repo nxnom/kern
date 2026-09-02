@@ -83,38 +83,6 @@ export function WebMCPStatus({
     )
   }
 
-  // The polyfill installs the API but cannot conjure an agent to call it, so
-  // say plainly that this browser can host the tools and not use them.
-  if (support.source === 'polyfill') {
-    return (
-      <details className="status warn">
-        <summary>
-          <b>WebMCP polyfill active</b>
-          <span className="muted">
-            {registered.length} tools registered · no agent can reach them in this
-            browser
-          </span>
-        </summary>
-        <p>
-          This browser has no built-in WebMCP, so <code>@mcp-b/global</code> installed
-          the API and Kern registered its tools against it. That is enough to inspect
-          them, but nothing here can call them. Open this URL in the ChatGPT app’s
-          browser, or Chrome 149+ with the flag enabled.
-        </p>
-        <ToolList names={registered} />
-      </details>
-    )
-  }
-
   return null
 }
 
-function ToolList({ names }: { names: string[] }) {
-  return (
-    <ul>
-      {names.map((t) => (
-        <li key={t}><code>{t}</code></li>
-      ))}
-    </ul>
-  )
-}

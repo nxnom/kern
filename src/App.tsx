@@ -827,9 +827,7 @@ export default function App() {
           <p className="view-lead">
             {webmcp.source === 'native'
               ? 'This browser provides WebMCP itself. '
-              : webmcp.source === 'polyfill'
-                ? 'This browser has no WebMCP of its own, so @mcp-b/global installed it. No agent here can call these. '
-                : 'WebMCP is not available in this browser, so nothing can call these. '}
+              : 'This browser does not implement WebMCP, so nothing can call these. '}
             Registered on <code>document.modelContext</code>: they appear when a font
             is loaded and unregister when one is swapped, which is what fires{' '}
             <code>toolchange</code>.

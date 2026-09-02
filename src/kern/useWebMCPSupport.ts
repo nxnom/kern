@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react'
 
-export type WebMCPSource = 'native' | 'polyfill' | 'none'
+/**
+ * No polyfill any more, so there is no third state: either the browser
+ * implements `document.modelContext` or it does not.
+ */
+export type WebMCPSource = 'native' | 'none'
 
 /**
  * `checking` matters: the poll runs for ten seconds, so treating "not found
@@ -72,14 +76,11 @@ export function useWebMCPSupport(): WebMCPSupport {
 
     const attach = (mc: ModelContextLike) => {
       bound = mc
-      const native = Boolean(
-        (window as unknown as { __KERN_NATIVE_WEBMCP__?: boolean }).__KERN_NATIVE_WEBMCP__,
-      )
       setSupport((prev) => ({
         ...prev,
         status: 'ready',
         supported: true,
-        source: native ? 'native' : 'polyfill',
+        source: 'native',
       }))
       mc.addEventListener?.('toolchange', () => readTools(mc))
       readTools(mc)
