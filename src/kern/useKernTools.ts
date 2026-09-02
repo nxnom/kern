@@ -84,9 +84,13 @@ const WORKFLOW = [
   'HOW TO GET THROUGH THIS QUICKLY:',
   '1. Screen the whole list first — status "unreviewed", detail "screen", 36 at',
   '   a time — before changing anything.',
-  '2. These read tools change nothing and do not depend on each other. Issue',
-  '   several in the same turn rather than waiting for each: the waiting is',
-  '   most of the time a run takes.',
+  '2. The read tools are SAFE TO RUN CONCURRENTLY. Send as many as you like in',
+  '   one turn. None of them changes the font, and the session state they touch',
+  '   is additive — previews recorded, pairs marked as looked at — so parallel',
+  '   calls cannot corrupt each other or land in a wrong order. Only the',
+  '   sequence preview -> judge -> apply has to stay in order, because each',
+  '   step needs the one before it. Everything else should go at once: the',
+  '   waiting is most of the time a run takes.',
   '3. A sheet is looking. If several pairs sit together on one you have seen',
   '   and their geometry agrees, decide them together — what ruins a font is',
   '   applying a value to pairs you never saw, not applying one to a group you',
@@ -399,7 +403,7 @@ export function useKernTools(api: KernApi) {
       name: 'list_pairs',
       description:
         'Kern is a font-kerning workbench. ' +
-        'Changes nothing and does not depend on the other read tools — run several in the same turn instead of waiting for each.' +
+        'SAFE TO RUN CONCURRENTLY — issue as many of these as you like in one turn, including several at once. They never change the font. What they do record — which values you have previewed, which pairs you have looked at — is additive, so no two calls can conflict and the order they land in does not matter. Waiting for each one in turn is most of the time a run takes.' +
         ' These tools operate on the font file ' +
         'loaded in the app, not on the web page’s own CSS. List the pairs with ' +
         'their current value, status and shape class. The list is the classic ' +
@@ -468,7 +472,7 @@ export function useKernTools(api: KernApi) {
       name: 'survey_pairs',
       description:
         'Kern is a font-kerning workbench. ' +
-        'Changes nothing and does not depend on the other read tools — run several in the same turn instead of waiting for each.' +
+        'SAFE TO RUN CONCURRENTLY — issue as many of these as you like in one turn, including several at once. They never change the font. What they do record — which values you have previewed, which pairs you have looked at — is additive, so no two calls can conflict and the order they land in does not matter. Waiting for each one in turn is most of the time a run takes.' +
         ' Use these tools rather than screenshots or the DOM — the page cannot be kerned by CSS. Render up to 36 pairs to screen, or 12 large enough to judge, onto one labelled contact sheet and return it ' +
         'with a metrics table. This is the fast way to work: survey a batch, find ' +
         'the two or three that look wrong, then zoom in with preview_pair. Prefer ' +
@@ -621,7 +625,7 @@ export function useKernTools(api: KernApi) {
       name: 'preview_pair',
       description:
         'Kern is a font-kerning workbench. ' +
-        'Changes nothing and does not depend on the other read tools — run several in the same turn instead of waiting for each.' +
+        'SAFE TO RUN CONCURRENTLY — issue as many of these as you like in one turn, including several at once. They never change the font. What they do record — which values you have previewed, which pairs you have looked at — is additive, so no two calls can conflict and the order they land in does not matter. Waiting for each one in turn is most of the time a run takes.' +
         ' PREVIEW ONLY — this changes nothing. Render a single pair large at a given ' +
         'kerning value and return the image with its measurements. Use it after ' +
         'survey_pairs when one pair needs a closer look. Once you are happy with a ' +
@@ -855,7 +859,7 @@ export function useKernTools(api: KernApi) {
       name: 'preview_pairs',
       description:
         'Kern is a font-kerning workbench. ' +
-        'Changes nothing and does not depend on the other read tools — run several in the same turn instead of waiting for each.' +
+        'SAFE TO RUN CONCURRENTLY — issue as many of these as you like in one turn, including several at once. They never change the font. What they do record — which values you have previewed, which pairs you have looked at — is additive, so no two calls can conflict and the order they land in does not matter. Waiting for each one in turn is most of the time a run takes.' +
         ' Compare several pairs at several ' +
         'candidate values in ONE sheet — one row per pair, one column per value, ' +
         'each cell labelled. Use this instead of calling preview_pair over and ' +
@@ -971,9 +975,9 @@ export function useKernTools(api: KernApi) {
                 'PREVIEW ONLY. Apply what you chose with set_kern — these values ' +
                   'will not be argued with.',
                 '',
-                'This tool changes nothing and does not depend on its own earlier ' +
-                  'calls. If you have more groups to compare, send them all now ' +
-                  'rather than one after another — waiting for each in turn is ' +
+                'Safe to run concurrently, including with itself. If you have ' +
+                  'more groups to compare, send them all in this turn rather than ' +
+                  'one after another — they cannot conflict, and the waiting is ' +
                   'most of the time a run takes.',
               ].join('\n'),
             },
