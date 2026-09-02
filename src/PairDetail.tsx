@@ -14,10 +14,13 @@ export function PairDetail({
   loaded,
   pair,
   shade,
+  onNudge,
 }: {
   loaded: LoadedFont
   pair: PairState
   shade: boolean
+  /** Human edits go through the same write path the agent uses. */
+  onNudge: (value: number) => void
 }) {
   const range = typicalRange(pair.left, pair.right, loaded.unitsPerEm)
   const changed = pair.kern !== pair.original
@@ -90,12 +93,47 @@ export function PairDetail({
           </div>
         </div>
 
+        <div className="nudge">
+          <button onClick={() => onNudge(pair.kern - 10)} title="Tighten by 10">
+            −10
+          </button>
+          <button onClick={() => onNudge(pair.kern - 1)} title="Tighten by 1">
+            −1
+          </button>
+          <input
+            type="number"
+            value={pair.kern}
+            aria-label={`Kerning for ${pair.key}, in font units`}
+            onChange={(e) => {
+              const next = Number(e.target.value)
+              if (Number.isFinite(next)) onNudge(Math.round(next))
+            }}
+          />
+          <button onClick={() => onNudge(pair.kern + 1)} title="Loosen by 1">
+            +1
+          </button>
+          <button onClick={() => onNudge(pair.kern + 10)} title="Loosen by 10">
+            +10
+          </button>
+          {pair.kern !== pair.original && (
+            <button className="link" onClick={() => onNudge(pair.original)}>
+              back to {pair.original}
+            </button>
+          )}
+          <span className="muted">or ← → with a tile selected</span>
+        </div>
+
         {pair.attempts.length > 0 ? (
           <ol className="trail">
             {pair.attempts.map((a, i) => (
-              <li key={a.at + i} className={a.rejected ? 'rejected' : ''}>
+              <li
+                key={a.at + i}
+                className={`${a.rejected ? 'rejected' : ''} ${a.by === 'human' ? 'mine' : ''}`}
+                title={a.by === 'human' ? 'you set this' : 'the agent set this'}
+              >
                 {a.value}
                 {a.rejected && <span className="x">rejected</span>}
+                {a.by === 'human' && !a.rejected && <span className="x">you</span>}
               </li>
             ))}
           </ol>

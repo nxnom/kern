@@ -240,7 +240,11 @@ export default function App() {
    * yet see.
    */
   const applyKerns = useCallback(
-    (updates: { left: string; right: string; value: number }[], force: boolean) => {
+    (
+      updates: { left: string; right: string; value: number }[],
+      force: boolean,
+      by: 'agent' | 'human' = 'agent',
+    ) => {
       const current = pairsRef.current
       const em = loadedRef.current?.unitsPerEm ?? 1000
       const applied: Applied[] = []
@@ -261,7 +265,10 @@ export default function App() {
             ...cur,
             status: 'rejected',
             note: problem,
-            attempts: [...cur.attempts, { value: u.value, rejected: true, at: Date.now() }],
+            attempts: [
+              ...cur.attempts,
+              { value: u.value, rejected: true, at: Date.now(), by },
+            ],
           })
           continue
         }
@@ -269,9 +276,12 @@ export default function App() {
         next.set(key, {
           ...cur,
           kern: u.value,
-          status: 'adjusted',
+          status: by === 'human' ? 'overridden' : 'adjusted',
           note: undefined,
-          attempts: [...cur.attempts, { value: u.value, rejected: false, at: Date.now() }],
+          attempts: [
+            ...cur.attempts,
+            { value: u.value, rejected: false, at: Date.now(), by },
+          ],
           touchedAt: Date.now(),
         })
       }
@@ -279,12 +289,41 @@ export default function App() {
       pairsRef.current = next
       setPairs(next)
 
-      for (const a of applied) log_(`${a.key} · ${a.from} → ${a.to}`)
+      for (const a of applied) {
+        log_(`${a.key} · ${a.from} → ${a.to}${by === 'human' ? ' (you)' : ''}`)
+      }
       for (const r of rejected) log_(`${r.key} · rejected: ${r.reason}`, true)
       return { applied, rejected }
     },
     [log_],
   )
+
+  /** A value the human set by hand. Forced, because their eye outranks the rule. */
+  const nudge = useCallback(
+    (key: string, value: number) => {
+      const state = pairsRef.current.get(key)
+      if (!state) return
+      applyKerns([{ left: state.left, right: state.right, value }], true, 'human')
+    },
+    [applyKerns],
+  )
+
+  // Arrow keys nudge whichever pair is selected, so the grid can be worked
+  // through without reaching for the panel each time.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+      const el = document.activeElement
+      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return
+      const state = pairsRef.current.get(selected)
+      if (!state) return
+      e.preventDefault()
+      const step = e.shiftKey ? 10 : 1
+      nudge(selected, state.kern + (e.key === 'ArrowLeft' ? -step : step))
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selected, nudge])
 
   const loadedRef = useRef(loaded)
   loadedRef.current = loaded
@@ -550,7 +589,12 @@ export default function App() {
             )
           }
         >
-          <PairDetail loaded={loaded} pair={detail} shade={shade} />
+          <PairDetail
+            loaded={loaded}
+            pair={detail}
+            shade={shade}
+            onNudge={(value) => nudge(detail.key, value)}
+          />
         </Section>
       )}
 

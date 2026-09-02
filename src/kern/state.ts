@@ -7,12 +7,14 @@ export type PairStatus =
   | 'examining'   // the agent is looking at it right now
   | 'adjusted'    // the agent changed it
   | 'rejected'    // the agent's last proposal was out of range
-  | 'overridden'  // the human changed it after the agent
+  | 'overridden'  // the human changed it by hand
 
 export interface Attempt {
   value: number
   rejected: boolean
   at: number
+  /** Who set it. The trail is only useful if it says whose decision it was. */
+  by?: 'agent' | 'human'
 }
 
 export interface PairState {
