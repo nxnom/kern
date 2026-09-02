@@ -94,7 +94,7 @@ function PairTile({
         {/* The label reuses the delta slot so hovering never shifts the layout. */}
         {delta !== 0 && (
           <span className={`tile-delta ${hovering ? 'is-before' : ''}`}>
-            {hovering ? 'before' : `${delta > 0 ? '+' : ''}${delta}`}
+            {hovering ? 'original' : `${delta > 0 ? '+' : ''}${delta}`}
           </span>
         )}
       </span>

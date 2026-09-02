@@ -35,9 +35,9 @@ export function PairDetail({
                 ink: GHOST_INK,
                 baseline: RULE,
               })}
-              alt="before"
+              alt="original"
             />
-            <figcaption>before · {pair.original}</figcaption>
+            <figcaption>original · {pair.original}</figcaption>
           </figure>
         )}
         <figure className={changed ? 'changed' : ''}>
@@ -48,7 +48,7 @@ export function PairDetail({
             })}
             alt={pair.key}
           />
-          <figcaption>{changed ? `after · ${pair.kern}` : `${pair.key} · ${pair.kern}`}</figcaption>
+          <figcaption>{changed ? `kerned · ${pair.kern}` : `${pair.key} · ${pair.kern}`}</figcaption>
         </figure>
       </div>
 

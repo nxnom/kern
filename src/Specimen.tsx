@@ -78,7 +78,7 @@ export function Specimen({
                       ink: GHOST_INK,
                       baseline: RULE,
                     })}
-                    alt={`${p.key} before`}
+                    alt={`${p.key} as shipped`}
                   />
                   <img
                     className="after"
@@ -86,7 +86,7 @@ export function Specimen({
                       paper: 'transparent',
                       baseline: RULE,
                     })}
-                    alt={`${p.key} after`}
+                    alt={`${p.key} kerned`}
                   />
                 </div>
                 <figcaption>
@@ -119,7 +119,7 @@ function Line({
 }) {
   return (
     <div className={`proof-line ${which}`}>
-      <span className="proof-tag">{which === 'original' ? 'before' : 'after'}</span>
+      <span className="proof-tag">{which === 'original' ? 'original' : 'kerned'}</span>
       <span className="proof-text">
         {chars.map((ch, i) => {
           const next = chars[i + 1]

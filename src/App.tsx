@@ -108,6 +108,9 @@ export default function App() {
   const fileInput = useRef<HTMLInputElement>(null)
   const busyTimer = useRef<number | undefined>(undefined)
   const activeTimer = useRef<number | undefined>(undefined)
+  /** Read at swap time to tell an interruption from a fresh start. */
+  const activityRef = useRef<Activity | null>(null)
+
   /**
    * Bumped whenever the human swaps the font. The next tool call, whichever it
    * is, fails once so the agent learns its plan is stale — then work resumes
@@ -151,8 +154,9 @@ export default function App() {
   }, [loaded])
 
   async function adopt(lf: LoadedFont) {
-    // Only a swap counts; the first load is not a change.
-    if (loadedRef.current) fontEpoch.current += 1
+    // Only a swap counts, and only one that interrupts a run: an agent that
+    // had already finished has no stale plan to warn it about.
+    if (loadedRef.current && activityRef.current) fontEpoch.current += 1
     setActivity(null)
     const fresh = initialPairs(lf)
     const id = await fontKey(lf.buffer)
@@ -284,6 +288,7 @@ export default function App() {
 
   const loadedRef = useRef(loaded)
   loadedRef.current = loaded
+  activityRef.current = activity
 
   const list = useMemo(() => [...pairs.values()], [pairs])
   // How much kerning the font arrived with — the honest starting point.
