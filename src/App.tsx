@@ -144,7 +144,8 @@ export default function App() {
   // and so registering them does not depend on every keystroke of state.
   const pairsRef = useRef(pairs)
   pairsRef.current = pairs
-  const scopedRef = useRef(pairs)
+  /** Which keys the chosen scope covers, read when a tool asks for the pairs. */
+  const inScopeRef = useRef<Set<string>>(new Set())
 
   // Escape gives the selection up. Clicking away does not: the grid is the
   // whole page, and losing your place because you clicked a toolbar button
@@ -438,8 +439,8 @@ export default function App() {
     () => [...pairs.values()].filter((p) => inScope.has(p.key)),
     [pairs, inScope],
   )
-  /** What the agent is given: the scope the reader chose, not the whole face. */
-  scopedRef.current = useMemo(() => new Map(list.map((p) => [p.key, p])), [list])
+  inScopeRef.current = inScope
+
 
   const changed = useMemo(
     () =>
@@ -490,7 +491,9 @@ export default function App() {
         seenEpoch.current = fontEpoch.current
         return loadedRef.current?.familyName ?? 'a different font'
       },
-      getPairs: () => scopedRef.current,
+      // The agent is given the scope the reader chose, not the whole face.
+      getPairs: () =>
+        new Map([...pairsRef.current].filter(([key]) => inScopeRef.current.has(key))),
       applyKerns,
       markReviewed: (keys: string[]) => {
         const next = new Map(pairsRef.current)
