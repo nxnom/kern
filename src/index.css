@@ -631,3 +631,36 @@ h1 { margin: 0; line-height: 0; flex: none; }
   border: 1px solid var(--rule-hard); border-radius: 7px;
   background: var(--card); color: var(--ink); cursor: pointer;
 }
+
+/* ── scrollbars ────────────────────────────────────────────────────── */
+/* The tabs scroll on a narrow window but never need to advertise it — a bar
+   under four labels reads as a broken layout. */
+.tabs { scrollbar-width: none; -ms-overflow-style: none; }
+.tabs::-webkit-scrollbar { display: none; }
+
+/* Everywhere else the bar stays, quietly: these are content that genuinely
+   runs past its box, and hiding that would leave no way to know. */
+.proof-strip,
+.proof-lines,
+.log-list,
+.detail,
+.busy-scrim {
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule-hard) transparent;
+}
+.proof-strip::-webkit-scrollbar,
+.proof-lines::-webkit-scrollbar,
+.log-list::-webkit-scrollbar,
+.detail::-webkit-scrollbar { height: 7px; width: 7px; }
+.proof-strip::-webkit-scrollbar-track,
+.proof-lines::-webkit-scrollbar-track,
+.log-list::-webkit-scrollbar-track,
+.detail::-webkit-scrollbar-track { background: transparent; }
+.proof-strip::-webkit-scrollbar-thumb,
+.proof-lines::-webkit-scrollbar-thumb,
+.log-list::-webkit-scrollbar-thumb,
+.detail::-webkit-scrollbar-thumb {
+  background: var(--rule); border-radius: 4px;
+}
+.proof-strip:hover::-webkit-scrollbar-thumb,
+.detail:hover::-webkit-scrollbar-thumb { background: var(--rule-hard); }
