@@ -505,3 +505,9 @@ button svg { flex: none; }
   color: var(--red);
 }
 .notice button:hover { background: transparent; opacity: .7; }
+
+/* First paint, before the font is parsed. Quiet on purpose: an empty grid and
+   a WebMCP banner arriving separately reads as a fault, not as loading. */
+.app.booting { padding-top: 44px; }
+.app.booting h1 { margin-bottom: 18px; }
+.app.booting .muted { font-family: var(--mono); font-size: 12.5px; }

@@ -371,6 +371,25 @@ export default function App() {
     }
   }
 
+  // Everything downstream reads the font — its metrics, its glyphs, its saved
+  // session. Rendering the page around a null one meant the header, the WebMCP
+  // banner and the empty grid each appeared on their own, which read as a
+  // fault rather than as loading.
+  if (!loaded) {
+    return (
+      <div className="app booting">
+        <h1>
+          <span className="wordmark-fallback">Kern</span>
+        </h1>
+        {error ? (
+          <div className="error">{error}</div>
+        ) : (
+          <p className="muted">Loading {SAMPLE.label}…</p>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className={`app ${log.length > 0 ? "has-drawer" : ""}`}>
       <header className="head">
@@ -381,9 +400,9 @@ export default function App() {
           <dl className="spec">
             <dt>face</dt>
             <dd>
-              {loaded ? loaded.familyName : 'loading'}
+              {loaded.familyName}
               {loaded?.styleName && <i> {loaded.styleName}</i>}
-              {loaded && loaded.source !== SAMPLE.label && (
+              {loaded.source !== SAMPLE.label && (
                 <button
                   className="unload"
                   onClick={() => void pick(SAMPLE)}
@@ -395,9 +414,9 @@ export default function App() {
               )}
             </dd>
             <dt>from</dt>
-            <dd className="from">{loaded ? loaded.source : '—'}</dd>
+            <dd className="from">{loaded.source}</dd>
             <dt>em</dt>
-            <dd>{loaded ? loaded.unitsPerEm : '—'}</dd>
+            <dd>{loaded.unitsPerEm}</dd>
             <dt>shipped</dt>
             <dd>
               {kernedInFont}<i>/{list.length} kerned</i>
@@ -439,7 +458,6 @@ export default function App() {
               label: 'Features (.fea)',
               hint: 'Adobe syntax for fontmake or AFDKO',
               onSelect: () =>
-                loaded &&
                 download(
                   buildFeatureFile(loaded, changed),
                   `${loaded.familyName.replace(/\s+/g, '')}-kern.fea`,
@@ -479,24 +497,22 @@ export default function App() {
         />
       </section>
 
-      {loaded && (
-        <Section
-          label="Survey"
-          meta={<>{list.length} pairs worth attention in this face</>}
-        >
-          <PairGrid
-            loaded={loaded}
-            pairs={list}
-            activeKeys={activeKeys}
-            onSelect={setSelected}
-            shade={shade}
-          />
-        </Section>
-      )}
+      <Section
+        label="Survey"
+        meta={<>{list.length} pairs worth attention in this face</>}
+      >
+        <PairGrid
+          loaded={loaded}
+          pairs={list}
+          activeKeys={activeKeys}
+          onSelect={setSelected}
+          shade={shade}
+        />
+      </Section>
 
       {/* Always present once a pair is selected: hiding it for untouched pairs
           made the page jump every time you clicked around the grid. */}
-      {loaded && detail && (
+      {detail && (
         <Section
           label="Selected"
           meta={
@@ -514,7 +530,7 @@ export default function App() {
         </Section>
       )}
 
-      {loaded && showProof && (
+      {showProof && (
         <Section label="Proof" meta={<>set the line you want to judge</>}>
           <div className="specimen-head">
             <div className="chips">
