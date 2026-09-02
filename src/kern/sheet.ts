@@ -18,9 +18,12 @@ export interface Sheet {
   columns: number
 }
 
-const GLYPH_PX = 74
-const CELL_W = 190
-const CELL_H = 150
+/* Bigger than it was. At 74px a contact point and a wedge look alike, and an
+   agent that cannot see the difference falls back on the numbers — which is
+   exactly the mistake the numbers cannot catch. */
+const GLYPH_PX = 132
+const CELL_W = 300
+const CELL_H = 230
 const LABEL_H = 26
 
 /**

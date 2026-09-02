@@ -76,13 +76,17 @@ export interface PairRender {
 
 export interface PairMetrics {
   /**
-   * Area of white trapped between the two outlines, measured scanline by
-   * scanline across the cap band, in square font units. This approximates
-   * what the eye is actually judging.
+   * Area of white trapped between the two outlines, in square font units.
+   *
+   * On its own this misleads, and did: `f)` traps a lot of white around a
+   * contact point that is already tight, while `Vo` traps little in a tall
+   * wedge that reads as a hole. Area says how much; the gaps below say where.
    */
   opticalArea: number
   /** Narrowest horizontal gap between the outlines, in font units. */
   minGap: number
+  /** Widest horizontal gap. Far above minGap means a wedge, not an even gap. */
+  maxGap: number
   /** True when the outlines actually overlap. */
   collides: boolean
 }
@@ -320,6 +324,7 @@ export function measureBand(
 
   let areaPx = 0
   let minGapPx = Number.POSITIVE_INFINITY
+  let maxGapPx = 0
   let collides = false
 
   for (let y = Math.max(0, yTop); y <= yBottom; y++) {
@@ -338,11 +343,13 @@ export function measureBand(
     if (gap < 0) collides = true
     areaPx += Math.max(0, gap)
     if (gap < minGapPx) minGapPx = gap
+    if (gap > maxGapPx) maxGapPx = gap
   }
 
   return {
     opticalArea: Math.round(areaPx * toUnits * toUnits),
     minGap: Number.isFinite(minGapPx) ? Math.round(minGapPx * toUnits) : 0,
+    maxGap: Math.round(maxGapPx * toUnits),
     collides,
   }
 }

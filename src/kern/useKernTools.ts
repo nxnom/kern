@@ -1,5 +1,6 @@
 import { useWebMCPTool } from './useWebMCPTool'
 import type { LoadedFont } from './font'
+import type { PairMetrics } from './font'
 import { drawPair, relativeWhite, renderPair } from './font'
 import { drawSheet } from './sheet'
 import { typicalRange } from './pairs'
@@ -73,13 +74,27 @@ function stamp(api: KernApi): string {
   return `font: ${api.font?.familyName ?? 'none'} (${api.fontId ?? '—'})`
 }
 
-/** Plain-language reading of the control ratio. */
-function verdict(rel: number): string {
-  if (rel >= 1.8) return 'much too loose'
-  if (rel >= 1.4) return 'loose'
-  if (rel >= 1.15) return 'slightly loose'
-  if (rel >= 0.8) return 'ok'
-  return 'tight'
+/** Below this the outlines are effectively touching, in font units at 1000/em. */
+const COLLISION_FLOOR = 8
+
+/**
+ * What the numbers suggest — never what to do.
+ *
+ * These read as verdicts once, and an agent applied one value per shape class
+ * to seventy-six pairs after previewing three. Area alone cannot tell a wedge
+ * from an even gap, or a wide surround from a tight contact point, so the
+ * label now says which of those it is looking at and leaves the call open.
+ */
+function reading(m: PairMetrics, rel: number): string {
+  if (m.collides) return 'COLLIDING — do not tighten'
+  // A gap several times wider at one end than the other is a wedge: it reads
+  // loose to a person however little area it holds.
+  const wedge = m.minGap > 0 ? m.maxGap / m.minGap : Infinity
+  if (m.minGap <= 12) return 'already touching at its narrowest — tightening will collide'
+  if (wedge >= 3) return `wedge-shaped gap (${m.minGap}–${m.maxGap}) — look before deciding`
+  if (rel >= 1.4) return 'wide, and evenly so — look'
+  if (rel >= 1.15) return 'slightly wide'
+  return 'unremarkable by area, which does not mean settled'
 }
 
 /** Appended to read tools so progress and the next step are always in view. */
@@ -242,7 +257,7 @@ export function useKernTools(api: KernApi) {
             description: 'Which pairs to pull when `pairs` is omitted.',
           },
           offset: { type: 'number', description: 'Skip this many, for paging.' },
-          limit: { type: 'number', description: 'How many to show. Default 17, max 24.' },
+          limit: { type: 'number', description: 'How many to show. Default 9, max 12 — the renders are large so you can actually judge them.' },
           columns: { type: 'number', description: 'Sheet columns. Default 4.' },
         },
       } as const,
@@ -264,7 +279,7 @@ export function useKernTools(api: KernApi) {
           )
         }
         const start = Math.max(0, offset ?? 0)
-        const take = Math.min(24, Math.max(1, limit ?? 17))
+        const take = Math.min(12, Math.max(1, limit ?? 9))
         chosen = chosen.slice(start, start + take)
 
         if (!chosen.length) return text_('No pairs match that filter.')
@@ -272,7 +287,7 @@ export function useKernTools(api: KernApi) {
         const sheet = drawSheet(
           font!,
           chosen.map((p) => ({ left: p.left, right: p.right, kern: p.kern })),
-          columns ?? 4,
+          columns ?? 3,
         )
         api.highlight(chosen.map((p) => p.key))
         api.log(`sheet · ${chosen.length} pairs (${chosen[0].key}…${chosen.at(-1)!.key})`)
@@ -285,7 +300,7 @@ export function useKernTools(api: KernApi) {
           .map(
             ({ c, rel }) =>
               `${c.left}${c.right}\t${c.kern}\t${rel.toFixed(2)}x` +
-              `\t${verdict(rel)}${c.metrics.collides ? '\tCOLLIDES' : ''}`,
+              `\t${c.metrics.minGap}–${c.metrics.maxGap}\t${reading(c.metrics, rel)}`,
           )
           .join('\n')
         const worst = [...rows]
@@ -302,11 +317,18 @@ export function useKernTools(api: KernApi) {
                 `${stamp(api)}\n\n` +
                 `${sheet.cells.length} pairs, ${sheet.columns} columns, ` +
                 `reading left to right.\n\n` +
-                `The ratio is this pair's trapped white divided by a control ` +
-                `pair's (HH for caps, nn for lowercase). 1.00x is what a reader ` +
-                `expects. Anything above about 1.4x is loose and wants kerning; ` +
-                `below 0.8x is too tight.\n\n` +
-                `pair\tkern\tratio\tverdict\n${table}\n\n` +
+                `ratio = this pair's trapped white over a control pair's (HH for ` +
+                `caps, nn for lowercase). gap = narrowest–widest distance between ` +
+                `the outlines.\n\n` +
+                `READ THE PICTURE, NOT THE TABLE. The numbers shortlist; they do ` +
+                `not decide. Area is a poor judge on its own: a wedge that is ` +
+                `narrow at one end and wide at the other reads loose while ` +
+                `measuring near 1.00x, and a pair whose surround is open but whose ` +
+                `contact point is tight measures high and must not be closed. ` +
+                `A control like HH cannot speak for an overhang like T or V.\n\n` +
+                `Never apply one value across a shape class. Preview every pair ` +
+                `you intend to change, or change only the ones you previewed.\n\n` +
+                `pair\tkern\tratio\tgap\tnotes\n${table}\n\n` +
                 (worst.length
                   ? `Worst first: ${worst
                       .map(({ c, rel }) => `${c.left}${c.right} (${rel.toFixed(2)}x)`)
@@ -601,7 +623,29 @@ export function useKernTools(api: KernApi) {
         if (!updates.length) throw new Error('No valid pairs. Each must be two characters.')
 
         previewsSinceApply = 0
-        const { applied, rejected } = api.applyKerns(updates, Boolean(force))
+        // The measurement warned about tight contact points; refusing here is
+        // what stops that warning from being ignored. `f)` traps a lot of white
+        // around a join that is already closed, so its ratio invites exactly
+        // the change that ruins it.
+        const collides: Rejected[] = []
+        const safe = updates.filter((u) => {
+          if (force) return true
+          const before = renderPair(font!, u.left, u.right, u.value).metrics
+          if (before.minGap > COLLISION_FLOOR && !before.collides) return true
+          collides.push({
+            key: `${u.left}${u.right}`,
+            value: u.value,
+            reason:
+              `at ${u.value} the outlines come within ${before.minGap} units` +
+              `${before.collides ? ' and overlap' : ''}. The white this pair traps ` +
+              `sits around the join, not in it — closing it makes the contact ` +
+              `worse. Preview it before forcing.`,
+          })
+          return false
+        })
+
+        const { applied, rejected } = api.applyKerns(safe, Boolean(force))
+        rejected.push(...collides)
         api.highlight(updates.map((u) => `${u.left}${u.right}`))
 
         const lines = [
