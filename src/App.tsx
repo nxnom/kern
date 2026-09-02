@@ -554,6 +554,17 @@ export default function App() {
         pairsRef.current = next
         setPairs(next)
       },
+      clearReview: (keys: string[]) => {
+        const next = new Map(pairsRef.current)
+        for (const key of keys) {
+          const cur = next.get(key)
+          if (cur) {
+            next.set(key, { ...cur, reviewedAt: undefined, attempts: [], note: undefined })
+          }
+        }
+        pairsRef.current = next
+        setPairs(next)
+      },
       highlight,
       log: log_,
       countCall: (tool: string) => {

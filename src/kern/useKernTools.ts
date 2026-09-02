@@ -1,7 +1,15 @@
 import { useWebMCPTool } from './useWebMCPTool'
 import type { LoadedFont } from './font'
 import type { PairMetrics } from './font'
-import { drawPair, drawSpecimen, measurePair, nearUnits, renderPair, safeFloor } from './font'
+import {
+  drawPair,
+  drawSpecimen,
+  isCrash,
+  measurePair,
+  nearUnits,
+  renderPair,
+  safeFloor,
+} from './font'
 import { SHEET_SIZES, drawSheet } from './sheet'
 import type { SheetSize } from './sheet'
 import { typicalRange } from './pairs'
@@ -24,6 +32,14 @@ export interface KernApi {
   notify: (message: string) => void
   /** Records that the agent looked at these pairs and decided about them. */
   markReviewed: (keys: string[]) => void
+  /**
+   * Undoes that record, along with the attempt trail.
+   *
+   * Reverting went through the writer, which stamps every pair it touches as
+   * reviewed — so `revert` restored the values but left the pairs counting as
+   * decided, and a resumed run believed the work was finished.
+   */
+  clearReview: (keys: string[]) => void
   /**
    * Reports a change of scope once. Advisory, not a stop: the work changed
    * size, and what has been decided is still decided.
@@ -109,16 +125,22 @@ const WORKFLOW = [
 function defaultCandidates(lf: LoadedFont, left: string, right: string): number[] {
   const floor = safeFloor(lf, left, right)
   const { min, max } = typicalRange(left, right, lf.unitsPerEm)
-  // Never propose past a collision, and never lead with the floor: it is a
-  // limit, and offering it as a candidate invites the over-tightening it is
-  // supposed to prevent.
-  const lo = Math.max(min, floor)
 
   // Spend the four slots where the pair actually lives. `AT` sits in a class
   // running -120..+40, and leading with +40 spent a slot on a direction the
   // pair does not want. Offer the positive end only where the class leans that
   // way — brackets after an f, straight-sided pairs — and otherwise start at 0.
   const top = max > 0 && max >= Math.abs(min) ? max : Math.min(max, 0)
+
+  // Never propose past a collision, and never lead with the floor: it is a
+  // limit, and offering it as a candidate invites the over-tightening it is
+  // supposed to prevent.
+  let lo = Math.max(min, floor)
+  // Unless the floor leaves nothing to compare. `T.` measured a floor of 0,
+  // which collapsed the span and produced four identical candidates — a sheet
+  // that asks nothing. The class range takes over, and set_kern's own guard
+  // still refuses anything that truly crashes.
+  if (top - lo < lf.unitsPerEm * 0.02) lo = min
 
   // Weighted toward the near end, not spread evenly. Four equal steps across
   // a -110..+10 class meant 40-unit jumps, so the useful -20 and -40 were never
@@ -130,8 +152,7 @@ function defaultCandidates(lf: LoadedFont, left: string, right: string): number[
 
   // Keep zero on the sheet when it is legal — it is the reference every other
   // cell is judged against — but put it in place of the value NEAREST zero, not
-  // a fixed slot. Overwriting slot 2 threw away -65 from AT's spread and left
-  // nothing between -15 and -120, which is exactly the range the pair wanted.
+  // a fixed slot.
   if (lo <= 0 && top >= 0 && !out.includes(0)) {
     let nearest = 0
     for (let i = 1; i < out.length; i++) {
@@ -238,7 +259,6 @@ function stamp(api: KernApi, rescoped?: string | null): string {
  * had to ask a human to force through work it had already previewed and judged.
  * A graze is fine. A crash is not.
  */
-const CRASH_CONTACT = 0.3
 /** Below this, contact is a serif tip rather than anything to worry about. */
 const SERIF_GRAZE = 0.08
 
@@ -259,7 +279,7 @@ function risk(lf: LoadedFont, m: PairMetrics): { risk: Risk; why: string } {
     m.contactAt < 0.35 ? 'up top' : m.contactAt > 0.7 ? 'at the foot' : 'mid-height'
   const near = nearUnits(lf)
 
-  if (m.collides || m.contact >= CRASH_CONTACT) {
+  if (isCrash(lf, m)) {
     return {
       risk: 'crash',
       why: `outlines meet across ${Math.round(m.contact * 100)}% of the height ${where}`,
@@ -469,8 +489,8 @@ export function useKernTools(api: KernApi) {
       description:
         'Kern is a font-kerning workbench. ' +
         'Changes nothing and does not depend on the other read tools — run several in the same turn instead of waiting for each.' +
-        ' Use these tools rather than screenshots or the DOM — the page cannot be kerned by CSS. Render up to 12 pairs onto a single labelled contact sheet and return it ' +
-        'with a metrics table. This is the fast way to work: survey a batch, find ' +
+        ' Use these tools rather than screenshots or the DOM — the page cannot be kerned by CSS. Render up to 36 pairs to screen, or 12 large enough to judge, onto one labelled contact sheet and return it ' +
+        'single labelled contact sheet with a metrics table. This is the fast way ' +
         'the two or three that look wrong, then zoom in with preview_pair. Prefer ' +
         'this over calling preview_pair repeatedly.',
       // Read-only and independent of every other read tool: the client is free
@@ -624,7 +644,7 @@ export function useKernTools(api: KernApi) {
         'Changes nothing and does not depend on the other read tools — run several in the same turn instead of waiting for each.' +
         ' PREVIEW ONLY — this changes nothing. Render a single pair large at a given ' +
         'kerning value and return the image with its measurements. Use it after ' +
-        'render_sheet when one pair needs a closer look. Once you are happy with a ' +
+        'survey_pairs when one pair needs a closer look. Once you are happy with a ' +
         'value you MUST call set_kern to actually apply it; previewing alone leaves ' +
         'the font untouched.',
       // Read-only and independent of every other read tool: the client is free
@@ -799,7 +819,16 @@ export function useKernTools(api: KernApi) {
           right: chars[i + 1],
           state: pairs.get(`${c}${chars[i + 1]}`),
         }))
-        const moved = adjacent.filter((a) => a.state && a.state.kern !== a.state.original)
+        // Distinct pairs, not occurrences. A line holding `ow` twice reported
+        // eleven changed pairs when it covered ten, which made the coverage
+        // figure useless for deciding what still needed proofing.
+        const moved = [
+          ...new Map(
+            adjacent
+              .filter((a) => a.state && a.state.kern !== a.state.original)
+              .map((a) => [a.state!.key, a]),
+          ).values(),
+        ]
 
         api.setSpecimen(line, note)
         api.highlight(moved.map((m) => m.state!.key))
@@ -1022,6 +1051,7 @@ export function useKernTools(api: KernApi) {
           targets.map((p) => ({ left: p.left, right: p.right, value: p.original })),
           true,
         )
+        api.clearReview(targets.map((p) => p.key))
         api.highlight(targets.map((p) => p.key))
         return text_(
           `${stamp(api, rescoped)}\n\nReverted ${applied.length} pair(s) to the font's own ` +
@@ -1157,7 +1187,7 @@ export function useKernTools(api: KernApi) {
           // Only a real crash is refused: outlines that overlap, or that meet
           // across a third of the facing height. A serif touching at a point
           // is ordinary in a serif face and no reason to block the value.
-          if (!m.collides && m.contact < CRASH_CONTACT) return true
+          if (!isCrash(font!, m)) return true
           collides.push({
             key: `${u.left}${u.right}`,
             value: u.value,
