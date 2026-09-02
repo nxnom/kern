@@ -431,7 +431,6 @@ export function useKernTools(api: KernApi) {
           columns ?? (size === 'screen' ? 6 : 3),
           true,
           size,
-          size === 'judge',
         )
         api.highlight(chosen.map((p) => p.key))
         api.log(`sheet · ${chosen.length} pairs (${chosen[0].key}…${chosen.at(-1)!.key})`)
@@ -459,8 +458,7 @@ export function useKernTools(api: KernApi) {
                 `${stamp(api, rescoped)}\n\n` +
                 `${sheet.cells.length} pairs, ${sheet.columns} columns, ` +
                 `reading left to right.\n\n` +
-                `Each cell in a close-up sheet stands the pair between grey ` +
-                `control letters. Judge the black pair; the grey is company, ` +
+                `Each cell stands the pair between grey control letters. Judge the black pair; the grey is company, ` +
                 `not part of the pair — a pair can look settled alone and wrong ` +
                 `with a neighbour on each side.\n\n` +
                 `THE PICTURE DECIDES. Look at the sheet and judge the spacing by ` +

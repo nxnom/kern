@@ -297,6 +297,7 @@ export function measurePair(
 /** Cleared when a new font is loaded, since the cache is keyed by family. */
 export function forgetMeasurements() {
   measured.clear()
+  floors.clear()
 }
 
 /**
@@ -638,21 +639,30 @@ export function quickWhite(lf: LoadedFont, left: string, right: string): number 
  * refused — so an agent either guesses timidly or gets rejected repeatedly.
  * Measured, not modelled: the gap is walked down until it closes.
  */
+const floors = new Map<string, number>()
 export function safeFloor(
   lf: LoadedFont,
   left: string,
   right: string,
   from = 0,
 ): number {
+  const cacheKey = `${lf.familyName}|${lf.unitsPerEm}|${left}${right}|${from}`
+  const hit = floors.get(cacheKey)
+  if (hit !== undefined) return hit
+
   const step = Math.round(lf.unitsPerEm / 100)
   let value = from
   for (let i = 0; i < 40; i++) {
     const next = value - step
-    const { contact, collides } = renderPair(lf, left, right, next).metrics
-    // Same definition of safe the writer uses: a crash, not a serif graze.
-    if (collides || contact >= 0.3) return value
+    // measurePair, not renderPair: this walk needs the numbers, and renderPair
+    // also encodes a PNG that is thrown away. A survey calls this for every
+    // cell, so the sheet was paying for up to 1,440 discarded PNGs.
+    const { contact, collides } = measurePair(lf, left, right, next)
+    // Same definition of a crash the writer uses: not a serif graze.
+    if (collides || contact >= 0.3) break
     value = next
   }
+  floors.set(cacheKey, value)
   return value
 }
 
