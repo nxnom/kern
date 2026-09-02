@@ -172,8 +172,12 @@ export function useKernTools(api: KernApi) {
     {
       name: 'list_pairs',
       description:
-        'Kern is a font-kerning workbench. These tools operate on the font file loaded in the app, not on the web page’s own CSS. List the kerning pairs on the page with their current value, status and ' +
-        'shape class. Text only and cheap — use it to plan which batch to look at next.',
+        'Kern is a font-kerning workbench. These tools operate on the font file ' +
+        'loaded in the app, not on the web page’s own CSS. List the pairs with ' +
+        'their current value, status and shape class. The list is generated from ' +
+        'this face — every pair in it traps more white than a control pair does — ' +
+        'and it is ordered worst first, so the top of the list is where the work ' +
+        'is. Text only and cheap: use it to plan which batch to look at next.',
       annotations: READ_ONLY,
       inputSchema: {
         type: 'object',
