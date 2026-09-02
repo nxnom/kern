@@ -137,6 +137,9 @@ export default function App() {
    */
   const fontEpoch = useRef(0)
   const seenEpoch = useRef(0)
+  /** Same idea for scope, but advisory: the work changed size, not identity. */
+  const scopeEpoch = useRef(0)
+  const seenScope = useRef(0)
   const logId = useRef(0)
   const [callCount, setCallCount] = useState(0)
   const logBody = useRef<HTMLOListElement>(null)
@@ -259,6 +262,7 @@ export default function App() {
    * so narrowing quietly erased values you had already set.
    */
   function changeScope(next: ScopeId) {
+    if (next !== scope) scopeEpoch.current += 1
     setScope(next)
   }
 
@@ -495,6 +499,18 @@ export default function App() {
       getPairs: () =>
         new Map([...pairsRef.current].filter(([key]) => inScopeRef.current.has(key))),
       applyKerns,
+      takeScopeChange: () => {
+        if (seenScope.current === scopeEpoch.current) return null
+        seenScope.current = scopeEpoch.current
+        const all = [...pairsRef.current].filter(([k]) => inScopeRef.current.has(k))
+        const fresh = all.filter(([, p]) => !p.reviewedAt).length
+        return (
+          `The human changed how much of this face to work through. You now have ` +
+          `${all.length} pairs in scope, ${fresh} of them not yet reviewed. Your ` +
+          `earlier decisions still stand — call survey_pairs with status ` +
+          `"unreviewed" for what is new, and do not redo what you have done.`
+        )
+      },
       markReviewed: (keys: string[]) => {
         const next = new Map(pairsRef.current)
         for (const key of keys) {

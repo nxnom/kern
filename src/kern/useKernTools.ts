@@ -23,6 +23,11 @@ export interface KernApi {
   notify: (message: string) => void
   /** Records that the agent looked at these pairs and decided about them. */
   markReviewed: (keys: string[]) => void
+  /**
+   * Reports a change of scope once. Advisory, not a stop: the work changed
+   * size, and what has been decided is still decided.
+   */
+  takeScopeChange: () => string | null
   /** Read through a ref so tools never close over stale state. */
   getPairs: () => Map<string, PairState>
   /** Applies values, returning what stuck and what did not. */
@@ -72,8 +77,9 @@ function stopForFontChange(api: KernApi, swapped: string) {
  * — and can tell, across a pause or a fresh chat, whether the page still has
  * the one it planned against.
  */
-function stamp(api: KernApi): string {
-  return `font: ${api.font?.familyName ?? 'none'} (${api.fontId ?? '—'})`
+function stamp(api: KernApi, rescoped?: string | null): string {
+  const line = `font: ${api.font?.familyName ?? 'none'} (${api.fontId ?? '—'})`
+  return rescoped ? `${rescoped}\n\n${line}` : line
 }
 
 /** Below this the outlines are effectively touching, in font units at 1000/em. */
@@ -230,6 +236,7 @@ export function useKernTools(api: KernApi) {
         api.countCall('list_pairs')
         const swapped = api.takeFontChange()
         if (swapped) return stopForFontChange(api, swapped)
+        const rescoped = api.takeScopeChange()
         const wanted = (status ?? 'all') as PairStatus | 'all' | 'unreviewed'
         const shown = [...api.getPairs().values()].filter((p) =>
           wanted === 'all'
@@ -248,7 +255,7 @@ export function useKernTools(api: KernApi) {
         api.highlight(shown.map((p) => p.key))
         const resume = resumeLine(api, font!)
         return text_(
-          `${stamp(api)}\n\n` +
+          `${stamp(api, rescoped)}\n\n` +
           (resume ? `${resume}\n\n` : '') +
           `pair\tkern\toriginal\tstatus\tclass\tattempts\n${rows.join('\n')}\n\n` +
             `${rows.length} pairs. em = ${font!.unitsPerEm}.\n${progressLine(api.getPairs())}`,
@@ -293,6 +300,7 @@ export function useKernTools(api: KernApi) {
         api.countCall('survey_pairs')
         const swapped = api.takeFontChange()
         if (swapped) return stopForFontChange(api, swapped)
+        const rescoped = api.takeScopeChange()
         const all = api.getPairs()
         let chosen: PairState[]
         if (pairs?.length) {
@@ -345,7 +353,7 @@ export function useKernTools(api: KernApi) {
             {
               type: 'text' as const,
               text:
-                `${stamp(api)}\n\n` +
+                `${stamp(api, rescoped)}\n\n` +
                 `${sheet.cells.length} pairs, ${sheet.columns} columns, ` +
                 `reading left to right.\n\n` +
                 `ratio = this pair's trapped white over a control pair's (HH for ` +
@@ -427,6 +435,7 @@ export function useKernTools(api: KernApi) {
         api.countCall('preview_pair')
         const swapped = api.takeFontChange()
         if (swapped) return stopForFontChange(api, swapped)
+        const rescoped = api.takeScopeChange()
         if ([...left].length !== 1 || [...right].length !== 1) {
           throw new Error('left and right must each be exactly one character.')
         }
@@ -455,7 +464,7 @@ export function useKernTools(api: KernApi) {
               {
                 type: 'text' as const,
                 text: [
-                  stamp(api),
+                  stamp(api, rescoped),
                   '',
                   `${key} at ${wanted.join(', ')} — left to right.`,
                   `tightest safe value: ${safeFloor(font!, left, right)}`,
@@ -483,7 +492,7 @@ export function useKernTools(api: KernApi) {
             {
               type: 'text' as const,
               text: [
-                stamp(api),
+                stamp(api, rescoped),
                 '',
                 `pair: ${key}`,
                 `tightest safe value: ${safeFloor(font!, left, right)} — past this ` +
@@ -549,6 +558,7 @@ export function useKernTools(api: KernApi) {
         api.countCall('publish_specimen')
         const swapped = api.takeFontChange()
         if (swapped) return stopForFontChange(api, swapped)
+        const rescoped = api.takeScopeChange()
         const line = text.slice(0, 60)
         const chars = [...line]
         const pairs = api.getPairs()
@@ -579,6 +589,7 @@ export function useKernTools(api: KernApi) {
             {
               type: 'text' as const,
               text: [
+                ...(rescoped ? [rescoped, ''] : []),
                 `Published "${line}" to the page.`,
                 moved.length
                   ? `${moved.length} of its pairs have been changed: ${moved
@@ -631,6 +642,7 @@ export function useKernTools(api: KernApi) {
         api.countCall('revert')
         const swapped = api.takeFontChange()
         if (swapped) return stopForFontChange(api, swapped)
+        const rescoped = api.takeScopeChange()
 
         const state = api.getPairs()
         const targets = all
@@ -649,7 +661,7 @@ export function useKernTools(api: KernApi) {
         )
         api.highlight(targets.map((p) => p.key))
         return text_(
-          `${stamp(api)}\n\nReverted ${applied.length} pair(s) to the font's own ` +
+          `${stamp(api, rescoped)}\n\nReverted ${applied.length} pair(s) to the font's own ` +
             `values: ${applied.map((a) => `${a.key} → ${a.to}`).join(', ')}`,
         )
       },
@@ -707,6 +719,7 @@ export function useKernTools(api: KernApi) {
         api.countCall('set_kern')
         const swapped = api.takeFontChange()
         if (swapped) return stopForFontChange(api, swapped)
+        const rescoped = api.takeScopeChange()
         // A call already in flight when the swap happened still holds the old
         // font, which the epoch check cannot see.
         if (api.getFont() !== font) {
@@ -758,7 +771,7 @@ export function useKernTools(api: KernApi) {
         if (keep?.length) api.markReviewed(keep)
 
         const lines = [
-          stamp(api),
+          stamp(api, rescoped),
           '',
           `applied ${applied.length} of ${updates.length}`,
           keep?.length ? `left ${keep.length} reviewed and unchanged` : '',
