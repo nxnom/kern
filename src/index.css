@@ -602,3 +602,20 @@ button svg { flex: none; }
   .detail-rows { grid-column: 1 / -1; }
   .detail figure img { height: 56px; }
 }
+
+/* ── activity ──────────────────────────────────────────────────────── */
+/* A ledger, not a paragraph: the time, what it was, and what changed, each in
+   its own column so a run can be read down the page. */
+.log-list { list-style: none; margin: 0; padding: 0; }
+.log-list li {
+  display: grid; grid-template-columns: 9ch 1fr; gap: 18px;
+  align-items: baseline; padding: 7px 0;
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--mono); font-size: 12.5px; color: var(--graphite);
+}
+.log-list time { color: var(--rule-hard); font-variant-numeric: tabular-nums; }
+/* A tool call heads the lines it produced. */
+.log-list li.call { color: var(--ink); font-weight: 600; }
+.log-list li.call + li:not(.call) { padding-top: 4px; }
+.log-list li:not(.call) span { padding-left: 12px; }
+.log-list li.rejected { color: var(--red); }

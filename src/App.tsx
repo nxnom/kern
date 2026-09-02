@@ -624,7 +624,7 @@ export default function App() {
           { id: 'main', label: 'Main', badge: `${changed.length}/${list.length}` },
           { id: 'proof', label: 'Proof', badge: changed.length, disabled: !showProof },
           { id: 'tools', label: 'WebMCP tools', badge: registered.length },
-          { id: 'log', label: 'Tool calls', badge: callCount, disabled: !log.length },
+          { id: 'log', label: 'Activity', badge: log.length, disabled: !log.length },
         ]}
         active={tab}
         onChange={setTab}
@@ -717,7 +717,7 @@ export default function App() {
                 }`}
               >
                 <time>{new Date(l.at).toLocaleTimeString('en-GB')}</time>
-                {l.text}
+                <span>{l.text}</span>
               </li>
             ))}
           </ol>
