@@ -377,15 +377,27 @@ export default function App() {
   // fault rather than as loading.
   if (!loaded) {
     return (
-      <div className="app booting">
-        <h1>
-          <span className="wordmark-fallback">Kern</span>
-        </h1>
-        {error ? (
-          <div className="error">{error}</div>
-        ) : (
-          <p className="muted">Loading {SAMPLE.label}…</p>
-        )}
+      <div className="booting">
+        <div className="booting-inner">
+          <img
+            src={`${import.meta.env.BASE_URL}icon.svg`}
+            alt=""
+            width="34"
+            height="34"
+          />
+          {error ? (
+            <>
+              <p className="booting-title">Kern could not start</p>
+              <p className="booting-detail">{error}</p>
+            </>
+          ) : (
+            <>
+              <p className="booting-title">Reading {SAMPLE.label}</p>
+              <span className="booting-rule" aria-hidden="true" />
+              <p className="booting-detail">Measuring 51 pairs</p>
+            </>
+          )}
+        </div>
       </div>
     )
   }

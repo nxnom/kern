@@ -506,8 +506,38 @@ button svg { flex: none; }
 }
 .notice button:hover { background: transparent; opacity: .7; }
 
-/* First paint, before the font is parsed. Quiet on purpose: an empty grid and
-   a WebMCP banner arriving separately reads as a fault, not as loading. */
-.app.booting { padding-top: 44px; }
-.app.booting h1 { margin-bottom: 18px; }
-.app.booting .muted { font-family: var(--mono); font-size: 12.5px; }
+
+/* ── first paint ───────────────────────────────────────────────────── */
+/* Centred and quiet. The font takes a moment to parse, and assembling the
+   page around a null one read as a fault rather than as loading. */
+.booting {
+  min-height: 100dvh; display: grid; place-items: center; padding: 24px;
+}
+.booting-inner {
+  display: grid; justify-items: center; gap: 14px; text-align: center;
+  animation: rise .3s ease-out both;
+}
+@keyframes rise { from { opacity: 0; transform: translateY(4px) } }
+.booting-inner img { border-radius: 7px; }
+.booting-title { margin: 0; font-size: 14px; color: var(--ink); }
+.booting-detail {
+  margin: 0; font-family: var(--mono); font-size: 11.5px; color: var(--graphite);
+}
+
+/* A rule being drawn, which is what the page is doing. */
+.booting-rule {
+  width: 132px; height: 2px; border-radius: 1px;
+  background: var(--rule); position: relative; overflow: hidden;
+}
+.booting-rule::after {
+  content: ''; position: absolute; inset: 0; width: 42%;
+  background: var(--blue); border-radius: 1px;
+  animation: sweep 1.15s cubic-bezier(.5, 0, .5, 1) infinite;
+}
+@keyframes sweep {
+  0%   { transform: translateX(-110%) }
+  100% { transform: translateX(345%) }
+}
+@media (prefers-reduced-motion: reduce) {
+  .booting-rule::after { animation: none; width: 100%; opacity: .45 }
+}
