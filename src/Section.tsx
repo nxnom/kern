@@ -10,14 +10,17 @@ import type { ReactNode } from 'react'
 export function Section({
   label,
   meta,
+  className = '',
   children,
 }: {
   label: string
   meta?: ReactNode
+  /** `sticky` keeps the band in view while a long grid scrolls past it. */
+  className?: string
   children: ReactNode
 }) {
   return (
-    <section className="band">
+    <section className={`band ${className}`}>
       <div className="band-label">
         <h2>{label}</h2>
         {meta && <p>{meta}</p>}

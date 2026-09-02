@@ -94,6 +94,8 @@ export default function App() {
   const [confirmingReset, setConfirmingReset] = useState(false)
   const [activity, setActivity] = useState<Activity | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  /** Set while a font is being read and its pairs measured. */
+  const [busy, setBusy] = useState<string | null>(null)
   const noticeTimer = useRef<number | undefined>(undefined)
   /**
    * Proof claims the work is done, so it should not appear mid-run. It latches
@@ -152,9 +154,27 @@ export default function App() {
 
   async function pick(font: typeof SAMPLE) {
     try {
-      await adopt(await loadFontFromUrl(font.url, font.label))
+      const lf = await loadFontFromUrl(font.url, font.label)
+      await withBusy(`Reading ${font.label}`, async () => {
+        await adopt(lf)
+      })
     } catch (e) {
       setError(String(e))
+    }
+  }
+
+  /**
+   * Measuring a face's pairs blocks for a moment, and React will not paint a
+   * loading state and then run the work in the same tick — so yield once to
+   * let the message reach the screen first.
+   */
+  async function withBusy(label: string, work: () => Promise<void>) {
+    setBusy(label)
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(null)))
+    try {
+      await work()
+    } finally {
+      setBusy(null)
     }
   }
 
@@ -439,7 +459,10 @@ export default function App() {
     const file = ev.target.files?.[0]
     if (!file) return
     try {
-      await adopt(loadFontFromBuffer(await file.arrayBuffer(), file.name))
+      const buffer = await file.arrayBuffer()
+      await withBusy(`Reading ${file.name}`, async () => {
+        await adopt(loadFontFromBuffer(buffer, file.name))
+      })
     } catch {
       setError(`Could not read ${file.name}. Kern needs a .ttf or .otf file.`)
     }
@@ -557,6 +580,13 @@ export default function App() {
         />
       </section>
 
+      {busy && (
+        <div className="busy" role="status">
+          <span className="busy-rule" aria-hidden="true" />
+          {busy} · measuring the pairs it traps white in
+        </div>
+      )}
+
       {notice && (
         <p className="notice" role="status">
           {notice}
@@ -586,24 +616,11 @@ export default function App() {
         />
       </section>
 
-      <Section
-        label="Survey"
-        meta={<>{list.length} pairs worth attention in this face</>}
-      >
-        <PairGrid
-          loaded={loaded}
-          pairs={list}
-          activeKeys={activeKeys}
-          selectedKey={selected ?? ''}
-          onSelect={setSelected}
-          shade={shade}
-        />
-      </Section>
-
       {/* Always present once a pair is selected: hiding it for untouched pairs
           made the page jump every time you clicked around the grid. */}
       {detail && (
         <Section
+          className="sticky"
           label="Selected"
           meta={
             detail.attempts.length > 0 ? (
@@ -669,6 +686,20 @@ export default function App() {
       )}
 
       {/* Nothing to show before the first tool call, so stay out of the way. */}
+      <Section
+        label="Survey"
+        meta={<>{list.length} pairs worth attention in this face</>}
+      >
+        <PairGrid
+          loaded={loaded}
+          pairs={list}
+          activeKeys={activeKeys}
+          selectedKey={selected ?? ''}
+          onSelect={setSelected}
+          shade={shade}
+        />
+      </Section>
+
       {confirmingReset && (
         <Confirm
           title="Reset this font"
