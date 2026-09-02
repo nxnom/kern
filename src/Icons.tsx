@@ -102,3 +102,12 @@ export function IconReset(props: { size?: number }) {
     </svg>
   )
 }
+
+export function IconClose(props: { size?: number }) {
+  return (
+    <svg {...base} width={props.size ?? 13} height={props.size ?? 13}>
+      <path d="M18 6 6 18" />
+      <path d="m6 6 12 12" />
+    </svg>
+  )
+}

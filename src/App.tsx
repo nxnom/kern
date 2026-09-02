@@ -4,7 +4,7 @@ import { ActivityStrip } from './Activity'
 import { Confirm } from './Confirm'
 import { Wordmark } from './Wordmark'
 import { DownloadMenu } from './DownloadMenu'
-import { IconChevron, IconContrast, IconReset, IconUpload } from './Icons'
+import { IconChevron, IconClose, IconContrast, IconReset, IconUpload } from './Icons'
 import { Toggle } from './Toggle'
 import { PairDetail } from './PairDetail'
 import { PairGrid } from './PairGrid'
@@ -111,10 +111,16 @@ export default function App() {
   }, [logOpen, log])
 
   useEffect(() => {
-    loadFontFromUrl(SAMPLE.url, SAMPLE.label)
-      .then((lf) => void adopt(lf))
-      .catch((e: unknown) => setError(String(e)))
+    void pick(SAMPLE)
   }, [])
+
+  async function pick(font: typeof SAMPLE) {
+    try {
+      await adopt(await loadFontFromUrl(font.url, font.label))
+    } catch (e) {
+      setError(String(e))
+    }
+  }
 
   // Hand the loaded face to CSS, so the proof lines are set in the font being
   // kerned rather than in a stand-in serif.
@@ -347,7 +353,19 @@ export default function App() {
             <dd>
               {loaded ? loaded.familyName : 'loading'}
               {loaded?.styleName && <i> {loaded.styleName}</i>}
+              {loaded && loaded.source !== SAMPLE.label && (
+                <button
+                  className="unload"
+                  onClick={() => void pick(SAMPLE)}
+                  title="Use the sample font. Your kerning for this font is kept."
+                  aria-label="Use the sample font"
+                >
+                  <IconClose />
+                </button>
+              )}
             </dd>
+            <dt>from</dt>
+            <dd className="from">{loaded ? loaded.source : '—'}</dd>
             <dt>em</dt>
             <dd>{loaded ? loaded.unitsPerEm : '—'}</dd>
             <dt>shipped</dt>
