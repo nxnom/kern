@@ -49,12 +49,20 @@ interface ModelContext {
   ) => Promise<void>
 }
 
-function modelContext(): ModelContext | undefined {
-  if (typeof document === 'undefined') return undefined
-  const doc = document as unknown as { modelContext?: ModelContext }
-  // `navigator.modelContext` was the earlier spelling; some runtimes still use it.
-  const nav = navigator as unknown as { modelContext?: ModelContext }
-  return doc.modelContext ?? nav.modelContext
+/**
+ * The WebMCP surface, declared rather than cast.
+ *
+ * `document.modelContext` is where the spec puts it. `navigator.modelContext`
+ * was the earlier spelling and is kept only as a fallback for runtimes that
+ * have not caught up; nothing registers through it by preference.
+ */
+declare global {
+  interface Document {
+    modelContext?: ModelContext
+  }
+  interface Navigator {
+    modelContext?: ModelContext
+  }
 }
 
 export function useWebMCPTool<TInput = Record<string, unknown>>(
@@ -65,24 +73,28 @@ export function useWebMCPTool<TInput = Record<string, unknown>>(
 
   useEffect(() => {
     if (!enabled) return
-    const context = modelContext()
-    if (!context) return
+    if (typeof document === 'undefined') return
 
     const controller = new AbortController()
-    void context
-      .registerTool(
-        {
-          name,
-          description,
-          inputSchema,
-          annotations,
-          execute: (input) => execute(input as TInput),
-        },
-        { signal: controller.signal },
-      )
-      .catch((error: unknown) => {
-        console.warn(`Kern: could not register "${name}"`, error)
-      })
+    const tool = {
+      name,
+      description,
+      inputSchema,
+      annotations,
+      execute: (input: unknown) => execute(input as TInput),
+    }
+    const options_ = { signal: controller.signal }
+
+    // The whole point of the project, written out in full: every tool this
+    // page offers an agent is registered here, and nowhere else.
+    const pending = document.modelContext
+      ? document.modelContext.registerTool(tool, options_)
+      : navigator.modelContext?.registerTool(tool, options_)
+    if (!pending) return
+
+    void pending.catch((error: unknown) => {
+      console.warn(`Kern: could not register "${name}"`, error)
+    })
 
     // Aborting unregisters the tool and fires `toolchange`.
     return () => controller.abort()
