@@ -4,15 +4,13 @@ import { IconClose } from './Icons'
 import { typicalRange } from './kern/pairs'
 import type { PairState } from './kern/state'
 
-/** How many attempts to show before summarising the rest. */
-const TRAIL_LIMIT = 10
-
 /**
- * What the agent did to one pair.
+ * The pair you picked, docked at the foot of the page.
  *
- * The grid shows the result; this shows the reasoning — which values were
- * tried, which the guard rail turned away, and where the final value sits
- * inside the plausible range for the pair's shape class.
+ * Three columns — the font's own drawing, the current one, then the controls
+ * in rows beside them. Every row keeps its height whether or not it has
+ * anything in it: the links come and go as values change, and when they moved
+ * the buttons a click aimed at one landed on another.
  */
 export function PairDetail({
   loaded,
@@ -30,85 +28,73 @@ export function PairDetail({
 }) {
   const range = typicalRange(pair.left, pair.right, loaded.unitsPerEm)
   const changed = pair.kern !== pair.original
-  // The last value the agent actually applied, so a hand edit can be undone
-  // back to its proposal rather than only all the way to the font's own value.
+  // The last value the agent applied, so a hand edit can go back to its
+  // proposal rather than only to the font's own value.
   const agentValue = [...pair.attempts]
     .reverse()
     .find((a) => a.by !== 'human' && !a.rejected)?.value
+
   const span = range.max - range.min || 1
-  const pos = (v: number) => Math.max(0, Math.min(100, ((v - range.min) / span) * 100))
+  const at = (v: number) => Math.max(0, Math.min(100, ((v - range.min) / span) * 100))
+
+  const render = (value: number, ghost: boolean) =>
+    drawPair(loaded, pair.left, pair.right, value, 118, shade, {
+      paper: 'transparent',
+      baseline: RULE,
+      ...(ghost ? { ink: GHOST_INK } : {}),
+    })
 
   return (
     <section className="detail">
-      <button className="detail-close" onClick={onClose} aria-label="Close">
-        <IconClose />
-      </button>
-      {/* Both are always drawn. Dropping the original when a value returned to
-          it moved everything left, and a click aimed at one control landed on
-          another. */}
-      <div className="detail-renders">
-        <figure className={changed ? '' : 'same'}>
-            <img
-              src={drawPair(loaded, pair.left, pair.right, pair.original, 130, shade, {
-                paper: 'transparent',
-                ink: GHOST_INK,
-                baseline: RULE,
-              })}
-              alt="original"
-            />
-          <figcaption>original · {pair.original}</figcaption>
-        </figure>
-        <figure className={changed ? 'changed' : ''}>
-          <img
-            src={drawPair(loaded, pair.left, pair.right, pair.kern, 130, shade, {
-              paper: 'transparent',
-              baseline: RULE,
-            })}
-            alt={pair.key}
-          />
-          <figcaption>kerned · {pair.kern}</figcaption>
-        </figure>
-      </div>
+      <figure className={changed ? '' : 'same'}>
+        <img src={render(pair.original, true)} alt="original" />
+        <figcaption>original · {pair.original}</figcaption>
+      </figure>
 
-      <div className="detail-body">
+      <figure className={changed ? 'changed' : ''}>
+        <img src={render(pair.kern, false)} alt={pair.key} />
+        <figcaption>kerned · {pair.kern}</figcaption>
+      </figure>
+
+      <div className="detail-rows">
         <h3>
-          {pair.key} <span className="muted">{range.pairClass}</span>
+          {pair.key}
+          <span className="muted">{range.pairClass}</span>
+          <span className="muted">{pair.attempts.length} attempts</span>
         </h3>
 
         <div className="range">
           <div className="range-track">
-            {/* Rejected values sit outside the band, which is the point. */}
             {pair.attempts
               .filter((a) => a.rejected)
               .map((a, i) => (
                 <span
                   key={`r${i}`}
                   className="range-mark rejected"
-                  style={{ left: `${pos(a.value)}%` }}
+                  style={{ left: `${at(a.value)}%` }}
                   title={`rejected: ${a.value}`}
                 />
               ))}
             {changed && (
               <span
                 className="range-mark original"
-                style={{ left: `${pos(pair.original)}%` }}
+                style={{ left: `${at(pair.original)}%` }}
                 title={`original: ${pair.original}`}
               />
             )}
             <span
               className="range-mark current"
-              style={{ left: `${pos(pair.kern)}%` }}
+              style={{ left: `${at(pair.kern)}%` }}
               title={`current: ${pair.kern}`}
             />
           </div>
           <div className="range-ends">
             <span>{range.min}</span>
-            <span className="muted">typical range for this shape</span>
+            <span className="muted">typical for this shape</span>
             <span>{range.max}</span>
           </div>
         </div>
 
-        <div className="controls">
         <div className="nudge">
           <button onClick={() => onNudge(pair.kern - 10)} title="Tighten by 10">
             −10
@@ -134,54 +120,24 @@ export function PairDetail({
           </button>
         </div>
 
+        {/* Reserved whether or not anything is in it. */}
         <div className="nudge-back">
           {agentValue !== undefined && agentValue !== pair.kern && (
-            <button
-              className="link"
-              onClick={() => onNudge(agentValue)}
-              title="Put back the value the agent applied"
-            >
+            <button className="link" onClick={() => onNudge(agentValue)}>
               agent’s {agentValue}
             </button>
           )}
           {changed && (
-            <button
-              className="link"
-              onClick={() => onNudge(pair.original)}
-              title="Put back the value the font shipped with"
-            >
+            <button className="link" onClick={() => onNudge(pair.original)}>
               original {pair.original}
             </button>
           )}
         </div>
-        </div>
-
-        {pair.attempts.length > 0 ? (
-          <ol className="trail">
-            {/* Only the recent tail is worth reading; the rest is noise. */}
-            {pair.attempts.length > TRAIL_LIMIT && (
-              <li className="earlier">
-                +{pair.attempts.length - TRAIL_LIMIT} earlier
-              </li>
-            )}
-            {pair.attempts.slice(-TRAIL_LIMIT).map((a, i) => (
-              <li
-                key={a.at + i}
-                className={`${a.rejected ? 'rejected' : ''} ${a.by === 'human' ? 'mine' : ''}`}
-                title={a.by === 'human' ? 'you set this' : 'the agent set this'}
-              >
-                {a.value}
-                {a.rejected && <span className="x">rejected</span>}
-                {a.by === 'human' && !a.rejected && <span className="x">you</span>}
-              </li>
-            ))}
-          </ol>
-        ) : (
-          <p className="muted">
-            Still at the value the font shipped. Nothing has been applied here.
-          </p>
-        )}
       </div>
+
+      <button className="detail-close" onClick={onClose} aria-label="Close">
+        <IconClose />
+      </button>
     </section>
   )
 }
