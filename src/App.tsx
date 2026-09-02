@@ -342,7 +342,9 @@ export default function App() {
       const state = pairsRef.current.get(selected)
       if (!state) return
       e.preventDefault()
-      const step = e.shiftKey ? 10 : 1
+      // Ten units is roughly one percent of an em — the smallest step you can
+      // actually see. One unit is a real value but an invisible edit.
+      const step = e.shiftKey ? 1 : 10
       nudge(selected, state.kern + (e.key === 'ArrowLeft' ? -step : step))
     }
     window.addEventListener('keydown', onKey)

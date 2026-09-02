@@ -145,7 +145,7 @@ export function PairDetail({
               original {pair.original}
             </button>
           )}
-          <span className="muted">or ← → with a tile selected</span>
+          <span className="muted">or ← → to move by 10, shift for 1</span>
         </div>
 
         {pair.attempts.length > 0 ? (
