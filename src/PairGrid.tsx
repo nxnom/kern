@@ -7,11 +7,13 @@ interface Props {
   loaded: LoadedFont
   pairs: PairState[]
   activeKeys: string[]
+  /** The tile the arrow keys will edit, so it has to be visible. */
+  selectedKey: string
   onSelect: (key: string) => void
   shade: boolean
 }
 
-export function PairGrid({ loaded, pairs, activeKeys, onSelect, shade }: Props) {
+export function PairGrid({ loaded, pairs, activeKeys, selectedKey, onSelect, shade }: Props) {
   const active = new Set(activeKeys)
   const lead = activeKeys[0]
   return (
@@ -23,6 +25,7 @@ export function PairGrid({ loaded, pairs, activeKeys, onSelect, shade }: Props) 
           pair={p}
           active={active.has(p.key)}
           lead={p.key === lead}
+          selected={p.key === selectedKey}
           onSelect={onSelect}
           shade={shade}
         />
@@ -36,6 +39,7 @@ function PairTile({
   pair,
   active,
   lead,
+  selected,
   onSelect,
   shade,
 }: {
@@ -43,6 +47,7 @@ function PairTile({
   pair: PairState
   active: boolean
   lead: boolean
+  selected: boolean
   onSelect: (key: string) => void
   shade: boolean
 }) {
@@ -77,12 +82,11 @@ function PairTile({
     if (!fullyVisible) el.scrollIntoView({ block: 'center', behavior: 'smooth' })
   }, [lead])
 
-  const delta = pair.kern - pair.original
 
   return (
     <button
       ref={ref}
-      className={`tile ${pair.status} ${active ? 'active' : ''}`}
+      className={`tile ${pair.status} ${selected ? 'selected' : ''} ${active ? 'active' : ''}`}
       onClick={() => onSelect(pair.key)}
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
@@ -91,12 +95,12 @@ function PairTile({
       <span className="tile-img">{src && <img src={src} alt={pair.key} />}</span>
       <span className="tile-meta">
         <span className="tile-name">{pair.key}</span>
-        {/* The label reuses the delta slot so hovering never shifts the layout. */}
-        {delta !== 0 && (
-          <span className={`tile-delta ${hovering ? 'is-before' : ''}`}>
-            {hovering ? 'original' : `${delta > 0 ? '+' : ''}${delta}`}
-          </span>
-        )}
+        {/* Always the value, never a word: the number is the thing that moves
+            when you hold an arrow key, so hiding it behind a label made the
+            edit look like it had not happened. */}
+        <span className={`tile-delta ${hovering && wasChanged ? 'is-original' : ''}`}>
+          {value}
+        </span>
       </span>
       {pair.attempts.length > 1 && (
         <span className="tile-iters">{pair.attempts.length}×</span>

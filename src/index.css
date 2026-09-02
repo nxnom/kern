@@ -176,8 +176,10 @@ button svg { flex: none; }
   font-family: var(--mono); font-size: 11px;
 }
 .tile-name { color: var(--graphite); letter-spacing: .04em; }
-.tile-delta { color: var(--blue); }
-.tile-delta.is-before { color: var(--graphite); letter-spacing: .06em; }
+.tile-delta { color: var(--graphite); }
+/* Hovering a changed tile shows the original render, so the number under
+   it has to be the original too. */
+.tile-delta.is-original { color: var(--ghost); }
 .tile-iters {
   position: absolute; top: 6px; right: 7px;
   font-family: var(--mono); font-size: 9.5px; color: var(--rule-hard);
@@ -185,11 +187,15 @@ button svg { flex: none; }
 /* State is carried by one edge, not by a fill. A tinted cell revealed the
    canvas as a white rectangle inside it, and stacked with the hairlines and
    the agent's ring it made four borders on one tile. */
-.tile.adjusted { box-shadow: inset 3px 0 0 var(--green); }
+.tile.adjusted { background: var(--green-wash); box-shadow: inset 3px 0 0 var(--green); }
 .tile.adjusted .tile-delta { color: var(--green); }
-.tile.rejected { box-shadow: inset 3px 0 0 var(--red); }
+.tile.rejected { background: var(--red-wash); box-shadow: inset 3px 0 0 var(--red); }
 .tile.rejected .tile-delta { color: var(--red); }
-.tile.active { box-shadow: inset 0 0 0 2px var(--blue); z-index: 1; }
+/* Selected is where the arrow keys land; active is where the agent is. Both
+   are outlines so a tile can be one, the other, or both at once. */
+.tile.selected { box-shadow: inset 0 0 0 2px var(--ink); z-index: 1; }
+.tile.active { box-shadow: inset 0 0 0 2px var(--blue); z-index: 2; }
+.tile.selected.active { box-shadow: inset 0 0 0 2px var(--blue), inset 0 0 0 4px var(--ink); }
 
 /* ── pair detail: what the agent tried ─────────────────────────────── */
 .detail {
@@ -553,7 +559,7 @@ button svg { flex: none; }
 /* A value the human set outranks one the agent proposed, and says so. Ink,
    not blue: blue is the agent's colour everywhere else on the page. */
 .trail li.mine { border-color: var(--ink); color: var(--ink); }
-.tile.overridden { box-shadow: inset 3px 0 0 var(--ink); }
+.tile.overridden { background: #f2f3f5; box-shadow: inset 3px 0 0 var(--ink); }
 .tile.overridden .tile-delta { color: var(--ink); }
 .trail li.earlier { border-style: dashed; color: var(--rule-hard); }
 

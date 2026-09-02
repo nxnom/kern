@@ -578,6 +578,7 @@ export default function App() {
           loaded={loaded}
           pairs={list}
           activeKeys={activeKeys}
+          selectedKey={selected}
           onSelect={setSelected}
           shade={shade}
         />
