@@ -78,6 +78,22 @@ const WORKFLOW = [
   '   and are leaving — that is what marks them decided rather than unreached.',
 ].join('\n')
 
+/**
+ * Values to show when the caller does not name any.
+ *
+ * These used to be `[0, floor/2, floor]`, and the floor is always negative, so
+ * every candidate offered was zero or tighter. An agent shown only those
+ * options concluded that `f)` was fine at 0 — the direction it needed, +20,
+ * was never on the sheet. Where a pair's class allows opening, the default
+ * spread now crosses zero.
+ */
+function defaultCandidates(lf: LoadedFont, left: string, right: string): number[] {
+  const floor = safeFloor(lf, left, right)
+  const { max } = typicalRange(left, right, lf.unitsPerEm)
+  const out = [max > 0 ? max : 0, 0, Math.round(floor / 2), floor]
+  return [...new Set(out)].sort((a, b) => b - a).slice(0, 4)
+}
+
 /** Counts previews since the last write, so the nudge can escalate. */
 let previewsSinceApply = 0
 
@@ -192,8 +208,11 @@ function risk(lf: LoadedFont, m: PairMetrics): { risk: Risk; why: string } {
  */
 function progressLine(pairs: Map<string, PairState>): string {
   const all = [...pairs.values()]
-  const changed = all.filter((p) => p.kern !== p.original)
-  const reviewed = all.filter((p) => p.reviewedAt)
+  // Counted as sets that actually overlap, not by subtracting one total from
+  // another: a changed-but-unreviewed pair used to make this print a negative.
+  const reviewed = all.filter((p) => p.reviewedAt || p.kern !== p.original)
+  const changed = reviewed.filter((p) => p.kern !== p.original)
+  const kept = reviewed.length - changed.length
   const left = all.length - reviewed.length
 
   if (!reviewed.length) {
@@ -204,7 +223,7 @@ function progressLine(pairs: Map<string, PairState>): string {
   }
   return (
     `PROGRESS: ${reviewed.length} of ${all.length} reviewed · ` +
-    `${changed.length} changed · ${reviewed.length - changed.length} left as they were · ` +
+    `${changed.length} changed · ${kept} left as they were · ` +
     `${left} NOT YET REACHED.` +
     (left > 0
       ? ` You are not finished. Call survey_pairs with status "unreviewed" for the next sheet.`
@@ -463,10 +482,13 @@ export function useKernTools(api: KernApi) {
                 `THE PICTURE DECIDES. Look at the sheet and judge the spacing by ` +
                 `eye. The table below says only what would break — nothing in it ` +
                 `tells you whether a pair looks right, because no measurement can.\n\n` +
-                `floor = where the outlines actually meet. It is a hard limit, ` +
-                `NOT a recommendation — most pairs should stop well short of it.\n` +
+                `collision_floor = the negative value at which the outlines meet. ` +
+                `A hard limit, NOT a recommendation, and not a direction: plenty ` +
+                `of pairs want opening, so a positive value is always available.\n` +
+                `"clear" means nothing is colliding. It does NOT mean the pair is ` +
+                `optically balanced — only the picture can tell you that.\n` +
                 `risk = what is already touching, if anything.\n\n` +
-                `pair\tkern\tfloor\trisk\twhere\n${table}\n\n` +
+                `pair\tkern\tcollision_floor\trisk\twhere\n${table}\n\n` +
                 (risky.length
                   ? `Touching already: ${risky
                       .map((c) => `${c.left}${c.right}`)
@@ -594,8 +616,9 @@ export function useKernTools(api: KernApi) {
                 stamp(api, rescoped),
                 '',
                 `pair: ${key}`,
-                `floor: ${safeFloor(font!, left, right)} — where the outlines meet and ` +
-                  `set_kern refuses. Reaching it is almost always wrong.`,
+                `collision_floor: ${safeFloor(font!, left, right)} — where the outlines ` +
+                  `meet and set_kern refuses. A limit in one direction only; this pair ` +
+                  `may well want a positive value instead.`,
                 previewsSinceApply >= 3
                   ? `STOP PREVIEWING. You have previewed ${previewsSinceApply} values ` +
                     `without applying any. Nothing you have done so far has changed the ` +
@@ -740,7 +763,8 @@ export function useKernTools(api: KernApi) {
                   items: { type: 'number' },
                   description:
                     'Values to compare. Omit to get 0, a moderate value and the ' +
-                    'the floor.',
+                    'a spread across the pair class range, which may include ' +
+                    'positive values.',
                 },
               },
               required: ['pair'],
@@ -760,14 +784,14 @@ export function useKernTools(api: KernApi) {
         if (!wanted.length) throw new Error('Give at least one two-character pair.')
 
         const columns = Math.max(
-          ...wanted.map((p) => Math.min(4, p.values?.length || 3)),
+          ...wanted.map((p) => Math.min(4, p.values?.length || 4)),
         )
         const rows = wanted.map((p) => {
           const [left, right] = [...p.pair]
           const floor = safeFloor(font!, left, right)
           const values = (p.values?.length
             ? p.values.slice(0, columns)
-            : [0, Math.round(floor / 2), floor]
+            : defaultCandidates(font!, left, right)
           ).slice(0, columns)
           // Pad so every row starts in the same column.
           while (values.length < columns) values.push(values[values.length - 1])

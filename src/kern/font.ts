@@ -11,6 +11,10 @@ export interface LoadedFont {
   /** Cap height in font units, used to bound the optical measurement band. */
   capHeight: number
   xHeight: number
+  /** Top of the tallest ink, in font units above the baseline. */
+  ascender: number
+  /** Bottom of the deepest ink, in font units (negative, below the baseline). */
+  descender: number
   /** Original bytes, kept because export splices a kern table into them. */
   buffer: ArrayBuffer
 }
@@ -47,6 +51,8 @@ export function loadFontFromBuffer(buffer: ArrayBuffer, source = 'uploaded'): Lo
     unitsPerEm,
     capHeight: os2?.sCapHeight ?? unitsPerEm * 0.7,
     xHeight: os2?.sxHeight ?? unitsPerEm * 0.5,
+    ascender: font.ascender ?? unitsPerEm * 0.8,
+    descender: font.descender ?? -unitsPerEm * 0.2,
     buffer,
   }
 }
@@ -279,13 +285,20 @@ export function measurePair(
   drawGlyphInto(ctx, lGlyph, PAD_PX, baselineY, RENDER_PX, '#111111')
   drawGlyphInto(ctx, rGlyph, PAD_PX + (lAdvance + kern) * scale, baselineY, RENDER_PX, '#111111')
 
+  // The FULL ink height, not the cap band.
+  //
+  // Measuring baseline-to-cap-height missed the two places pairs actually
+  // collide: ascenders and descenders. On `f)` the pinch is the f's upper
+  // terminal against the top of the bracket, well above cap height, so the
+  // walk never saw it — it reported a flat 114 units at every value tried,
+  // which read as roomy and was simply the stem against the bracket's middle.
   const m = measureBand(
     ctx.getImageData(0, 0, width, height),
     width,
     0,
     width,
-    Math.max(0, Math.floor(baselineY - lf.capHeight * scale)),
-    Math.min(height - 1, Math.ceil(baselineY)),
+    Math.max(0, Math.floor(baselineY - lf.ascender * scale)),
+    Math.min(height - 1, Math.ceil(baselineY - lf.descender * scale)),
     PAD_PX + lAdvance * scale,
     1 / scale,
     nearUnits(lf),

@@ -18,6 +18,12 @@ export interface StoredPair {
   original: number
   attempts: Attempt[]
   touchedAt?: number
+  /**
+   * Kept across reloads, or a resumed run cannot tell a pair it decided from
+   * one it never reached. Leaving it out made the progress line report 43
+   * changed pairs and 0 reviewed, and print "-43 left as they were".
+   */
+  reviewedAt?: number
 }
 
 export interface StoredSession {
@@ -110,6 +116,7 @@ export function toStored(pairs: Map<string, PairState>): Record<string, StoredPa
       original: p.original,
       attempts: p.attempts,
       touchedAt: p.touchedAt,
+      reviewedAt: p.reviewedAt,
     }
   }
   return out
@@ -134,6 +141,10 @@ export function restore(
       kern: saved.kern,
       attempts: saved.attempts ?? [],
       touchedAt: saved.touchedAt,
+      // Sessions written before reviewedAt was stored still carry the evidence:
+      // a value that differs from the font's own was decided by someone.
+      reviewedAt:
+        saved.reviewedAt ?? (saved.kern !== current.original ? saved.touchedAt : undefined),
       status:
         saved.kern !== current.original
           ? 'adjusted'
