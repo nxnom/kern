@@ -9,6 +9,12 @@ export interface KernApi {
   font: LoadedFont | null
   /** The font loaded right now, which is not always the one a tool captured. */
   getFont: () => LoadedFont | null
+  /**
+   * Returns the new font's name the first time it is called after a swap, and
+   * null thereafter. Every tool trips this once so a stale plan cannot survive
+   * a change of typeface unnoticed.
+   */
+  takeFontChange: () => string | null
   /** Read through a ref so tools never close over stale state. */
   getPairs: () => Map<string, PairState>
   /** Applies values, returning what stuck and what did not. */
@@ -97,6 +103,14 @@ export function useKernTools(api: KernApi) {
       enabled: ready,
       execute: async ({ status }) => {
         api.countCall('list_pairs')
+        const swapped = api.takeFontChange()
+        if (swapped) {
+          return text_(
+            `Stop: the human loaded a different font. The page now has ` +
+              `"${swapped}", and every value and measurement you were working ` +
+              `from belongs to the previous face. Start again with survey_pairs.`,
+          )
+        }
         const wanted = (status ?? 'all') as PairStatus | 'all'
         const shown = [...api.getPairs().values()].filter(
           (p) => wanted === 'all' || p.status === wanted,
@@ -149,6 +163,14 @@ export function useKernTools(api: KernApi) {
       enabled: ready,
       execute: async ({ pairs, status, offset, limit, columns }) => {
         api.countCall('survey_pairs')
+        const swapped = api.takeFontChange()
+        if (swapped) {
+          return text_(
+            `Stop: the human loaded a different font. The page now has ` +
+              `"${swapped}", and every value and measurement you were working ` +
+              `from belongs to the previous face. Start again with survey_pairs.`,
+          )
+        }
         const all = api.getPairs()
         let chosen: PairState[]
         if (pairs?.length) {
@@ -244,6 +266,14 @@ export function useKernTools(api: KernApi) {
       enabled: ready,
       execute: async ({ left, right, kern }) => {
         api.countCall('preview_pair')
+        const swapped = api.takeFontChange()
+        if (swapped) {
+          return text_(
+            `Stop: the human loaded a different font. The page now has ` +
+              `"${swapped}", and every value and measurement you were working ` +
+              `from belongs to the previous face. Start again with survey_pairs.`,
+          )
+        }
         if ([...left].length !== 1 || [...right].length !== 1) {
           throw new Error('left and right must each be exactly one character.')
         }
@@ -323,6 +353,14 @@ export function useKernTools(api: KernApi) {
       enabled: ready,
       execute: async ({ text, note }) => {
         api.countCall('publish_specimen')
+        const swapped = api.takeFontChange()
+        if (swapped) {
+          return text_(
+            `Stop: the human loaded a different font. The page now has ` +
+              `"${swapped}", and every value and measurement you were working ` +
+              `from belongs to the previous face. Start again with survey_pairs.`,
+          )
+        }
         const line = text.slice(0, 60)
         const chars = [...line]
         const pairs = api.getPairs()
@@ -413,14 +451,21 @@ export function useKernTools(api: KernApi) {
       enabled: ready,
       execute: async ({ pairs, force }) => {
         api.countCall('set_kern')
-        // A tool call can outlive the font it was made against: the human is
-        // free to load a different face mid-run, and values computed for one
-        // typeface mean nothing on another.
+        const swapped = api.takeFontChange()
+        if (swapped) {
+          return text_(
+            `Stop: the human loaded a different font. The page now has ` +
+              `"${swapped}", and every value and measurement you were working ` +
+              `from belongs to the previous face. Start again with survey_pairs.`,
+          )
+        }
+        // A call already in flight when the swap happened still holds the old
+        // font, which the epoch check cannot see.
         if (api.getFont() !== font) {
           return text_(
-            `Rejected: the page now has "${api.getFont()?.familyName ?? 'no font'}" ` +
-              `loaded, not "${font!.familyName}". The values you worked out do not ` +
-              `apply to it. Call survey_pairs to look at what is loaded now.`,
+            `Stop: this call was made against "${font!.familyName}", but the page ` +
+              `now has "${api.getFont()?.familyName ?? 'no font'}". Nothing was ` +
+              `applied. Start again with survey_pairs.`,
           )
         }
         const updates = pairs

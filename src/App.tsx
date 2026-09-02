@@ -98,6 +98,14 @@ export default function App() {
 
   const fileInput = useRef<HTMLInputElement>(null)
   const busyTimer = useRef<number | undefined>(undefined)
+  /**
+   * Bumped whenever the human swaps the font. The next tool call, whichever it
+   * is, fails once so the agent learns its plan is stale — then work resumes
+   * normally. Silently continuing against a different typeface is the worst of
+   * the options: every measurement it holds is wrong and nothing says so.
+   */
+  const fontEpoch = useRef(0)
+  const seenEpoch = useRef(0)
   const logId = useRef(0)
   const [callCount, setCallCount] = useState(0)
   const logBody = useRef<HTMLOListElement>(null)
@@ -133,6 +141,9 @@ export default function App() {
   }, [loaded])
 
   async function adopt(lf: LoadedFont) {
+    // Only a swap counts; the first load is not a change.
+    if (loadedRef.current) fontEpoch.current += 1
+    setActivity(null)
     const fresh = initialPairs(lf)
     const id = await fontKey(lf.buffer)
     const saved = loadSession(id)
@@ -294,6 +305,11 @@ export default function App() {
     () => ({
       font: loaded,
       getFont: () => loadedRef.current,
+      takeFontChange: () => {
+        if (seenEpoch.current === fontEpoch.current) return null
+        seenEpoch.current = fontEpoch.current
+        return loadedRef.current?.familyName ?? 'a different font'
+      },
       getPairs: () => pairsRef.current,
       applyKerns,
       highlight,
