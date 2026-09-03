@@ -645,7 +645,7 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className={`app ${detail ? 'has-bar' : ''}`}>
       <header className="head">
         <h1>
           <Wordmark loaded={loaded} pairs={pairs} />
