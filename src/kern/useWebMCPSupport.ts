@@ -27,7 +27,17 @@ interface ModelContextLike extends EventTarget {
 
 /** How long to keep looking, matching Chrome's own demos. */
 const POLL_MS = 500
-const MAX_TRIES = 20
+/**
+ * Say "not supported" after a second and a half, not ten seconds.
+ *
+ * The old code waited twenty polls before admitting the browser had no WebMCP,
+ * so an ordinary Chrome tab showed nothing at all for ten seconds — long
+ * enough that anyone opening the link concluded the detection was broken.
+ */
+const SETTLE_TRIES = 3
+/** Then keep an eye out, slowly, in case an extension installs it late. */
+const SLOW_POLL_MS = 2000
+const MAX_TRIES = SETTLE_TRIES + 60
 
 function readContext(): ModelContextLike | undefined {
   if (typeof document === 'undefined') return undefined
@@ -92,11 +102,14 @@ export function useWebMCPSupport(): WebMCPSupport {
       if (cancelled) return
       const mc = readContext()
       if (mc) return attach(mc)
-      if (++tries >= MAX_TRIES) {
+      tries += 1
+      // Report it once, early, and then carry on watching rather than giving
+      // up: `attach` upgrades the state if the API turns up later.
+      if (tries === SETTLE_TRIES) {
         setSupport((prev) => ({ ...prev, status: 'unsupported' }))
-        return
       }
-      timer = window.setTimeout(look, POLL_MS)
+      if (tries >= MAX_TRIES) return
+      timer = window.setTimeout(look, tries < SETTLE_TRIES ? POLL_MS : SLOW_POLL_MS)
     }
     look()
 
