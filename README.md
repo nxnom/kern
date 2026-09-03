@@ -8,29 +8,35 @@ the same gap and look nothing alike, because the eye reads trapped white, not
 geometry. That is why automatic kerners are mediocre and why type designers
 still do this by hand.
 
-A usable font ships between 1,000 and 5,000 kerning pairs. Setting them takes
-weeks. Kern hands that job to an agent that can see, keeps a human in the loop
-for every value, and exports a real font at the end.
+A typeface has hundreds of pairs that need it. Thomas Phinney documented
+kerning one weight of one typeface: 632 adjustments, about a week of work. Kern
+hands that job to an agent that can see, keeps a human in the loop for every
+value, and exports a real font at the end.
+
+**Live:** https://kern.nxnom.workers.dev
+**Demo video:** https://youtu.be/SGANj6p570o
 
 Built for [The WebMCP Challenge](https://webmcp.devpost.com/).
 
 ## Try it
 
-Open the live URL in **the ChatGPT app's browser with GPT 5.6 or newer**, or in
+Open **https://kern.nxnom.workers.dev/** in **the ChatGPT app's browser with GPT 5.6 or newer**, or in
 **Chrome 149+** with `chrome://flags/#enable-webmcp-testing` enabled, then say:
 
 > Survey the kerning of the loaded font and fix what needs it, using this page’s WebMCP tools.
 
-The page carries a copy button for that line, because the wording matters — see
-[Naming beats documentation](#naming-beats-documentation).
+The page carries a copy button for this prompt to make it easy to paste into the agent. 
 
 Without WebMCP the page still works by hand, and says so rather than failing
 silently.
 
 ## What you will see
 
-- **A grid of 51 pairs**, each with its trapped white painted amber. Amber is
-  unfinished work.
+- **A grid of pairs**, each with the trapped white space tinted, so you can see
+  the shape the eye is actually judging. It opens on **Essential** — the pairs
+  every face needs, 51 in the bundled sample — and you can widen it to
+  **Standard** or **Everything**, which is generated from the loaded font's own
+  coverage rather than a fixed list.
 - **A live indicator** naming the pair or batch the agent is looking at, with
   the tile lit and scrolled into view.
 - **Hover any changed tile** to see what it looked like before.
@@ -48,23 +54,29 @@ these pairs — so there is genuine work to do rather than values to nudge.
 
 ## The tools
 
-Five, registered on `document.modelContext`. Reads are marked `readOnlyHint`;
-exactly one tool writes.
+Eight, registered on `document.modelContext`. The four read tools are marked
+`readOnlyHint`; all eight carry `untrustedContentHint`, because every answer
+repeats the font's family name and that comes from a file you supplied.
 
 | Tool | Does |
 |---|---|
 | `list_pairs` | Text-only inventory: value, status, shape class, attempts. Cheap planning. |
-| `survey_pairs` | Up to 24 pairs on one labelled contact sheet, with a metrics table. |
-| `preview_pair` | One pair, large, at a proposed value. **Changes nothing.** |
-| `publish_specimen` | Writes the agent's chosen line to the page and returns the render. |
-| `set_kern` | Applies values to many pairs. The only writer. |
+| `survey_pairs` | 36 pairs to screen, or 12 large enough to judge, on one labelled sheet. |
+| `preview_pair` | One pair at several candidate values, side by side. **Changes nothing.** |
+| `preview_pairs` | Several pairs at several values — one sheet, one call. |
+| `publish_specimen` | Sets a line of real words as the proof, shipped against kerned. |
+| `set_kern` | Applies values to many pairs. |
+| `revert` | Puts pairs back to what the font shipped. |
+| `export_font` | Writes the kerned `.ttf`, with real GPOS and `kern` tables. |
 
-**Export is not a tool.** The agent kerns; only a human ships the font.
+Six of the eight answer with a picture. `export_font` runs only when you ask
+for the file — the tool description tells the agent not to call it to round off
+a run.
 
 ### The tool surface changes with state
 
-No font, no tools: the five register only once a font is in memory, and loading
-a different one unregisters and re-registers them. That goes through
+No font, no tools: they register only once a font is in memory, and loading a
+different one unregisters and re-registers them. That goes through
 `AbortController` and fires `toolchange`.
 
 ## Notes
@@ -103,14 +115,17 @@ a version without promoting it to the live URL.
 ## Stack
 
 Vite, React 19, TypeScript. `opentype.js` for font parsing. No backend, no API
-keys, no network calls at runtime.
+keys, no third-party requests — the only fetch is the bundled sample font from
+the same origin, and fonts you load yourself never leave the browser.
 
 Tools are registered directly against `document.modelContext.registerTool()` in
 `src/kern/useWebMCPTool.ts` — one `AbortController` per registration, aborted on
 unmount or when a tool's `enabled` goes false, which is what fires `toolchange`.
-[`@mcp-b/global`](https://mcp-b.ai/) supplies `document.modelContext` in
-browsers that lack it, and defers to the native implementation where Chrome
-provides one.
+
+There is no MCP library and no polyfill. An early version used one; it was
+removed so the specification call is the only thing between this app and the
+browser. Where `document.modelContext` does not exist, the page says so and
+stays usable by hand.
 
 ## Licence
 

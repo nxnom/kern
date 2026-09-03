@@ -2,16 +2,6 @@ import { useEffect } from 'react'
 
 /**
  * Register a tool on `document.modelContext`, the WebMCP API itself.
- *
- * MCP-B's `usewebmcp` hook does this too, and does it well — but it hides the
- * one call this whole project is about. Registering directly keeps the spec's
- * API visible in the source, and makes the lifecycle explicit: an
- * AbortController per registration, aborted on unmount or when `enabled` goes
- * false, which is what fires `toolchange` for the agent.
- *
- * There is no polyfill behind this. `document.modelContext` is either provided
- * by the browser or it is not, and when it is not the page stays a manual
- * kerning workbench rather than pretending an agent could reach it.
  */
 export interface ToolResult {
   content: (
