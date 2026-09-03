@@ -67,7 +67,15 @@ const text_ = (s: string) => ({ content: [{ type: 'text' as const, text: s }] })
  * concurrently is therefore said in the description, because there is nowhere
  * structural to put it.
  */
-const READ_ONLY = { readOnlyHint: true }
+/**
+ * Every reply carries the loaded font's family name, and that string comes out
+ * of the name table of a file the reader handed us. A font can be built with
+ * anything in there, including text shaped like instructions, so the payload is
+ * labelled untrusted on every tool. `sanitise` below is the other half: the
+ * label warns the agent, the trim removes the means.
+ */
+const UNTRUSTED = { untrustedContentHint: true }
+const READ_ONLY = { readOnlyHint: true, ...UNTRUSTED }
 
 
 /**
@@ -240,8 +248,21 @@ function stopForFontChange(api: KernApi, swapped: string) {
  * — and can tell, across a pause or a fresh chat, whether the page still has
  * the one it planned against.
  */
+/**
+ * A font's name, made safe to repeat.
+ *
+ * Line breaks are what turn an echoed string into what looks like a new
+ * instruction, so they go, along with anything else non-printing, and the
+ * result is capped. A name table is not a place to take dictation from.
+ */
+function sanitise(name: string | undefined | null): string {
+  if (!name) return 'none'
+  // eslint-disable-next-line no-control-regex
+  return name.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim().slice(0, 64) || 'none'
+}
+
 function stamp(api: KernApi, rescoped?: string | null): string {
-  const line = `font: ${api.font?.familyName ?? 'none'} (${api.fontId ?? '—'})`
+  const line = `font: ${sanitise(api.font?.familyName)} (${api.fontId ?? '—'})`
   const head = rescoped ? `${rescoped}\n\n${line}` : line
   if (guidanceGiven) return head
   guidanceGiven = true
@@ -418,7 +439,7 @@ export function useKernTools(api: KernApi) {
       name: 'list_pairs',
       description:
         'Kern is a font-kerning workbench. ' +
-        'SAFE TO RUN CONCURRENTLY — issue as many of these as you like in one turn, including several at once. They never change the font. What they do record — which values you have previewed, which pairs you have looked at — is additive, so no two calls can conflict and the order they land in does not matter. Waiting for each one in turn is most of the time a run takes.' +
+        'SAFE TO RUN CONCURRENTLY — send as many as you like in one turn.' +
         ' These tools operate on the font file ' +
         'loaded in the app, not on the web page’s own CSS. List the pairs with ' +
         'their current value, status and shape class. The list is the classic ' +
@@ -487,7 +508,7 @@ export function useKernTools(api: KernApi) {
       name: 'survey_pairs',
       description:
         'Kern is a font-kerning workbench. ' +
-        'SAFE TO RUN CONCURRENTLY — issue as many of these as you like in one turn, including several at once. They never change the font. What they do record — which values you have previewed, which pairs you have looked at — is additive, so no two calls can conflict and the order they land in does not matter. Waiting for each one in turn is most of the time a run takes.' +
+        'SAFE TO RUN CONCURRENTLY — send as many as you like in one turn.' +
         ' Use these tools rather than screenshots or the DOM — the page cannot be kerned by CSS. Render up to 36 pairs to screen, or 12 large enough to judge, onto one labelled contact sheet and return it ' +
         'with a metrics table. This is the fast way to work: survey a batch, find ' +
         'the two or three that look wrong, then zoom in with preview_pair. Prefer ' +
@@ -640,7 +661,7 @@ export function useKernTools(api: KernApi) {
       name: 'preview_pair',
       description:
         'Kern is a font-kerning workbench. ' +
-        'SAFE TO RUN CONCURRENTLY — issue as many of these as you like in one turn, including several at once. They never change the font. What they do record — which values you have previewed, which pairs you have looked at — is additive, so no two calls can conflict and the order they land in does not matter. Waiting for each one in turn is most of the time a run takes.' +
+        'SAFE TO RUN CONCURRENTLY — send as many as you like in one turn.' +
         ' PREVIEW ONLY — this changes nothing. Render a single pair large at a given ' +
         'kerning value and return the image with its measurements. Use it after ' +
         'survey_pairs when one pair needs a closer look. Once you are happy with a ' +
@@ -787,6 +808,7 @@ export function useKernTools(api: KernApi) {
         'Cover as many of the pairs you changed as you can — that is what the line ' +
         'is for. Real words are nicer to read than fragments, but coverage matters ' +
         'more than grammar, so do not drop a pair to keep the sentence tidy.',
+      annotations: UNTRUSTED,
       inputSchema: {
         type: 'object',
         properties: {
@@ -874,7 +896,7 @@ export function useKernTools(api: KernApi) {
       name: 'preview_pairs',
       description:
         'Kern is a font-kerning workbench. ' +
-        'SAFE TO RUN CONCURRENTLY — issue as many of these as you like in one turn, including several at once. They never change the font. What they do record — which values you have previewed, which pairs you have looked at — is additive, so no two calls can conflict and the order they land in does not matter. Waiting for each one in turn is most of the time a run takes.' +
+        'SAFE TO RUN CONCURRENTLY — send as many as you like in one turn.' +
         ' Compare several pairs at several ' +
         'candidate values in ONE sheet — one row per pair, one column per value, ' +
         'each cell labelled. Use this instead of calling preview_pair over and ' +
@@ -1013,6 +1035,7 @@ export function useKernTools(api: KernApi) {
         'shipped with. Use it when a change made the rhythm worse, or to clear a ' +
         'line of work and start it again. Reverting is not failure — it is cheaper ' +
         'than guessing another value on top of a bad one.',
+      annotations: UNTRUSTED,
       inputSchema: {
         type: 'object',
         properties: {
@@ -1077,6 +1100,7 @@ export function useKernTools(api: KernApi) {
         'for it. Values you did not preview are checked against that range and ' +
         'rejected individually; the rest of the batch still applies. Pairs you ' +
         'judged together on one sheet can be applied together in one call.',
+      annotations: UNTRUSTED,
       inputSchema: {
         type: 'object',
         properties: {
@@ -1125,8 +1149,8 @@ export function useKernTools(api: KernApi) {
               {
                 type: 'text' as const,
                 text:
-                  `STOP. This call was made against "${font!.familyName}", but the ` +
-                  `page now has "${api.getFont()?.familyName ?? 'no font'}". Nothing ` +
+                  `STOP. This call was made against "${sanitise(font!.familyName)}", ` +
+                  `but the page now has "${sanitise(api.getFont()?.familyName)}". Nothing ` +
                   `was applied. End your turn and tell the user the font changed ` +
                   `mid-run, so this one has stopped.`,
               },
@@ -1236,6 +1260,7 @@ export function useKernTools(api: KernApi) {
         'round off a run: exporting writes to their disk, and they may still be ' +
         'deciding. Finishing without it is normal \u2014 say the font is ready and ' +
         'let them ask. Applying values alone does not produce a file.',
+      annotations: UNTRUSTED,
       inputSchema: { type: 'object', properties: {} } as const,
       enabled: ready,
       execute: async () => {
@@ -1249,7 +1274,7 @@ export function useKernTools(api: KernApi) {
                 type: 'text' as const,
                 text:
                   `STOP. Nothing was exported: this call was made against ` +
-                  `"${font!.familyName}" but the page now has a different font.`,
+                  `"${sanitise(font!.familyName)}" but the page now has a different font.`,
               },
             ],
             isError: true,
