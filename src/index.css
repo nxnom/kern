@@ -284,7 +284,12 @@ button svg { flex: none; }
 .status.error ol { margin: 0; padding-left: 18px; }
 .status.error li { margin-bottom: 4px; list-style: decimal; }
 .status.error code { background: #fff; color: var(--red); word-break: break-all; }
-.status.error .verify { border-color: var(--red); background: #fff; color: var(--red); }
+.status.error .verify {
+  border-color: var(--red); background: #fff; color: var(--red);
+  /* The hint sits immediately after this button, and without the gap the two
+     read as one run of text. */
+  margin-right: 12px;
+}
 .status.error .muted { color: var(--red); }
 
 .error {
