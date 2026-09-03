@@ -28,13 +28,15 @@ interface ModelContextLike extends EventTarget {
 /** How long to keep looking, matching Chrome's own demos. */
 const POLL_MS = 500
 /**
- * Say "not supported" after a second and a half, not ten seconds.
+ * Say "not supported" on the very first look.
  *
- * The old code waited twenty polls before admitting the browser had no WebMCP,
- * so an ordinary Chrome tab showed nothing at all for ten seconds — long
- * enough that anyone opening the link concluded the detection was broken.
+ * A browser that implements WebMCP has `document.modelContext` before our
+ * script runs, so an absence at mount is the answer, not a race. This used to
+ * wait twenty polls — ten seconds of a blank page — which read as broken
+ * detection. The slow watch below still catches an extension that installs the
+ * API late, and upgrades the state when it does.
  */
-const SETTLE_TRIES = 3
+const SETTLE_TRIES = 1
 /** Then keep an eye out, slowly, in case an extension installs it late. */
 const SLOW_POLL_MS = 2000
 const MAX_TRIES = SETTLE_TRIES + 60

@@ -24,8 +24,16 @@ export function WebMCPStatus({
 
   if (support.status === 'unsupported') {
     return (
-      <div className="status error" role="alert">
-        <h2>WebMCP is not available in this browser</h2>
+      // Collapsed by default. Kerning by hand is a real use of this page, and a
+      // half-screen of setup instructions above the work is a poor greeting for
+      // someone who only wants to try it.
+      <details className="status error">
+        <summary>
+          <b>No WebMCP in this browser</b>
+          <span className="muted">
+            Kern still works by hand · open for how to let an agent drive it
+          </span>
+        </summary>
         <p>
           Kern hands its tools to an AI agent through <code>document.modelContext</code>,
           which this browser does not provide. Everything below still works by hand —
@@ -68,7 +76,7 @@ export function WebMCPStatus({
           Paste it in DevTools. An object means it works; <code>undefined</code> means
           the flag did not take.
         </span>
-      </div>
+      </details>
     )
   }
 
